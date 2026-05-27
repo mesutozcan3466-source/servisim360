@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // geocoding paketi kullanilmiyor - fiyat Firestore'dan cekilir
 import 'fiyat_yonetim_screen.dart';
@@ -50,6 +53,16 @@ class _VeliBasvuruFormScreenState extends State<VeliBasvuruFormScreen> {
   final _notCtrl       = TextEditingController();
   String _servisTip    = 'sabah_aksam'; // sabah / aksam / sabah_aksam
   bool _gonderiyor     = false;
+
+  // PDF kayit belgesi icin
+  String  _pdfOgrenciAd = '';
+  String  _pdfVeliAd    = '';
+  String  _pdfTel       = '';
+  String  _pdfAdres     = '';
+  String  _pdfSinif     = '';
+  String  _pdfFirmaAd   = '';
+  String  _pdfTarih     = '';
+  double? _pdfUcret;
 
   @override
   void initState() {
@@ -250,6 +263,16 @@ class _VeliBasvuruFormScreenState extends State<VeliBasvuruFormScreen> {
         'olusturma': FieldValue.serverTimestamp(),
       });
 
+      // PDF için bilgileri sakla
+      final now = DateTime.now();
+      _pdfOgrenciAd = _ogrenciAdCtrl.text.trim();
+      _pdfVeliAd    = _veliAdCtrl.text.trim();
+      _pdfTel       = _veliTelCtrl.text.trim();
+      _pdfAdres     = _adresCtrl.text.trim();
+      _pdfSinif     = _sinifCtrl.text.trim();
+      _pdfFirmaAd   = _firmaAdi;
+      _pdfUcret     = _hesaplananUcret;
+      _pdfTarih     = '${now.day.toString().padLeft(2,'0')}.${now.month.toString().padLeft(2,'0')}.${now.year}';
       if (mounted) setState(() => _adim = 3);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -566,6 +589,90 @@ class _VeliBasvuruFormScreenState extends State<VeliBasvuruFormScreen> {
   }
 
   // ── Adim 3: Basari ────────────────────────────────────────────
+
+  Future<void> _pdfKayitBelgesi() async {
+    final pdf = pw.Document();
+    pdf.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(32),
+      build: (ctx) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('1a3a6b'),
+              borderRadius: pw.BorderRadius.circular(8),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Servisim360',
+                    style: pw.TextStyle(color: PdfColors.white,
+                        fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Servis Kayit Belgesi',
+                    style: pw.TextStyle(color: PdfColors.grey300, fontSize: 13)),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text(_pdfFirmaAd,
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.Text('Kayit Tarihi: $_pdfTarih',
+              style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+          pw.SizedBox(height: 20),
+          pw.Divider(),
+          pw.SizedBox(height: 12),
+          pw.Text('OGRENCI BILGILERI',
+              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('1a3a6b'))),
+          pw.SizedBox(height: 8),
+          _pdfSatir('Ogrenci Adi', _pdfOgrenciAd),
+          if (_pdfSinif.isNotEmpty) _pdfSatir('Sinif', _pdfSinif),
+          pw.SizedBox(height: 16),
+          pw.Text('VELI BILGILERI',
+              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromHex('1a3a6b'))),
+          pw.SizedBox(height: 8),
+          _pdfSatir('Veli Adi',  _pdfVeliAd),
+          _pdfSatir('Telefon',   _pdfTel),
+          _pdfSatir('Adres',     _pdfAdres),
+          if (_pdfUcret != null)
+            _pdfSatir('Ucret', '${_pdfUcret!.toStringAsFixed(0)} TL / ay'),
+          pw.SizedBox(height: 20),
+          pw.Divider(),
+          pw.SizedBox(height: 12),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('FFF3E0'),
+              borderRadius: pw.BorderRadius.circular(8),
+            ),
+            child: pw.Text('Durum: ONAY BEKLENIYOR',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('E65100'))),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text('Bu belge Servisim360 tarafindan olusturulmustur.',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+        ],
+      ),
+    ));
+    await Printing.layoutPdf(onLayout: (fmt) async => pdf.save());
+  }
+
+  pw.Widget _pdfSatir(String baslik, String deger) => pw.Padding(
+    padding: const pw.EdgeInsets.only(bottom: 5),
+    child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+      pw.SizedBox(width: 110,
+          child: pw.Text('$baslik:',
+              style: pw.TextStyle(color: PdfColors.grey700))),
+      pw.Expanded(child: pw.Text(deger,
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+    ]),
+  );
+
   Widget _basariAdimi() {
     return Center(child: Padding(
       padding: const EdgeInsets.all(32),
@@ -598,6 +705,22 @@ class _VeliBasvuruFormScreenState extends State<VeliBasvuruFormScreen> {
             Expanded(child: Text('Basvurunuz onaylandiginda WhatsApp ile bilgilendirileceksiniz.',
                 style: TextStyle(fontSize: 12, color: Colors.orange))),
           ]),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1a3a6b),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: _pdfKayitBelgesi,
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: const Text('Kayit Belgesini Indir (PDF)',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ),
       ]),
     ));

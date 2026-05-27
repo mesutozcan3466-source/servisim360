@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
+import '../services/push_bildirim_service.dart';
 
 class YoklamaScreen extends StatefulWidget {
   const YoklamaScreen({super.key});
@@ -83,7 +84,56 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
         'tip':       durum,
         'tarih':     Timestamp.now(),
       });
+      // Öğrencinin şoförüne push bildirim gönder
+      await _soforePushGonder(ogrenciId, ad, durum);
       if (mounted) setState(() => _durumlar[ogrenciId] = durum);
+    }
+  }
+
+
+  // Şoföre push bildirimi gönder
+  Future<void> _soforePushGonder(String ogrenciId, String ogrenciAd, String durum) async {
+    try {
+      // Öğrencinin şoförünü bul
+      final ogrDoc = await FirebaseFirestore.instance
+          .collection('students').doc(ogrenciId).get();
+      final surucuId = ogrDoc.data()?['surucuId'] as String?;
+      if (surucuId == null || surucuId.isEmpty) return;
+
+      // Şoförün FCM token'ını bul
+      final soforDoc = await FirebaseFirestore.instance
+          .collection('drivers').doc(surucuId).get();
+      final fcmToken = soforDoc.data()?['fcmToken'] as String?;
+
+      final mesaj = durum == 'gelmeyecek'
+          ? '$ogrenciAd bugun servise gelmeyecek.'
+          : '$ogrenciAd gecikecek.';
+
+      // Bildirimi Firestore'a yaz (Cloud Functions tetikler veya manuel göster)
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'aliciId':    surucuId,
+        'aliciToken': fcmToken ?? '',
+        'baslik':     'Devamsizlik Bildirimi',
+        'mesaj':      mesaj,
+        'tip':        'devamsizlik',
+        'ogrenciId':  ogrenciId,
+        'ogrenciAd':  ogrenciAd,
+        'firmaId':    _firmaId,
+        'okundu':     false,
+        'tarih':      FieldValue.serverTimestamp(),
+      });
+
+      // FCM token varsa direkt push dene
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        await PushBildirimService.tokenaPushGonder(
+          token:  fcmToken,
+          baslik: 'Devamsizlik Bildirimi',
+          mesaj:  mesaj,
+          data:   {'tip': 'devamsizlik', 'ogrenciId': ogrenciId},
+        );
+      }
+    } catch (e) {
+      debugPrint('Sofor push hatasi: $e');
     }
   }
 

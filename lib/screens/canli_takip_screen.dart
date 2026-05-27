@@ -53,7 +53,13 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
   bool _hata            = false;
   int? _tahminiDakika;
   int? _mesafeMetre;
-  String _oncekiOgrenci = '';
+  String _oncekiOgrenci  = '';
+  int    _benimSiram     = -1;   // Rota sırasında benim index'im
+  int    _soforSirasi    = -1;   // Şoförün şu an kaçıncı durağa gidiyor
+  int    _kacDurakKaldi  = -1;   // Bana kaç durak kaldı
+  bool   _2durakBildirimi = false; // "2 durak sonra" bildirimi verildi mi
+  bool   _1durakBildirimi = false; // "1 durak sonra" bildirimi verildi mi
+  bool   _hazirolBildirimi = false; // "Hazır ol" bildirimi
 
   // Servis saati durumu
   bool _servisSaatiMi   = false;
@@ -311,7 +317,7 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
           icon: BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueGreen),
           infoWindow: InfoWindow(
-            title: '🚌 ${_sofor?['ad'] ?? 'Servis Araci'}',
+            title: '${_sofor?['ad'] ?? 'Servis Araci'}',
             snippet: _tahminiDakika != null
                 ? 'Tahmini: $_tahminiDakika dk'
                 : 'Aktif servis',
@@ -327,7 +333,7 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
           icon: BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueBlue),
           infoWindow: InfoWindow(
-            title: '📍 ${_ogrenci?['ad'] ?? ''} Duragi',
+            title: '${_ogrenci?['ad'] ?? ''} Duragi',
             snippet: _ogrenci?['durakAdi'] ?? '',
           ),
         ));
@@ -470,6 +476,7 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
         oncekiOgrenci: _oncekiOgrenci,
         ogrenciBindi:  _ogrenci?['bindi'] == true,
         servisMod:     _servisMod,
+        kacDurakKaldi: _kacDurakKaldi,
       ),
       Expanded(
         child: servisAktif && _soforKonum != null
@@ -670,6 +677,7 @@ class _DurumBandi extends StatelessWidget {
   final int? tahminiDakika;
   final int? mesafeMetre;
   final String oncekiOgrenci;
+  final int    kacDurakKaldi;
   final bool ogrenciBindi;
   final String servisMod;
 
@@ -682,6 +690,7 @@ class _DurumBandi extends StatelessWidget {
     required this.tahminiDakika,
     required this.mesafeMetre,
     required this.oncekiOgrenci,
+    this.kacDurakKaldi = -1,
     required this.ogrenciBindi,
     required this.servisMod,
   });
@@ -757,6 +766,32 @@ class _DurumBandi extends StatelessWidget {
             ],
           ),
         ),
+        // Kaç durak kaldı göstergesi
+        if (kacDurakKaldi >= 0 && kacDurakKaldi <= 5)
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: kacDurakKaldi == 0 ? Colors.green
+                  : kacDurakKaldi == 1 ? Colors.orange
+                  : Colors.blue,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(
+                  kacDurakKaldi == 0 ? Icons.where_to_vote_outlined
+                      : kacDurakKaldi == 1 ? Icons.directions_run
+                      : Icons.directions_bus_outlined,
+                  color: Colors.white, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                kacDurakKaldi == 0 ? 'Servis Duraginizda!'
+                    : kacDurakKaldi == 1 ? '1 Durak Kaldi — Hazir Olun!'
+                    : '$kacDurakKaldi Durak Kaldi',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+            ]),
+          ),
         if (oncekiOgrenci.isNotEmpty)
           Container(
             padding: const EdgeInsets.symmetric(
@@ -894,4 +929,13 @@ class _SaatSatiri extends StatelessWidget {
             fontWeight: FontWeight.bold,
             color: Colors.black87)),
   ]);
+}
+
+class _CanliDurakGrubu {
+  final int    sira;
+  final List<String> ogrenciIds;
+  bool   hepsiBindi;
+  final double lat, lng;
+  _CanliDurakGrubu({required this.sira, required this.ogrenciIds,
+    required this.hepsiBindi, required this.lat, required this.lng});
 }

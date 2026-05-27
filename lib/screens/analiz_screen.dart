@@ -107,21 +107,50 @@ class _AnalizScreenState extends State<AnalizScreen>
 
   Future<List<_RotaVeri>> _rotaDolulukCek(FirebaseFirestore db) async {
     try {
-      final snap = await db.collection('routes')
-          .where('firmaId', isEqualTo: _firmaId).limit(6).get();
-      return snap.docs.map((d) {
-        final data     = d.data();
-        final kapasite = (data['kapasite']     as num?)?.toDouble() ?? 20;
-        final mevcut   = (data['ogrenciSayisi'] as num?)?.toDouble() ?? 0;
-        return _RotaVeri(
-          ad: data['ad'] as String? ?? 'Rota',
-          dolulukYuzdesi: kapasite > 0
-              ? (mevcut / kapasite * 100).clamp(0, 100)
-              : 0,
-          kapasite: kapasite.round(),
-          mevcut: mevcut.round(),
-        );
-      }).toList();
+      // Önce routes koleksiyonunu dene
+      final routesSnap = await db.collection('routes')
+          .where('firmaId', isEqualTo: _firmaId).limit(8).get();
+      if (routesSnap.docs.isNotEmpty) {
+        return routesSnap.docs.map((d) {
+          final data     = d.data();
+          final kapasite = (data['kapasite']     as num?)?.toDouble() ?? 20;
+          final mevcut   = (data['ogrenciSayisi'] as num?)?.toDouble() ?? 0;
+          return _RotaVeri(
+            ad: data['ad'] as String? ?? 'Rota',
+            dolulukYuzdesi: kapasite > 0 ? (mevcut / kapasite * 100).clamp(0, 100) : 0,
+            kapasite: kapasite.round(),
+            mevcut: mevcut.round(),
+          );
+        }).toList();
+      }
+
+      // Routes boşsa drivers + students bazlı hesapla
+      final driverSnap = await db.collection('drivers')
+          .where('firmaId', isEqualTo: _firmaId).get();
+      final projeId = SessionService.instance.aktifProjeld ?? '';
+
+      final liste = <_RotaVeri>[];
+      for (final dDoc in driverSnap.docs) {
+        final dData = dDoc.data();
+        final ad    = '${dData['ad'] ?? 'Sofor'} — ${dData['aracPlaka'] ?? ''}';
+        final kapasite = (dData['kapasite'] as num?)?.toInt() ?? 16;
+
+        // Bu şoföre atanmış öğrenci sayısı
+        var q = db.collection('students')
+            .where('firmaId', isEqualTo: _firmaId)
+            .where('surucuId', isEqualTo: dDoc.id);
+        if (projeId.isNotEmpty) q = q.where('projeId', isEqualTo: projeId);
+        final ogrSnap = await q.get();
+        final mevcut  = ogrSnap.docs.length;
+
+        liste.add(_RotaVeri(
+          ad: ad,
+          dolulukYuzdesi: kapasite > 0 ? (mevcut / kapasite * 100).clamp(0, 100) : 0,
+          kapasite: kapasite,
+          mevcut: mevcut,
+        ));
+      }
+      return liste;
     } catch (_) { return []; }
   }
 

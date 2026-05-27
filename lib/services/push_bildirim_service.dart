@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -134,4 +135,31 @@ class PushBildirimService {
 
   // ── Tum Bildirimleri Temizle ─────────────────────────────────────────────────
   static Future<void> tumBildirimleriTemizle() async => _plugin.cancelAll();
+
+  // ── Token'a direkt push gönder (Cloud Functions olmadan) ─────────────────────
+  /// NOT: Güvenli değil — production'da Cloud Functions kullan.
+  /// Şimdilik Firestore'a yaz, şoför panel dinleyici gösterir.
+  static Future<void> tokenaPushGonder({
+    required String token,
+    required String baslik,
+    required String mesaj,
+    Map<String, String>? data,
+  }) async {
+    // Firestore notifications koleksiyonuna yaz
+    // Şoför paneli bu koleksiyonu dinleyerek in-app gösterir
+    // Cloud Functions kurulduğunda bu metod FCM REST API'ye bağlanır
+    try {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'token':  token,
+        'baslik': baslik,
+        'mesaj':  mesaj,
+        'data':   data ?? {},
+        'okundu': false,
+        'tarih':  FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('tokenaPushGonder hata: $e');
+    }
+  }
+
 }

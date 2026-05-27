@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -27,7 +28,7 @@ class _RolYonlendiriciState extends State<RolYonlendirici> {
   // Admin rolleri — onay beklemiyor
   bool _adminRolMu(String? rol) {
     return rol == 'admin' || rol == 'firmaAdmin' || rol == 'kolejAdmin' ||
-        rol == 'superAdmin' || rol == 'superadmin';
+        rol == 'superAdmin' || rol == 'superadmin' || rol == 'sekreter';
   }
 
   Future<void> _yonlendir() async {
@@ -207,6 +208,9 @@ class _RolYonlendiriciState extends State<RolYonlendirici> {
       case 'firmaAdmin':
       case 'kolejAdmin':
         _git('/dashboard');
+        break;
+      case 'sekreter':
+        _git('/sekreter');
         break;
       case 'sofor':
         _git('/sofor_panel');

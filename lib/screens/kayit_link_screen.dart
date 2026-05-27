@@ -60,6 +60,28 @@ class _KayitLinkScreenState extends State<KayitLinkScreen> {
         const SnackBar(content: Text('Link kopyalandi!'), backgroundColor: Colors.green));
   }
 
+
+  // SMS ile paylaşım
+  Future<void> _smsPaylasim() async {
+    if (_kayitLinki.isEmpty) return;
+    final mesaj = Uri.encodeComponent(
+        'Servis kaydi icin bu linke tiklayin:\n\$_kayitLinki');
+    final url = Uri.parse('sms:?body=\$mesaj');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('SMS uygulamasi acilamadi'),
+                backgroundColor: Colors.red));
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('SMS gonderilemedi'),
+              backgroundColor: Colors.red));
+    }
+  }
+
   // Tek kisi WhatsApp
   Future<void> _whatsappTekKisi() async {
     final mesaj = _veliMesaji();
@@ -200,6 +222,14 @@ class _KayitLinkScreenState extends State<KayitLinkScreen> {
           _PaylasimButonu(icon: Icons.chat, label: 'WhatsApp ile Paylas',
               aciklama: 'Kisi sec veya gruba gonder', renk: const Color(0xFF25D366),
               onTap: _whatsappTekKisi),
+          const SizedBox(height: 10),
+          _PaylasimButonu(
+            icon: Icons.sms_outlined,
+            label: 'SMS ile Paylas',
+            aciklama: 'Mesaj uygulamasini ac',
+            renk: Colors.blue,
+            onTap: _smsPaylasim,
+          ),
           const SizedBox(height: 24),
 
           // Basvuru istatistigi

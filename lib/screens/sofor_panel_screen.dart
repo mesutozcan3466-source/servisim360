@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../screens/acil_durum_widget.dart';
 import '../screens/qr_checkin_screen.dart';
 import '../screens/sofor_rota_screen.dart';
@@ -31,7 +32,14 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
   bool   _surucuBulunamadi = false;
   bool   _aiAcik = false;
 
+  // Çok-proje sistemi
+  List<Map<String, dynamic>> _projeler  = [];
+  String? _aktifProjeId;
+  String? _aktifProjeAdi;
+  bool   _projelerAcik = false;
+
   StreamSubscription<Position>? _konumStream;
+  StreamSubscription<QuerySnapshot>? _notifStream;
   Timer? _konumTimer;
   Position? _sonKonum;
 
@@ -79,15 +87,108 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         if (data != null && !data.containsKey('uid')) {
           try { await driverDoc.reference.update({'uid': user.uid}); } catch (_) {}
         }
-        final ogrSnap = await FirebaseFirestore.instance
-            .collection('students').where('surucuId', isEqualTo: _surucuId).get();
-        _ogrenciler = ogrSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+
+        // Şoförün aktif projesini al (session'dan veya driver doc'tan)
+        _aktifProjeId  = SessionService.instance.aktifProjeld  ?? _driverDoc['aktifProjeId']  as String?;
+        _aktifProjeAdi = SessionService.instance.aktifProjeAdi ?? _driverDoc['aktifProjeAdi'] as String?;
+
+        // Bu şoföre atanmış projeleri yükle
+        await _projeleriYukle();
+
+        // Öğrencileri yükle (aktif projeye göre)
+        await _ogrencileriYukle();
       } else {
         _surucuBulunamadi = true;
       }
     } catch (e) { debugPrint('Sofor yukle hata: $e'); }
     if (mounted) setState(() => _yukleniyor = false);
     if (_servisAktif && _surucuId.isNotEmpty) _gpsBaslat();
+    if (_surucuId.isNotEmpty) {
+      _notifDinle();
+      _fcmTokenKaydet();
+      _servisSaatiKontrol();
+    }
+  }
+
+  Future<void> _projeleriYukle() async {
+    if (_surucuId.isEmpty || _firmaId == null) return;
+    try {
+      // Şoförün atandığı projeler — projects koleksiyonunda surucular listesinde uid var
+      final snap = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('firmaId', isEqualTo: _firmaId)
+          .get();
+      final Liste = <Map<String, dynamic>>[];
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final surucular = data['surucular'];
+        bool atanmis = false;
+        if (surucular is List) {
+          atanmis = surucular.contains(_surucuId) || surucular.contains(FirebaseAuth.instance.currentUser?.uid);
+        }
+        // Alternatif: drivers doc'ta projeIds listesi
+        final projeIds = _driverDoc['projeIds'];
+        if (projeIds is List) {
+          atanmis = atanmis || projeIds.contains(doc.id);
+        }
+        // En azından firmaId eşleşiyorsa göster (proje atama yapılmamışsa)
+        if (atanmis || (surucular == null && projeIds == null)) {
+          Liste.add({'id': doc.id, 'ad': data['ad'] ?? data['projeAdi'] ?? doc.id, ...data});
+        }
+      }
+      _projeler = Liste;
+      // Aktif proje yoksa ilkini seç
+      if ((_aktifProjeId == null || _aktifProjeId!.isEmpty) && _projeler.isNotEmpty) {
+        _aktifProjeId  = _projeler.first['id'];
+        _aktifProjeAdi = _projeler.first['ad'];
+        SessionService.instance.aktifProjeAyarla(_aktifProjeId!, _aktifProjeAdi ?? '');
+      }
+    } catch (e) { debugPrint('Proje yukle hata: $e'); }
+  }
+
+  Future<void> _ogrencileriYukle() async {
+    if (_surucuId.isEmpty) return;
+    try {
+      var q = FirebaseFirestore.instance.collection('students').where('surucuId', isEqualTo: _surucuId);
+      if (_aktifProjeId != null && _aktifProjeId!.isNotEmpty) {
+        q = q.where('projeId', isEqualTo: _aktifProjeId);
+      }
+      final ogrSnap = await q.get();
+      _ogrenciler = ogrSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    } catch (e) { debugPrint('Ogrenci yukle hata: $e'); }
+  }
+
+  Future<void> _projeGec(Map<String, dynamic> proje) async {
+    setState(() { _projelerAcik = false; });
+    final yeniId  = proje['id'] as String;
+    final yeniAdi = proje['ad'] as String;
+    if (yeniId == _aktifProjeId) return;
+
+    // Servis aktifse durdur
+    if (_servisAktif) {
+      _gpsDurdur();
+      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
+        'servisAktif': false, 'servisBitis': FieldValue.serverTimestamp()});
+    }
+
+    setState(() {
+      _aktifProjeId  = yeniId;
+      _aktifProjeAdi = yeniAdi;
+      _servisAktif   = false;
+      _yukleniyor    = true;
+    });
+    SessionService.instance.aktifProjeAyarla(yeniId, yeniAdi);
+
+    // Firestore'daki driver doc'u da güncelle
+    try {
+      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
+        'aktifProjeId':  yeniId,
+        'aktifProjeAdi': yeniAdi,
+      });
+    } catch (_) {}
+
+    await _ogrencileriYukle();
+    if (mounted) setState(() => _yukleniyor = false);
   }
 
   Future<void> _gpsBaslat() async {
@@ -101,8 +202,131 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     });
   }
 
+
+
+  // FCM token'ı drivers doc'a kaydet
+  Future<void> _fcmTokenKaydet() async {
+    if (_surucuId.isEmpty) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null && token.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('drivers').doc(_surucuId)
+            .update({'fcmToken': token});
+      }
+    } catch (e) { debugPrint('FCM token hata: \$e'); }
+  }
+
+  // Servis saatine göre GPS otomatik başlat/durdur
+  void _servisSaatiKontrol() {
+    // Her dakika kontrol et
+    Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (!mounted) { timer.cancel(); return; }
+      final now   = TimeOfDay.now();
+      final driverDoc = _driverDoc;
+
+      // Saatleri oku
+      final sabahB = _saatParse(driverDoc['servisSaati']?['sabahBaslangic'] ?? '06:30');
+      final sabahE = _saatParse(driverDoc['servisSaati']?['sabahBitis']     ?? '09:30');
+      final aksamB = _saatParse(driverDoc['servisSaati']?['aksamBaslangic'] ?? '15:00');
+      final aksamE = _saatParse(driverDoc['servisSaati']?['aksamBitis']     ?? '18:30');
+
+      final saatAktif = _saatAraliginda(now, sabahB, sabahE) ||
+          _saatAraliginda(now, aksamB, aksamE);
+
+      // Servis saati başladıysa ve henüz aktif değilse otomatik başlat
+      if (saatAktif && !_servisAktif && _surucuId.isNotEmpty) {
+        debugPrint('Servis saati: GPS otomatik baslatiliyor');
+        // Sadece GPS başlat, servisi otomatik aktif ETME (şoför manuel başlatmalı)
+        // Ama saatte hatırlatma göster
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Servis saati basladi. Servisi baslatmak ister misiniz?'),
+            backgroundColor: Color(0xFF1a3a6b),
+            duration: Duration(seconds: 8),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
+
+      // Servis saati bittiyse ve aktifse otomatik durdur
+      if (!saatAktif && _servisAktif) {
+        debugPrint('Servis saati bitti: GPS durduruluyor');
+        _gpsDurdur();
+        FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
+          'servisAktif': false, 'servisBitis': FieldValue.serverTimestamp()
+        });
+        if (mounted) {
+          setState(() => _servisAktif = false);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Servis saati bitti — Servis otomatik durduruldu.'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
+    });
+  }
+
+  TimeOfDay _saatParse(String saat) {
+    try {
+      final parts = saat.split(':');
+      return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    } catch (_) { return const TimeOfDay(hour: 0, minute: 0); }
+  }
+
+  bool _saatAraliginda(TimeOfDay now, TimeOfDay bas, TimeOfDay bit) {
+    final nowMin = now.hour * 60 + now.minute;
+    final basMin = bas.hour * 60 + bas.minute;
+    final bitMin = bit.hour * 60 + bit.minute;
+    return nowMin >= basMin && nowMin <= bitMin;
+  }
+
+  // Devamsızlık bildirimlerini dinle
+  void _notifDinle() {
+    if (_surucuId.isEmpty) return;
+    _notifStream = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('aliciId', isEqualTo: _surucuId)
+        .where('okundu', isEqualTo: false)
+        .snapshots()
+        .listen((snap) {
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (!mounted) return;
+        // In-app bildirim göster
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Row(children: [
+            const Icon(Icons.notifications_outlined, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(data['baslik'] ?? 'Bildirim',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                Text(data['mesaj'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              ],
+            )),
+          ]),
+          backgroundColor: const Color(0xFF1a3a6b),
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Tamam',
+            textColor: const Color(0xFFFF8C00),
+            onPressed: () {},
+          ),
+        ));
+        // Okundu olarak işaretle
+        doc.reference.update({'okundu': true});
+      }
+    });
+  }
+
   void _gpsDurdur() {
     _konumStream?.cancel(); _konumTimer?.cancel();
+    _notifStream?.cancel();
     _konumStream = null; _konumTimer = null;
   }
 
@@ -172,6 +396,56 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         builder: (_) => _VeliAraSheet(ogrenciler: _ogrenciler));
   }
 
+  // ── PROJE GEÇIŞ SHEET ──
+  void _projeSecimAc() {
+    if (_projeler.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Size atanmis baska proje yok'), backgroundColor: Colors.orange));
+      return;
+    }
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const Text('Proje Sec', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _navy)),
+          const SizedBox(height: 4),
+          Text('Sabah: X Koleji — Oglen: Y Personel',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+          const SizedBox(height: 16),
+          ..._projeler.map((proje) {
+            final secili = proje['id'] == _aktifProjeId;
+            return GestureDetector(
+              onTap: () { Navigator.pop(context); _projeGec(proje); },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: secili ? _navy : Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: secili ? _navy : Colors.grey.shade200),
+                ),
+                child: Row(children: [
+                  Icon(Icons.folder_outlined, color: secili ? Colors.white : _navy, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(proje['ad'] ?? '', style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14,
+                      color: secili ? Colors.white : Colors.black87))),
+                  if (secili) const Icon(Icons.check_circle_outlined, color: _turuncu, size: 20),
+                ]),
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_yukleniyor) return const Scaffold(backgroundColor: _navy,
@@ -202,50 +476,85 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(child: Stack(children: [
         Column(children: [
-          // Baslik
+          // ── BAŞLIK ──
           Container(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
             decoration: const BoxDecoration(
                 gradient: LinearGradient(colors: [_navy, Color(0xFF2a5298)],
                     begin: Alignment.topLeft, end: Alignment.bottomRight)),
-            child: Row(children: [
-              CircleAvatar(radius: 22,
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'S',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(ad, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                Row(children: [
-                  Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 5),
-                      decoration: BoxDecoration(color: _servisAktif ? Colors.green : Colors.white38, shape: BoxShape.circle)),
-                  Text(_servisAktif ? 'Servis Aktif' : 'Hazir',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                ]),
-              ])),
-              // AI Asistan butonu — sag ust
+            child: Column(children: [
+              Row(children: [
+                CircleAvatar(radius: 22,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'S',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(ad, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Row(children: [
+                    Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 5),
+                        decoration: BoxDecoration(color: _servisAktif ? Colors.green : Colors.white38, shape: BoxShape.circle)),
+                    Text(_servisAktif ? 'Servis Aktif' : 'Hazir',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  ]),
+                ])),
+                GestureDetector(
+                    onTap: () => setState(() => _aiAcik = !_aiAcik),
+                    child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            color: _aiAcik ? _turuncu : Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: Icon(Icons.psychology_outlined,
+                            color: _aiAcik ? Colors.white : Colors.white70, size: 20))),
+                const SizedBox(width: 4),
+                IconButton(
+                    icon: const Icon(Icons.key_outlined, color: Colors.white70),
+                    tooltip: 'Sifre Degistir',
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => const SifreDegistirScreen(rol: 'sofor')))),
+                IconButton(
+                    icon: const Icon(Icons.logout_outlined, color: Colors.white70),
+                    onPressed: () async {
+                      await SessionService.instance.cikisYap();
+                      if (mounted) Navigator.pushReplacementNamed(context, '/login');
+                    }),
+              ]),
+
+              // ── AKTİF PROJE SATIRI ──
+              const SizedBox(height: 10),
               GestureDetector(
-                  onTap: () => setState(() => _aiAcik = !_aiAcik),
-                  child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: _aiAcik ? _turuncu : Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Icon(Icons.psychology_outlined,
-                          color: _aiAcik ? Colors.white : Colors.white70, size: 20))),
-              const SizedBox(width: 4),
-              // Sifre degistir
-              IconButton(
-                  icon: const Icon(Icons.key_outlined, color: Colors.white70),
-                  tooltip: 'Sifre Degistir',
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const SifreDegistirScreen(rol: 'sofor')))),
-              IconButton(
-                  icon: const Icon(Icons.logout_outlined, color: Colors.white70),
-                  onPressed: () async {
-                    await SessionService.instance.cikisYap();
-                    if (mounted) Navigator.pushReplacementNamed(context, '/login');
-                  }),
+                onTap: _projeSecimAc,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.folder_outlined, color: _turuncu, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(
+                      _aktifProjeAdi?.isNotEmpty == true
+                          ? _aktifProjeAdi!
+                          : (_projeler.isEmpty ? 'Proje atanmamis' : 'Proje sec'),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
+                    )),
+                    if (_projeler.length > 1) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: _turuncu.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(6)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.swap_horiz, color: _turuncu, size: 14),
+                          const SizedBox(width: 4),
+                          Text('${_projeler.length} proje', style: const TextStyle(color: _turuncu, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ]),
+                      ),
+                    ],
+                  ]),
+                ),
+              ),
             ]),
           ),
 
@@ -255,7 +564,6 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
             padding: const EdgeInsets.all(20),
             child: Column(children: [
 
-              // AI Asistan Panel (aciksa)
               if (_aiAcik) ...[
                 SoforAiAsistanWidget(
                   surucuAd:     ad,
