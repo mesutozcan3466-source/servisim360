@@ -1,0 +1,21 @@
+{
+"functions": {
+"source": "functions",
+"runtime": "nodejs22"
+},
+"hosting": {
+"public": "web",
+"ignore": [
+"firebase.json",
+"**/.*",
+"**/node_modules/**"
+]
+},
+"flutter": {
+"platforms": {
+"android": {
+"app": "com.servisim.servisim"
+}
+}
+}
+}

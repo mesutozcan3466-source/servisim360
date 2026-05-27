@@ -1,0 +1,54 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+*.log
+
+# Android
+android/local.properties
+android/.gradle
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/gradle/wrapper/gradle-wrapper.jar
+**/android/**/GeneratedPluginRegistrant.java
+**/android/**/GeneratedPluginRegistrant.kt
+
+# iOS
+ios/.symlinks/
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/Generated.xcconfig
+
+# ── GÜVENLİK — ASLA GİT'E PUSH ETME ──────────────────────────────────────
+# Keystore
+*.jks
+*.keystore
+key.properties
+android/key.properties
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+
+# API Keys & Secrets
+.env
+.env.local
+secrets.dart
+api_keys.dart
+
+# ─────────────────────────────────────────────────────────────────────────
+# macOS
+.DS_Store
+
+# Coverage
+coverage/

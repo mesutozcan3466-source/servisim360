@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "708576389273",
+    "project_id": "servis360-15b4a",
+    "storage_bucket": "servis360-15b4a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:708576389273:android:80a9abd7f23ae24f97f008",
+        "android_client_info": {
+          "package_name": "com.example.servisim"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDS9WE7zEoXkkTczO6JC-Dxon4oU9RvYx8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:708576389273:android:acd1e5d7788764da97f008",
+        "android_client_info": {
+          "package_name": "com.servisim.servisim"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDS9WE7zEoXkkTczO6JC-Dxon4oU9RvYx8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:708576389273:android:850ea4f6400e954297f008",
+        "android_client_info": {
+          "package_name": "com.servisim360.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDS9WE7zEoXkkTczO6JC-Dxon4oU9RvYx8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
