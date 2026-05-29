@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../services/session_service.dart';
@@ -24,7 +25,6 @@ class _WebHaritaState extends State<WebHarita> {
   Set<Polyline> _polylines = {};
   bool _yukleniyor = true;
   String? _seciliSoforId;
-  bool _rotaGoster = true;
   StreamSubscription? _soforSub;
 
   static const List<Color> _renkler = [
@@ -61,8 +61,6 @@ class _WebHaritaState extends State<WebHarita> {
 
   void _haritaOlustur() {
     final Set<Marker> yeniM = {};
-    final Set<Polyline> yeniP = {};
-
     for (int i = 0; i < _soforler.length; i++) {
       final s = _soforler[i];
       if (_seciliSoforId != null && s['id'] != _seciliSoforId) continue;
@@ -73,25 +71,10 @@ class _WebHaritaState extends State<WebHarita> {
           markerId: MarkerId('s_${s['id']}'),
           position: k,
           icon: BitmapDescriptor.defaultMarkerWithHue(_colorToHue(renk)),
-          infoWindow: InfoWindow(
-            title: s['ad'] ?? 'Sofor',
-            snippet: '${s['aracPlaka'] ?? ''} • ${_ogrenciler.where((o) => (o['surucuId'] ?? '') == s['id']).length} ogr',
-          ),
-        ));
-      }
-      if (_rotaGoster) {
-        final noktalar = (s['rotaNoktalar'] as List?)?.map((p) {
-          if (p is GeoPoint) return LatLng(p.latitude, p.longitude);
-          if (p is Map) return LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble());
-          return null;
-        }).whereType<LatLng>().toList() ?? [];
-        if (noktalar.length > 1) yeniP.add(Polyline(
-          polylineId: PolylineId('r_${s['id']}'),
-          points: noktalar, color: renk, width: 3,
+          infoWindow: InfoWindow(title: s['ad'] ?? 'Sofor'),
         ));
       }
     }
-
     for (final ogr in _ogrenciler) {
       if (_seciliSoforId != null && (ogr['surucuId'] ?? '') != _seciliSoforId) continue;
       final k = _konumAl(ogr);
@@ -104,14 +87,10 @@ class _WebHaritaState extends State<WebHarita> {
         position: k,
         icon: BitmapDescriptor.defaultMarkerWithHue(
             sid.isEmpty ? BitmapDescriptor.hueRed : _colorToHue(renk)),
-        infoWindow: InfoWindow(
-          title: ogr['ad'] ?? 'Ogrenci',
-          snippet: sid.isEmpty ? 'Atanmamis' : _soforlerden(sid),
-        ),
+        infoWindow: InfoWindow(title: ogr['ad'] ?? 'Ogrenci'),
       ));
     }
-
-    if (mounted) setState(() { _markers = yeniM; _polylines = yeniP; });
+    if (mounted) setState(() => _markers = yeniM);
   }
 
   LatLng? _konumAl(Map<String, dynamic> d) {
@@ -135,31 +114,29 @@ class _WebHaritaState extends State<WebHarita> {
     return (h/6*360).clamp(0, 360);
   }
 
-  String _soforlerden(String id) {
+  String _soforAd(String id) {
     final s = _soforler.firstWhere((s) => s['id'] == id, orElse: () => {});
-    return s.isNotEmpty ? s['ad'] ?? 'Sofor' : 'Sofor';
+    return s.isNotEmpty ? s['ad'] ?? 'Sofor' : 'Atanmamis';
   }
 
   @override
   Widget build(BuildContext context) {
-    return _yukleniyor
-        ? const Center(child: CircularProgressIndicator(color: _navy))
-        : Stack(children: [
+    if (_yukleniyor) return const Center(child: CircularProgressIndicator(color: _navy));
+
+    // Web'de GoogleMap JS API gerekiyor — liste görünüm göster
+    if (kIsWeb) return _webListeView();
+
+    return Stack(children: [
       GoogleMap(
         initialCameraPosition: const CameraPosition(target: LatLng(39.9334, 32.8597), zoom: 11),
         markers: _markers, polylines: _polylines,
         onMapCreated: (c) { _mapCtrl = c; },
-        myLocationEnabled: true, myLocationButtonEnabled: false,
-        zoomControlsEnabled: true, mapToolbarEnabled: false,
+        myLocationEnabled: true, zoomControlsEnabled: true,
       ),
-
-      // Üst kontroller
       Positioned(top: 16, left: 16, right: 16, child: Row(children: [
-        // Şoför filtresi
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)]),
           child: DropdownButtonHideUnderline(child: DropdownButton<String?>(
             value: _seciliSoforId,
@@ -168,97 +145,92 @@ class _WebHaritaState extends State<WebHarita> {
               const DropdownMenuItem<String?>(value: null, child: Text('Tum Servisler')),
               ..._soforler.map((s) => DropdownMenuItem<String?>(
                 value: s['id'] as String,
-                child: Row(children: [
-                  Container(width: 10, height: 10, margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                          color: _renkler[_soforler.indexOf(s) % _renkler.length],
-                          shape: BoxShape.circle)),
-                  Text(s['ad'] ?? 'Sofor', style: const TextStyle(fontSize: 13)),
-                ]),
+                child: Text(s['ad'] ?? 'Sofor', style: const TextStyle(fontSize: 13)),
               )),
             ],
             onChanged: (v) { setState(() => _seciliSoforId = v); _haritaOlustur(); },
           )),
         ),
         const SizedBox(width: 10),
-        // Rota toggle
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)]),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            _ToggleBtn('Rota', Icons.route_outlined, _rotaGoster, () {
-              setState(() => _rotaGoster = !_rotaGoster); _haritaOlustur();
-            }),
-          ]),
-        ),
-        const SizedBox(width: 10),
-        // Gruplama butonu
         ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _orange, foregroundColor: Colors.white,
+          style: ElevatedButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
           icon: const Icon(Icons.add_road_outlined, size: 16),
           label: const Text('Rota Olustur', style: TextStyle(fontSize: 12)),
           onPressed: () => Navigator.pushNamed(context, '/gruplama'),
         ),
-        const SizedBox(width: 10),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _navy, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-          icon: const Icon(Icons.location_on_outlined, size: 16),
-          label: const Text('Bolge Ata', style: TextStyle(fontSize: 12)),
-          onPressed: () => Navigator.pushNamed(context, '/bolge_atama'),
-        ),
       ])),
-
-      // Legend
-      Positioned(bottom: 24, left: 16, child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.95),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 6)]),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _LegItem(Colors.red, 'Atanmamis (${_ogrenciler.where((o) => (o['surucuId'] ?? '').toString().isEmpty).length})'),
-          ..._soforler.asMap().entries.take(6).map((e) {
-            final sayi = _ogrenciler.where((o) => (o['surucuId'] ?? '') == e.value['id']).length;
-            return _LegItem(_renkler[e.key % _renkler.length],
-                '${e.value['ad'] ?? 'S${e.key+1}'} ($sayi)');
-          }),
-        ]),
-      )),
     ]);
   }
-}
 
-class _ToggleBtn extends StatelessWidget {
-  final String label; final IconData ikon; final bool aktif; final VoidCallback onTap;
-  const _ToggleBtn(this.label, this.ikon, this.aktif, this.onTap);
-  @override
-  Widget build(BuildContext context) => InkWell(onTap: onTap,
-    child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  Widget _webListeView() => Column(children: [
+    Container(
+      padding: const EdgeInsets.all(12), color: Colors.white,
       child: Row(children: [
-        Icon(ikon, size: 16, color: aktif ? const Color(0xFF1a3a6b) : Colors.grey),
-        const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 12,
-            color: aktif ? const Color(0xFF1a3a6b) : Colors.grey,
-            fontWeight: aktif ? FontWeight.bold : FontWeight.normal)),
+        const Icon(Icons.info_outline, color: _navy, size: 16),
+        const SizedBox(width: 8),
+        const Expanded(child: Text('Harita mobil uygulamada tam calisiyor.',
+            style: TextStyle(color: _navy, fontSize: 12))),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(backgroundColor: _orange, foregroundColor: Colors.white),
+          icon: const Icon(Icons.add_road_outlined, size: 14),
+          label: const Text('Rota Olustur', style: TextStyle(fontSize: 12)),
+          onPressed: () => Navigator.pushNamed(context, '/gruplama'),
+        ),
       ]),
     ),
-  );
-}
-
-class _LegItem extends StatelessWidget {
-  final Color renk; final String etiket;
-  const _LegItem(this.renk, this.etiket);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: 10, height: 10,
-          decoration: BoxDecoration(color: renk, shape: BoxShape.circle)),
-      const SizedBox(width: 6),
-      Text(etiket, style: const TextStyle(fontSize: 11)),
-    ]),
-  );
+    Expanded(child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              const Text('Servis Dagilimlari',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
+              const Spacer(),
+              Text('${_ogrenciler.length} toplam ogrenci',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+            ]),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Row(children: [
+                const Icon(Icons.person_off_outlined, color: Colors.red, size: 16),
+                const SizedBox(width: 8),
+                Text('Atanmamis: ${_ogrenciler.where((o) => (o["surucuId"] ?? "").toString().isEmpty).length} ogrenci',
+                    style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            ..._soforler.asMap().entries.map((e) {
+              final sayi = _ogrenciler.where((o) => (o['surucuId'] ?? '') == e.value['id']).length;
+              final renk = _renkler[e.key % _renkler.length];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(children: [
+                  Container(width: 12, height: 12,
+                      decoration: BoxDecoration(color: renk, shape: BoxShape.circle)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(e.value['ad'] ?? 'Sofor',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                  Text(e.value['aracPlaka'] ?? '', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: renk.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text('$sayi ogrenci', style: TextStyle(fontSize: 11, color: renk, fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+              );
+            }),
+          ]),
+        ),
+      ]),
+    )),
+  ]);
 }

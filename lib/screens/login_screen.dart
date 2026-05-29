@@ -131,7 +131,15 @@ class _LoginScreenState extends State<LoginScreen>
       _snack(e.code == 'wrong-password' || e.code == 'user-not-found'
           ? 'E-posta veya sifre yanlis' : 'Hata: ${e.message}', Colors.red);
     } catch (e) {
-      _snack('Hata: \$e', Colors.red);
+      final msg = e.toString();
+      if (msg.contains('wrong-password') || msg.contains('invalid-credential') ||
+          msg.contains('INVALID_LOGIN_CREDENTIALS') || msg.contains('user-not-found')) {
+        _snack('E-posta veya sifre yanlis', Colors.red);
+      } else if (msg.contains('network')) {
+        _snack('Internet baglantisi yok', Colors.red);
+      } else {
+        _snack(msg.replaceAll('Exception: ', '').replaceAll('[firebase_auth/','').replaceAll(']',''), Colors.red);
+      }
     } finally {
       if (mounted) setState(() => _yukleniyor = false);
     }
