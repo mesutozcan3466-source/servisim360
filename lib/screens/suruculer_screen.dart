@@ -17,7 +17,7 @@ class _SurucularScreenState extends State<SurucularScreen> {
   @override
   void initState() {
     super.initState();
-    SessionService.instance.firmaldAl().then((id) {
+    SessionService.instance.firmaIdAl().then((id) {
       if (mounted) setState(() => _firmaId = id);
     });
   }

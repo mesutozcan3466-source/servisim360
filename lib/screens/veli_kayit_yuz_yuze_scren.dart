@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../services/session_service.dart';
 
 class VeliKayitYuzYuzeScreen extends StatefulWidget {
@@ -24,6 +27,9 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
   final _notCtrl       = TextEditingController();
 
   bool _yukleniyor   = false;
+  bool _kaydedildi   = false;
+  String _kayitliVeliAd = '';
+  String _kayitliOgrAd  = '';
   bool _sozlesmeOnay = false;
   String _sozlesme   = '';
   String _bilgi      = '';
@@ -106,7 +112,7 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
 
     setState(() => _yukleniyor = true);
     try {
-      await FirebaseFirestore.instance.collection('parents').add({
+      final parentRef = await FirebaseFirestore.instance.collection('parents').add({
         'ad':              _adCtrl.text.trim(),
         'soyad':           _soyadCtrl.text.trim(),
         'telefon':         _telCtrl.text.trim(),
@@ -122,18 +128,113 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
         'firmaId':         _firmaId,
         'projeId':         _projeId,
         'projeAdi':        _projeAdi,
-        'durum':           'onayli', // Yüz yüze kayıt direkt onaylı
-        'kayitTarihi':     DateTime.now(),
+        'durum':           'onayli',
+        'kayitTarihi':     FieldValue.serverTimestamp(),
         'kaynak':          'yuz_yuze',
       });
-      _snack('Veli kaydedildi!', Colors.green);
-      if (mounted) Navigator.pop(context);
+
+      // Students koleksiyonuna da ekle (direkt onaylı)
+      await FirebaseFirestore.instance.collection('students').add({
+        'firmaId':   _firmaId,
+        'projeId':   _projeId,
+        'ad':        _ogrAdCtrl.text.trim(),
+        'soyad':     '',
+        'sinif':     _ogrSinifCtrl.text.trim(),
+        'okul':      _ogrOkulCtrl.text.trim(),
+        'adres':     _adresCtrl.text.trim(),
+        'veliId':    parentRef.id,
+        'veliAd':    '${_adCtrl.text.trim()} ${_soyadCtrl.text.trim()}'.trim(),
+        'veliTel':   _telCtrl.text.trim(),
+        'ucret':     _fiyat,
+        'durum':     'onayli',
+        'aktif':     true,
+        'bindi':     false,
+        'kayitTipi': 'yuz_yuze',
+        'olusturma': FieldValue.serverTimestamp(),
+      });
+
+      _kayitliVeliAd = '${_adCtrl.text.trim()} ${_soyadCtrl.text.trim()}'.trim();
+      _kayitliOgrAd  = _ogrAdCtrl.text.trim();
+      if (mounted) setState(() { _kaydedildi = true; _yukleniyor = false; });
     } catch (e) {
-      _snack('Hata: $e', Colors.red);
-    } finally {
-      if (mounted) setState(() => _yukleniyor = false);
+      if (mounted) {
+        setState(() => _yukleniyor = false);
+        _snack('Hata: $e', Colors.red);
+      }
     }
   }
+
+
+  Future<void> _pdfYazdir() async {
+    final pdf = pw.Document();
+    pdf.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(32),
+      build: (ctx) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: double.infinity, padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('1a3a6b'),
+                borderRadius: pw.BorderRadius.circular(8)),
+            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              pw.Text('Servisim360', style: pw.TextStyle(
+                  color: PdfColors.white, fontSize: 20, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Yuz Yuze Kayit Belgesi', style: pw.TextStyle(
+                  color: PdfColors.grey300, fontSize: 12)),
+            ]),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text(_projeAdi, style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+          pw.Text('Kayit Tarihi: ${DateTime.now().day}.${DateTime.now().month}.${DateTime.now().year}',
+              style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+          pw.SizedBox(height: 16),
+          pw.Divider(),
+          pw.SizedBox(height: 12),
+          _pdfBaslik('OGRENCI BILGILERI'),
+          _pdfSatir('Ogrenci Adi', _ogrAdCtrl.text.trim()),
+          _pdfSatir('Sinif', _ogrSinifCtrl.text.trim()),
+          _pdfSatir('Okul', _ogrOkulCtrl.text.trim()),
+          pw.SizedBox(height: 12),
+          _pdfBaslik('VELI BILGILERI'),
+          _pdfSatir('Veli Adi', '${_adCtrl.text.trim()} ${_soyadCtrl.text.trim()}'.trim()),
+          _pdfSatir('Telefon', _telCtrl.text.trim()),
+          _pdfSatir('Email', _emailCtrl.text.trim()),
+          _pdfSatir('Adres', _adresCtrl.text.trim()),
+          if (_fiyat.isNotEmpty) _pdfSatir('Ucret', '$_fiyat TL / ay'),
+          pw.SizedBox(height: 16),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('E8F5E9'), borderRadius: pw.BorderRadius.circular(8)),
+            child: pw.Text('Durum: ONAYLI (Yuz yuze kayit)',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('2E7D32'))),
+          ),
+          pw.SizedBox(height: 16),
+          pw.Text('Bu belge Servisim360 tarafindan olusturulmustur.',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+        ],
+      ),
+    ));
+    await Printing.layoutPdf(onLayout: (fmt) async => pdf.save());
+  }
+
+  pw.Widget _pdfBaslik(String metin) => pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Text(metin, style: pw.TextStyle(
+          fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('1a3a6b'))));
+
+  pw.Widget _pdfSatir(String baslik, String deger) => pw.Padding(
+    padding: const pw.EdgeInsets.only(bottom: 5),
+    child: pw.Row(children: [
+      pw.SizedBox(width: 100, child: pw.Text('$baslik:',
+          style: pw.TextStyle(color: PdfColors.grey700, fontSize: 11))),
+      pw.Expanded(child: pw.Text(deger,
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11))),
+    ]),
+  );
 
   void _snack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -142,6 +243,46 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Kayıt başarılıysa başarı ekranı göster
+    if (_kaydedildi) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: AppBar(backgroundColor: _navy, foregroundColor: Colors.white,
+            title: const Text('Kayit Tamamlandi', style: TextStyle(fontWeight: FontWeight.bold))),
+        body: Center(child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(width: 80, height: 80,
+                decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: const Icon(Icons.check_circle_outline, color: Colors.green, size: 50)),
+            const SizedBox(height: 24),
+            const Text('Kayit Basarili!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _navy)),
+            const SizedBox(height: 12),
+            Text('$_kayitliOgrAd sisteme eklendi.\n$_kayitliVeliAd velisi olarak kaydedildi.',
+                textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], height: 1.5)),
+            const SizedBox(height: 32),
+            SizedBox(width: double.infinity, child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: _pdfYazdir,
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Kayit Belgesini Yazdir (PDF)', style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+            const SizedBox(height: 12),
+            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: _navy, side: const BorderSide(color: _navy),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back_outlined),
+              label: const Text('Geri Don', style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+          ]),
+        )),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(

@@ -16,7 +16,7 @@ class BildirimlerScreen extends StatelessWidget {
         title: const Text('Bildirimler', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: FutureBuilder<String?>(
-        future: SessionService.instance.firmaldAl(),
+        future: SessionService.instance.firmaIdAl(),
         builder: (_, snap) {
           if (!snap.hasData) {
             return const Center(child: CircularProgressIndicator(color: _navy));

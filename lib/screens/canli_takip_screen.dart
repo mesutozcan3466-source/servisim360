@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/session_service.dart';
+import 'sesli_yonlendirme_servisi.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CANLI TAKİP EKRANI — VELİ
@@ -21,8 +22,6 @@ class CanliTakipScreen extends StatefulWidget {
 
 class _CanliTakipScreenState extends State<CanliTakipScreen> {
   static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
-
   // Servis saatleri
   // Sabah: 06:30 - 09:30
   // Aksam: 15:00 - 18:30
@@ -55,11 +54,11 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
   int? _mesafeMetre;
   String _oncekiOgrenci  = '';
   int    _benimSiram     = -1;   // Rota sırasında benim index'im
-  int    _soforSirasi    = -1;   // Şoförün şu an kaçıncı durağa gidiyor
   int    _kacDurakKaldi  = -1;   // Bana kaç durak kaldı
-  bool   _2durakBildirimi = false; // "2 durak sonra" bildirimi verildi mi
-  bool   _1durakBildirimi = false; // "1 durak sonra" bildirimi verildi mi
-  bool   _hazirolBildirimi = false; // "Hazır ol" bildirimi
+
+  // Sesli yonlendirme
+  final _sesli = SesliYonlendirmeServisi();
+  bool _sesliAcik = true;
 
   // Servis saati durumu
   bool _servisSaatiMi   = false;
@@ -76,6 +75,7 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
           (_) => _saatiGuncelle(),
     );
     _yukle();
+    _sesli.baslat();
   }
 
   @override
@@ -83,6 +83,7 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
     _soforSub?.cancel();
     _saatTimer?.cancel();
     _mapCtrl?.dispose();
+    _sesli.dispose();
     super.dispose();
   }
 
@@ -204,6 +205,25 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
         }
       }
 
+      // Rota sırasını Firestore'dan çek
+      if (_ogrenci != null && _soforDocId != null) {
+        try {
+          var rotaQ = FirebaseFirestore.instance
+              .collection('students')
+              .where('surucuId', isEqualTo: _soforDocId)
+              .orderBy('sira');
+          if (_firmaId != null) rotaQ = rotaQ.where('firmaId', isEqualTo: _firmaId);
+          final rotaSnap = await rotaQ.get();
+          final rotaDocs  = rotaSnap.docs;
+          _benimSiram = rotaDocs.indexWhere((d) => d.id == _ogrenci!['id']);
+          // Şoförün şu anki hedefi
+          final bekleyenIdx = rotaDocs.indexWhere(
+                  (d) => d.data()['bindi'] != true);
+          _kacDurakKaldi = _benimSiram >= 0 && bekleyenIdx >= 0
+              ? _benimSiram - bekleyenIdx : -1;
+        } catch (_) {}
+      }
+
       // Veli konumunu al
       final izin = await Geolocator.requestPermission();
       if (izin != LocationPermission.denied &&
@@ -267,8 +287,20 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
     }
 
     _oncekiOgrenciiBul();
+    _sesliDurakBildirim();
     _haritaGuncelle();
     _mapCtrl?.animateCamera(CameraUpdate.newLatLng(yeniKonum));
+  }
+
+  void _sesliDurakBildirim() {
+    if (!_sesliAcik || _kacDurakKaldi < 0) return;
+    if (_kacDurakKaldi == 2) {
+      _sesli.bildirim('Servis 2 durak sonra sizin duraginizda.');
+    } else if (_kacDurakKaldi == 1) {
+      _sesli.bildirim('Servis bir sonraki duraginizda! Hazirlanin.');
+    } else if (_kacDurakKaldi == 0) {
+      _sesli.bildirim('Servis simdi sizin duraginizda!', zorla: true);
+    }
   }
 
   // ── Bir Onceki Ogrenci ──────────────────────────────────────────────────────
@@ -931,11 +963,3 @@ class _SaatSatiri extends StatelessWidget {
   ]);
 }
 
-class _CanliDurakGrubu {
-  final int    sira;
-  final List<String> ogrenciIds;
-  bool   hepsiBindi;
-  final double lat, lng;
-  _CanliDurakGrubu({required this.sira, required this.ogrenciIds,
-    required this.hepsiBindi, required this.lat, required this.lng});
-}

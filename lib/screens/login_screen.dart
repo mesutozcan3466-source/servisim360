@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';
-import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,14 +14,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final _auth = AuthService();
-
   final _emailCtrl      = TextEditingController();
   final _sifreCtrl      = TextEditingController();
   final _projeKoduCtrl  = TextEditingController();
   final _kullaniciCtrl  = TextEditingController();
   final _projeSifreCtrl = TextEditingController();
-  String _secilenRol    = Rol.sofor;
+  String _secilenRol    = 'sofor';
 
   bool _sifreGoster      = false;
   bool _projeSifreGoster = false;
@@ -87,10 +84,10 @@ class _LoginScreenState extends State<LoginScreen>
 
   String _rotaAl(String rol) {
     switch (rol) {
-      case Rol.superAdmin: return '/super_admin';
-      case Rol.firmaAdmin: return '/firma_admin';
-      case Rol.sofor:      return '/sofor_panel';
-      case Rol.veli:       return '/veli_panel';
+      case 'superAdmin': return '/super_admin';
+      case 'firmaAdmin': return '/firma_admin';
+      case 'sofor':      return '/sofor_panel';
+      case 'veli':       return '/veli_panel';
       default:             return '/veli_panel';
     }
   }
@@ -99,22 +96,30 @@ class _LoginScreenState extends State<LoginScreen>
     final email = _emailCtrl.text.trim();
     final sifre = _sifreCtrl.text;
     if (email.isEmpty || sifre.isEmpty) {
-      _snack('E-posta ve sifre giriniz', Colors.red);
-      return;
+      _snack('E-posta ve sifre giriniz', Colors.red); return;
     }
     setState(() => _yukleniyor = true);
     try {
-      final sonuc = await _auth.emailIleGiris(email: email, sifre: sifre);
-      if (!mounted) return;
-      if (sonuc.basarili && sonuc.kullanici != null) {
-        await _girisiKaydet(email, sifre);
-        _cihazBilgisiGuncelle();
-        Navigator.pushReplacementNamed(context, _rotaAl(sonuc.kullanici!.rol));
-      } else {
-        _girisSonucuIsle(sonuc);
+      final cred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: sifre);
+      final uid = cred.user?.uid;
+      if (uid == null) { _snack('Giris basarisiz', Colors.red); return; }
+      final doc = await FirebaseFirestore.instance
+          .collection('kullanicilar').doc(uid).get();
+      final durum = doc.data()?['durum'] as String? ?? 'aktif';
+      if (durum == 'beklemede') {
+        if (mounted) Navigator.pushReplacementNamed(context, '/onay_bekleme'); return;
       }
+      if (durum == 'askida') { _snack('Hesabiniz askiya alindi', Colors.orange); return; }
+      final rol = doc.data()?['rol'] as String? ?? 'veli';
+      await _girisiKaydet(email, sifre);
+      _cihazBilgisiGuncelle();
+      if (mounted) Navigator.pushReplacementNamed(context, _rotaAl(rol));
+    } on FirebaseAuthException catch (e) {
+      _snack(e.code == 'wrong-password' || e.code == 'user-not-found'
+          ? 'E-posta veya sifre yanlis' : 'Hata: \${e.message}', Colors.red);
     } catch (e) {
-      _snack('Hata: $e', Colors.red);
+      _snack('Hata: \$e', Colors.red);
     } finally {
       if (mounted) setState(() => _yukleniyor = false);
     }
@@ -125,45 +130,45 @@ class _LoginScreenState extends State<LoginScreen>
     final kullaniciAdi = _kullaniciCtrl.text.trim();
     final sifre        = _projeSifreCtrl.text;
     if (projeKodu.isEmpty || kullaniciAdi.isEmpty || sifre.isEmpty) {
-      _snack('Tum alanlari doldurunuz', Colors.red);
-      return;
+      _snack('Tum alanlari doldurunuz', Colors.red); return;
     }
     setState(() => _yukleniyor = true);
     try {
-      final sonuc = await _auth.projeKoduIleGiris(
-        projeKodu:    projeKodu,
-        kullaniciAdi: kullaniciAdi,
-        sifre:        sifre,
-        beklenenRol:  _secilenRol,
-      );
-      if (!mounted) return;
-      if (sonuc.basarili && sonuc.kullanici != null) {
-        Navigator.pushReplacementNamed(context, _rotaAl(sonuc.kullanici!.rol));
-      } else {
-        _girisSonucuIsle(sonuc);
+      // Proje kodu ile kullanıcı ara
+      final projSnap = await FirebaseFirestore.instance
+          .collection('projects').where('projeKodu', isEqualTo: projeKodu).limit(1).get();
+      if (projSnap.docs.isEmpty) {
+        _snack('Proje kodu bulunamadi', Colors.red); return;
       }
+      final firmaId  = projSnap.docs.first.data()['firmaId'] as String? ?? '';
+      // Kullanıcıyı bul (telefon veya ad + firma)
+      var q = FirebaseFirestore.instance.collection(_secilenRol == 'sofor' ? 'drivers' : 'parents')
+          .where('firmaId', isEqualTo: firmaId);
+      final snap1 = await q.where('telefon', isEqualTo: kullaniciAdi).limit(1).get();
+      final snap2 = snap1.docs.isEmpty
+          ? await q.where('ad', isEqualTo: kullaniciAdi).limit(1).get()
+          : snap1;
+      if (snap2.docs.isEmpty) {
+        _snack('Kullanici bulunamadi', Colors.red); return;
+      }
+      final data  = snap2.docs.first.data();
+      final email = data['email'] as String? ?? '';
+      if (email.isEmpty) { _snack('Giris bilgisi eksik — admin ile iletisime gecin', Colors.orange); return; }
+      final cred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: sifre);
+      if (cred.user != null && mounted) {
+        Navigator.pushReplacementNamed(context, _rotaAl(_secilenRol));
+      }
+    } on FirebaseAuthException catch (_) {
+      _snack('Sifre yanlis', Colors.red);
     } catch (e) {
-      _snack('Hata: $e', Colors.red);
+      _snack('Hata: \$e', Colors.red);
     } finally {
       if (mounted) setState(() => _yukleniyor = false);
     }
   }
 
-  void _girisSonucuIsle(GirisSonucu sonuc) {
-    switch (sonuc.tip) {
-      case GirisSonucTip.onayBekliyor:
-        Navigator.pushReplacementNamed(context, '/onay_bekleme');
-        break;
-      case GirisSonucTip.hesapAskida:
-        _snack(sonuc.mesaj ?? 'Hesap askiya alindi', Colors.orange);
-        break;
-      case GirisSonucTip.hesapKapatildi:
-        _snack(sonuc.mesaj ?? 'Hesap kapatildi', Colors.red);
-        break;
-      default:
-        _snack(sonuc.mesaj ?? 'Giris basarisiz', Colors.red);
-    }
-  }
+
 
   Future<void> _sifreSifirla() async {
     final email = _emailCtrl.text.trim();
@@ -172,27 +177,14 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
     try {
-      await _auth.sifreSifirla(email);
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       _snack('Sifre sifirlama e-postasi gonderildi', Colors.green);
     } catch (e) {
       _snack('Gonderilemedi: $e', Colors.red);
     }
   }
 
-  Future<void> _cihazBilgisiGuncelle() async {
-    try {
-      final deviceInfo = DeviceInfoPlugin();
-      Map<String, dynamic> cihaz = {};
-      if (Platform.isAndroid) {
-        final info = await deviceInfo.androidInfo;
-        cihaz = {'platform': 'Android', 'model': info.model, 'brand': info.brand, 'version': info.version.release};
-      } else if (Platform.isIOS) {
-        final info = await deviceInfo.iosInfo;
-        cihaz = {'platform': 'iOS', 'model': info.model, 'systemVersion': info.systemVersion};
-      }
-      await _auth.cihazBilgisiGuncelle(cihaz);
-    } catch (_) {}
-  }
+  void _cihazBilgisiGuncelle() {}
 
   void _snack(String mesaj, Color renk) {
     if (!mounted) return;
@@ -252,8 +244,8 @@ class _LoginScreenState extends State<LoginScreen>
                   unselectedLabelColor: Colors.white60,
                   labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   tabs: const [
-                    Tab(text: '🏢  Admin Girisi'),
-                    Tab(text: '🚌  Sofor / Veli'),
+                    Tab(text: 'Admin Girisi'),
+                    Tab(text: 'Sofor / Veli'),
                   ],
                 ),
               ),
@@ -376,9 +368,9 @@ class _LoginScreenState extends State<LoginScreen>
       const Text('Sofor / Veli Girisi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _navy)),
       const SizedBox(height: 6),
       Row(children: [
-        _rolChip(Rol.sofor, '🚌  Sofor'),
+        _rolChip('sofor', 'Sofor'),
         const SizedBox(width: 8),
-        _rolChip(Rol.veli,  '👨‍👦  Veli'),
+        _rolChip('veli',  '👨‍👦  Veli'),
       ]),
       const SizedBox(height: 12),
       TextField(

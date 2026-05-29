@@ -130,5 +130,5 @@ class SesliYonlendirmeServisi {
       soyle('Rota tamamlandı. İyi günler.', zorla: true);
 
   /// Genel bildirim
-  Future<void> bildirim(String mesaj) => soyle(mesaj);
+  Future<void> bildirim(String mesaj, {bool zorla = false}) => soyle(mesaj, zorla: zorla);
 }

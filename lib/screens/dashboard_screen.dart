@@ -62,6 +62,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _yuklendi = true;
     });
 
+    // Lisans kontrolü — firms koleksiyonundan direkt kontrol
+    if (mounted && firmaId.isNotEmpty) {
+      try {
+        final fd2 = await FirebaseFirestore.instance.collection('firms').doc(firmaId).get();
+        if (fd2.exists) {
+          final durum = fd2.data()?['durum'] as String? ?? 'aktif';
+          final lisansBitis = fd2.data()?['lisansBitis'];
+          DateTime? bitis;
+          if (lisansBitis is Timestamp) bitis = lisansBitis.toDate();
+          if (durum == 'askida' && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Hesabiniz askiya alindi. Yoneticinizle iletisime gecin.'),
+                backgroundColor: Colors.orange, duration: Duration(seconds: 5)));
+          } else if (bitis != null && bitis.isBefore(DateTime.now()) && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Lisansiniz ${bitis.day}.${bitis.month}.${bitis.year} tarihinde doldu.'),
+                backgroundColor: Colors.red, duration: const Duration(seconds: 6)));
+          }
+        }
+      } catch (_) {}
+    }
+
     // İlk açılışta proje seçilmemişse ProjeSecScreen'e yönlendir
     if (mounted && projeId.isEmpty && firmaId.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -224,7 +246,6 @@ class _HaritaPanel extends StatefulWidget {
 class _HaritaPanelState extends State<_HaritaPanel> {
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
-  static const _apiKey  = 'AIzaSyAyPvU0fP3lpqCqWuB29jl6ScVZXFFKOgU';
 
   GoogleMapController? _mapCtrl;
   final Set<Marker>    _markerlar = {};

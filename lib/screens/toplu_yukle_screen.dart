@@ -37,7 +37,7 @@ class _TopluYukleScreenState extends State<TopluYukleScreen> {
   }
 
   Future<void> _init() async {
-    final fId = await SessionService.instance.firmaldAl();
+    final fId = await SessionService.instance.firmaIdAl();
     if (mounted) setState(() { _firmaId = fId ?? ''; _yukleniyor = false; });
   }
 

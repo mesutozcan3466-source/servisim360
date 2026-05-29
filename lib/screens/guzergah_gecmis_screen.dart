@@ -28,7 +28,7 @@ class _GuzergahGecmisScreenState extends State<GuzergahGecmisScreen> {
   }
 
   Future<void> _yukle() async {
-    _firmaId = await SessionService.instance.firmaldAl();
+    _firmaId = await SessionService.instance.firmaIdAl();
     if (_firmaId == null) return;
 
     // drivers koleksiyonu — Servisim360 yeni yapısı

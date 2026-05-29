@@ -52,17 +52,20 @@ dependencies:
 
   # Ses
   flutter_tts: ^4.0.2
-  # speech_to_text: ^7.0.0  # flutter pub get ile eklenecek
+  speech_to_text: ^7.4.0
 
   # Bildirim
   flutter_local_notifications: ^17.2.4
+
+  # Arka Plan Servis (konum + bildirim ekran kapali iken)
+  flutter_background_service: ^5.0.5
+  flutter_background_service_android: ^6.2.2
 
   # UI
   cupertino_icons: ^1.0.8
   provider: ^6.1.5
   flutter_launcher_icons: ^0.14.4
   fl_chart: ^1.2.0
-  speech_to_text: ^7.4.0
 
 dev_dependencies:
   flutter_test:

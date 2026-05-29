@@ -33,7 +33,7 @@ class _GuzergahKayitScreenState extends State<GuzergahKayitScreen> {
   void dispose() { _konumStream?.cancel(); super.dispose(); }
 
   Future<void> _init() async {
-    _firmaId  = await SessionService.instance.firmaldAl();
+    _firmaId  = await SessionService.instance.firmaIdAl();
     _surucuId = FirebaseAuth.instance.currentUser?.uid;
     if (mounted) setState(() {});
   }

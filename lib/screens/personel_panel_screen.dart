@@ -33,7 +33,7 @@ class _PersonelPanelScreenState extends State<PersonelPanelScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) { setState(() => _yukleniyor = false); return; }
 
-    _firmaId = await SessionService.instance.firmaldAl();
+    _firmaId = await SessionService.instance.firmaIdAl();
 
     try {
       final kulDoc = await FirebaseFirestore.instance

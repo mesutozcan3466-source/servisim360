@@ -5,6 +5,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'arka_plan_konum_servisi.dart';
+import 'sesli_yonlendirme_servisi.dart';
 import '../screens/acil_durum_widget.dart';
 import '../screens/qr_checkin_screen.dart';
 import '../screens/sofor_rota_screen.dart';
@@ -27,6 +29,8 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
   List<Map<String, dynamic>> _ogrenciler = [];
   bool   _yukleniyor  = true;
   bool   _servisAktif = false;
+  final _sesli  = SesliYonlendirmeServisi();
+  bool _sesliAcik = true;
   String _surucuId    = '';
   String? _firmaId;
   bool   _surucuBulunamadi = false;
@@ -107,6 +111,11 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
       _notifDinle();
       _fcmTokenKaydet();
       _servisSaatiKontrol();
+      _sesli.baslat();
+      // Arka plan servisini başlat — ekran kapalıyken de çalışır
+      ArkaplanKonumServisi.baslatServisi().then((_) {
+        ArkaplanKonumServisi.baslat();
+      });
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/session_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,26 +42,25 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _yonlendir() async {
     if (!mounted) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final onboardingOk = prefs.getBool('onboarding_tamamlandi') ?? false;
-    if (!onboardingOk) {
-      if (mounted) Navigator.pushReplacementNamed(context, '/onboarding');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
       return;
     }
-
-    final auth = AuthService();
-    final kullanici = await auth.sessionKontrol();
-
-    if (!mounted) return;
-
-    if (kullanici == null) {
-      Navigator.pushReplacementNamed(context, '/login');
-      return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('kullanicilar').doc(user.uid).get();
+      final rol = doc.data()?['rol'] as String? ?? 'veli';
+      if (!mounted) return;
+      switch (rol) {
+        case 'superAdmin':  Navigator.pushReplacementNamed(context, '/super_admin'); break;
+        case 'firmaAdmin':  Navigator.pushReplacementNamed(context, '/firma_admin'); break;
+        case 'sofor':       Navigator.pushReplacementNamed(context, '/sofor_panel'); break;
+        default:            Navigator.pushReplacementNamed(context, '/veli_panel');
+      }
+    } catch (_) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
     }
-
-    final rota = auth.rolRotasi(kullanici);
-    Navigator.pushReplacementNamed(context, rota);
   }
 
   @override

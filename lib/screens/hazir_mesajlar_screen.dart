@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/hazir_mesaj_service.dart';
 import '../services/session_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HazirMesajlarScreen extends StatefulWidget {
   const HazirMesajlarScreen({super.key});
@@ -138,6 +139,13 @@ class _MesajListesi extends StatelessWidget {
                     style: TextStyle(fontSize: 11, color: Colors.grey[400]),
                   ),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    // WhatsApp ile gönder
+                    IconButton(
+                      icon: const Icon(Icons.send_outlined, size: 18, color: Color(0xFF25D366)),
+                      tooltip: 'WhatsApp ile Gonder',
+                      onPressed: () => _whatsappGonder(context, data['metin'] ?? ''),
+                      splashRadius: 18,
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
                       onPressed: () => _mesajDuzenleDialog(context, doc.id, data),
@@ -155,6 +163,75 @@ class _MesajListesi extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+
+
+  // WhatsApp ile hazır mesaj gönder — kişi seçimi dialog
+  void _whatsappGonder(BuildContext context, String metin) {
+    final telCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          const Text('WhatsApp Gonder', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _navy)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10)),
+            child: Text(metin, style: const TextStyle(fontSize: 13)),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: telCtrl,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: 'Telefon Numarasi (opsiyonel)',
+              hintText: 'Bos birakırsaniz kisi secimi acar',
+              prefixIcon: const Icon(Icons.phone_outlined, color: _navy),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: OutlinedButton.styleFrom(foregroundColor: _navy, side: const BorderSide(color: _navy)),
+              child: const Text('Iptal'),
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              icon: const Icon(Icons.chat_outlined, size: 18),
+              label: const Text('Gonder', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final tel = telCtrl.text.trim().replaceAll(RegExp(r'[^\d]'), '');
+                Uri url;
+                if (tel.length >= 10) {
+                  final numara = tel.startsWith('90') ? tel : '90$tel';
+                  url = Uri.parse('https://wa.me/$numara?text=${Uri.encodeComponent(metin)}');
+                } else {
+                  url = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(metin)}');
+                }
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+            )),
+          ]),
+        ]),
       ),
     );
   }

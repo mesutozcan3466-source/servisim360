@@ -104,7 +104,7 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
 
       // Admin giriyorsa session'dan al
       if (fId == null && widget.dolduran == 'admin') {
-        fId = await SessionService.instance.firmaldAl();
+        fId = await SessionService.instance.firmaIdAl();
       }
 
       if (fId == null || fId.isEmpty) {

@@ -51,7 +51,7 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
   }
 
   Future<void> _init() async {
-    _firmaId = await SessionService.instance.firmaldAl();
+    _firmaId = await SessionService.instance.firmaIdAl();
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid != null && _firmaId != null) {
@@ -103,6 +103,20 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
   }
 
   // ── GPS Durdur ──────────────────────────────────────────────────────────────
+
+  // Güzergah noktasını kaydet
+  Future<void> _guzergahKaydet(double lat, double lng) async {
+    try {
+      await FirebaseFirestore.instance.collection('guzergah_kayitlar').add({
+        'surucuId':  _surucuDocId ?? '',
+        'firmaId':   _firmaId ?? '',
+        'lat':       lat,
+        'lng':       lng,
+        'zaman':     FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
   void _gpsDurdur() {
     _konumStream?.cancel();
     _konumTimer?.cancel();
@@ -176,7 +190,7 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
         _baslangicZaman = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Servis tamamlandı — ${_toplamKm.toStringAsFixed(1)} km'),
+        content: Text('Servis tamamlandi — \${_toplamKm.toStringAsFixed(1)} km'),
         backgroundColor: Colors.green, behavior: SnackBarBehavior.floating,
       ));
     } else {
@@ -209,7 +223,7 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white,
-        title: const Text('Canlı Rota', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Canli Rota', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           if (_servisAktif)
             Padding(
