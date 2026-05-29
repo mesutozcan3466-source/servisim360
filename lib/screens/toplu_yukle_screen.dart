@@ -1,15 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:excel/excel.dart' as ex; // pubspec: excel: ^4.0.6
+import 'package:firebase_storage/firebase_storage.dart';
 import '../services/session_service.dart';
 
 // ════════════════════════════════════════════════════════════════
-//  TOPLU YUKLE EKRANI
-//  Tip: ogrenci | sofor
-//  Yontem: CSV | PDF (tarama) | Kamera
+//  TOPLU YÜKLEME — Excel + PDF'den veli/şoför kaydı
 // ════════════════════════════════════════════════════════════════
 class TopluYukleScreen extends StatefulWidget {
   const TopluYukleScreen({super.key});
@@ -17,558 +15,477 @@ class TopluYukleScreen extends StatefulWidget {
   State<TopluYukleScreen> createState() => _TopluYukleScreenState();
 }
 
-class _TopluYukleScreenState extends State<TopluYukleScreen> {
-  static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
+class _TopluYukleScreenState extends State<TopluYukleScreen>
+    with SingleTickerProviderStateMixin {
+  static const _navy   = Color(0xFF1a3a6b);
+  static const _orange = Color(0xFFFF8C00);
 
-  String  _firmaId    = '';
-  bool    _yukleniyor = true;
-  bool    _isleniyor  = false;
-  String  _tip        = '';       // 'ogrenci' | 'sofor'
-  String  _yontem     = '';       // 'csv' | 'kamera'
+  late TabController _tab;
+  String _firmaId = '';
+  String _projeId = '';
+  bool   _yukleniyor = false;
+  String _sonuc = '';
   List<Map<String, dynamic>> _onizleme = [];
-  String? _hata;
-  int     _yuklenenSayisi = 0;
+  String _yuklemeTipi = 'ogrenci'; // ogrenci | sofor | veli
 
   @override
   void initState() {
     super.initState();
-    _init();
+    _tab = TabController(length: 2, vsync: this);
+    _baslat();
   }
 
-  Future<void> _init() async {
-    final fId = await SessionService.instance.firmaIdAl();
-    if (mounted) setState(() { _firmaId = fId ?? ''; _yukleniyor = false; });
+  @override
+  void dispose() { _tab.dispose(); super.dispose(); }
+
+  Future<void> _baslat() async {
+    _firmaId = await SessionService.instance.firmaIdAl() ?? '';
+    _projeId = SessionService.instance.aktifProjeld ?? '';
   }
 
-  // ── CSV seç ve işle ─────────────────────────────────────────
-  Future<void> _csvSec() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['csv', 'txt'],
-      );
-      if (result == null || result.files.isEmpty) return;
-      final file = File(result.files.first.path!);
-      final lines = await file.readAsLines();
-      _csvIsle(lines);
-    } catch (e) {
-      setState(() => _hata = 'Dosya okuma hatasi: $e');
-    }
-  }
-
-  void _csvIsle(List<String> lines) {
-    final liste = <Map<String, dynamic>>[];
-    setState(() => _hata = null);
-
-    for (int i = 1; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.isEmpty) continue;
-      final cols = line.split(',');
-
-      if (_tip == 'ogrenci' && cols.length >= 2) {
-        liste.add({
-          'ad':      cols[0].trim(),
-          'soyad':   cols.length > 1 ? cols[1].trim() : '',
-          'tc':      cols.length > 2 ? cols[2].trim() : '',
-          'anneAd':  cols.length > 3 ? cols[3].trim() : '',
-          'anneTel': cols.length > 4 ? cols[4].trim() : '',
-          'babaAd':  cols.length > 5 ? cols[5].trim() : '',
-          'babaTel': cols.length > 6 ? cols[6].trim() : '',
-          'adres':   cols.length > 7 ? cols[7].trim() : '',
-        });
-      } else if (_tip == 'sofor' && cols.length >= 2) {
-        liste.add({
-          'ad':       cols[0].trim(),
-          'soyad':    cols.length > 1 ? cols[1].trim() : '',
-          'telefon':  cols.length > 2 ? cols[2].trim() : '',
-          'aracPlaka':cols.length > 3 ? cols[3].trim() : '',
-          'email':    cols.length > 4 ? cols[4].trim() : '',
-        });
-      }
-    }
-
-    setState(() => _onizleme = liste);
-    if (liste.isEmpty) {
-      setState(() => _hata = 'Gecerli veri bulunamadi. CSV formatini kontrol edin.');
-    }
-  }
-
-  // ── Kamera ile manuel ekle ───────────────────────────────────
-  Future<void> _kameraIleEkle() async {
-    // Manuel giriş dialog aç
-    _manuelEkleDialog();
-  }
-
-  void _manuelEkleDialog() {
-    final ad     = TextEditingController();
-    final soyad  = TextEditingController();
-    final tel    = TextEditingController();
-    final extra  = TextEditingController(); // TC veya plaka
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, ss) => Container(
-          padding: EdgeInsets.only(
-            left: 20, right: 20, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(
-              _tip == 'ogrenci' ? 'Ogrenci Ekle' : 'Sofor Ekle',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.bold, color: _navy),
-            ),
-            const SizedBox(height: 16),
-            _Alan(ad,    'Ad *',          Icons.person_outline),
-            const SizedBox(height: 10),
-            _Alan(soyad, 'Soyad *',       Icons.person_outline),
-            const SizedBox(height: 10),
-            _Alan(tel,   'Telefon',       Icons.phone_outlined,
-                tip: TextInputType.phone),
-            const SizedBox(height: 10),
-            _Alan(extra,
-              _tip == 'ogrenci' ? 'TC Kimlik No' : 'Arac Plakasi',
-              _tip == 'ogrenci' ? Icons.badge_outlined : Icons.directions_car_outlined,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _turuncu,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: () {
-                  if (ad.text.trim().isEmpty) return;
-                  final kayit = _tip == 'ogrenci'
-                      ? {'ad': ad.text.trim(), 'soyad': soyad.text.trim(),
-                    'tc': extra.text.trim(), 'anneTel': tel.text.trim()}
-                      : {'ad': ad.text.trim(), 'soyad': soyad.text.trim(),
-                    'telefon': tel.text.trim(), 'aracPlaka': extra.text.trim()};
-                  setState(() => _onizleme.add(kayit));
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Listeye Ekle',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ]),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F2F5),
+      appBar: AppBar(
+        backgroundColor: _navy, foregroundColor: Colors.white,
+        title: const Text('Toplu Yukle', style: TextStyle(fontWeight: FontWeight.bold)),
+        bottom: TabBar(
+          controller: _tab,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: _orange,
+          tabs: const [
+            Tab(icon: Icon(Icons.table_chart_outlined), text: 'Excel (.xlsx)'),
+            Tab(icon: Icon(Icons.picture_as_pdf_outlined), text: 'PDF'),
+          ],
         ),
       ),
+      body: TabBarView(controller: _tab, children: [
+        _ExcelYukle(
+          firmaId: _firmaId, projeId: _projeId,
+          yukleniyor: _yukleniyor, onizleme: _onizleme, sonuc: _sonuc,
+          yuklemeTipi: _yuklemeTipi,
+          onTipiDegistir: (t) => setState(() => _yuklemeTipi = t),
+          onExcelYukle: _excelDosyaAc,
+          onKaydet: _kaydet,
+        ),
+        _PdfYukle(
+          firmaId: _firmaId, projeId: _projeId,
+          yukleniyor: _yukleniyor,
+          onPdfYukle: _pdfDosyaAc,
+        ),
+      ]),
     );
   }
 
-  // ── Firestore'a yükle ────────────────────────────────────────
-  Future<void> _yukle() async {
-    if (_firmaId.isEmpty || _onizleme.isEmpty) return;
-    setState(() { _isleniyor = true; _hata = null; });
-
+  // ── EXCEL ──────────────────────────────────────────────────────
+  Future<void> _excelDosyaAc() async {
     try {
-      final koleksiyon = _tip == 'ogrenci' ? 'students' : 'drivers';
-      final batch = FirebaseFirestore.instance.batch();
-      int sayac = 0;
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+      if (result == null || result.files.isEmpty) return;
 
-      for (final veri in _onizleme) {
-        final ref = FirebaseFirestore.instance.collection(koleksiyon).doc();
-        batch.set(ref, {
-          ...veri,
-          'firmaId':     _firmaId,
-          'durum':       'aktif',
-          'kayitTarihi': FieldValue.serverTimestamp(),
-          'topluYukleme': true,
-        });
-        sayac++;
-        // Firestore batch max 500
-        if (sayac % 499 == 0) await batch.commit();
-      }
-      await batch.commit();
+      setState(() { _yukleniyor = true; _sonuc = ''; _onizleme = []; });
 
-      if (mounted) {
-        setState(() {
-          _yuklenenSayisi = _onizleme.length;
-          _onizleme = [];
-          _isleniyor = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$_yuklenenSayisi kayit basariyla yuklendi!'),
-          backgroundColor: Colors.green,
-        ));
+      final bytes = result.files.first.bytes;
+      if (bytes == null) throw Exception('Dosya okunamadi');
+
+      final excel = ex.Excel.decodeBytes(bytes);
+      final sheet = excel.tables.values.first;
+
+      final rows = <Map<String, dynamic>>[];
+      for (int i = 1; i < sheet.rows.length; i++) {
+        final row = sheet.rows[i];
+        if (row.isEmpty || row[0]?.value == null) continue;
+
+        if (_yuklemeTipi == 'sofor') {
+          rows.add({
+            'ad':        row[0]?.value?.toString() ?? '',
+            'telefon':   row[1]?.value?.toString() ?? '',
+            'aracPlaka': row[2]?.value?.toString() ?? '',
+            'firmaId':   _firmaId,
+            'aktif':     true,
+          });
+        } else {
+          // ogrenci veya veli
+          rows.add({
+            'ad':       row[0]?.value?.toString() ?? '',
+            'veliTel':  row[1]?.value?.toString() ?? '',
+            'adres':    row[2]?.value?.toString() ?? '',
+            'veliAd':   row[3]?.value?.toString() ?? '',
+            'sinif':    row[4]?.value?.toString() ?? '',
+            'firmaId':  _firmaId,
+            'projeId':  _projeId,
+            'durum':    'onayli',
+          });
+        }
       }
+
+      setState(() {
+        _onizleme = rows;
+        _yukleniyor = false;
+        _sonuc = '${rows.length} kayit hazirlandi';
+      });
     } catch (e) {
-      if (mounted) setState(() {
-        _isleniyor = false;
-        _hata = 'Yukleme hatasi: $e';
+      setState(() {
+        _yukleniyor = false;
+        _sonuc = 'Hata: ${e.toString()}';
       });
     }
   }
 
-  // ── BUILD ─────────────────────────────────────────────────────
-  @override
-  Widget build(BuildContext context) {
-    if (_yukleniyor) {
-      return const Scaffold(
-        backgroundColor: _navy,
-        body: Center(child: CircularProgressIndicator(color: _turuncu)),
-      );
+  Future<void> _kaydet() async {
+    if (_onizleme.isEmpty) return;
+    setState(() => _yukleniyor = true);
+
+    try {
+      final koleksiyon = _yuklemeTipi == 'sofor' ? 'drivers' : 'students';
+      final batch = FirebaseFirestore.instance.batch();
+      for (final kayit in _onizleme) {
+        final ref = FirebaseFirestore.instance.collection(koleksiyon).doc();
+        batch.set(ref, kayit);
+      }
+      await batch.commit();
+      setState(() {
+        _sonuc = '✅ ${_onizleme.length} kayit basariyla kaydedildi!';
+        _onizleme = [];
+        _yukleniyor = false;
+      });
+    } catch (e) {
+      setState(() {
+        _sonuc = 'Kayit hatasi: $e';
+        _yukleniyor = false;
+      });
     }
+  }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0,
-        title: const Text('Toplu Yukle',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+  // ── PDF ────────────────────────────────────────────────────────
+  Future<void> _pdfDosyaAc() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      setState(() => _yukleniyor = true);
+
+      // PDF'i Firebase Storage'a yükle
+      final bytes = result.files.first.bytes;
+      final dosyaAdi = result.files.first.name;
+      if (bytes == null) throw Exception('Dosya okunamadi');
+
+      final ref = FirebaseStorage.instance
+          .ref('pdf_yuklemeler/$_firmaId/${DateTime.now().millisecondsSinceEpoch}_$dosyaAdi');
+      await ref.putData(bytes);
+      final url = await ref.getDownloadURL();
+
+      // Admin bilgilendir
+      await FirebaseFirestore.instance.collection('pdf_yuklemeler').add({
+        'firmaId':    _firmaId,
+        'dosyaAdi':   dosyaAdi,
+        'url':        url,
+        'tarih':      FieldValue.serverTimestamp(),
+        'durum':      'isleniyor',
+        'aciklama':   'PDF manuel inceleme gerekiyor',
+      });
+
+      setState(() {
+        _yukleniyor = false;
+        _sonuc = '✅ PDF yuklendi. Admin inceledikten sonra kayitlar eklenecek.';
+      });
+    } catch (e) {
+      setState(() {
+        _yukleniyor = false;
+        _sonuc = 'PDF yuklenemedi: $e';
+      });
+    }
+  }
+}
+
+// ── EXCEL SEKME ──────────────────────────────────────────────────
+class _ExcelYukle extends StatelessWidget {
+  final String firmaId, projeId, yuklemeTipi, sonuc;
+  final bool yukleniyor;
+  final List<Map<String, dynamic>> onizleme;
+  final ValueChanged<String> onTipiDegistir;
+  final VoidCallback onExcelYukle, onKaydet;
+
+  static const _navy = Color(0xFF1a3a6b);
+  static const _orange = Color(0xFFFF8C00);
+
+  const _ExcelYukle({
+    required this.firmaId, required this.projeId,
+    required this.yuklemeTipi, required this.sonuc,
+    required this.yukleniyor, required this.onizleme,
+    required this.onTipiDegistir, required this.onExcelYukle,
+    required this.onKaydet,
+  });
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+      // Tip seçici
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-          // ── ADIM 1: Tip seç ──────────────────────────────────
-          _AdimBaslik('1. Ne yuklemek istiyorsunuz?'),
+          const Text('Ne yuklemek istiyorsunuz?',
+              style: TextStyle(fontWeight: FontWeight.bold, color: _navy)),
           const SizedBox(height: 12),
           Row(children: [
-            _TipButonu(
-              deger: 'ogrenci', secili: _tip,
-              metin: 'Ogrenci', ikon: Icons.school_outlined,
-              renk: Colors.blue,
-              onTap: () => setState(() { _tip = 'ogrenci'; _onizleme = []; _yontem = ''; }),
-            ),
-            const SizedBox(width: 12),
-            _TipButonu(
-              deger: 'sofor', secili: _tip,
-              metin: 'Sofor', ikon: Icons.drive_eta_outlined,
-              renk: Colors.green,
-              onTap: () => setState(() { _tip = 'sofor'; _onizleme = []; _yontem = ''; }),
-            ),
+            _TipBtn('Ogrenci', 'ogrenci', Icons.school_outlined, yuklemeTipi, onTipiDegistir),
+            const SizedBox(width: 10),
+            _TipBtn('Sofor', 'sofor', Icons.directions_bus_outlined, yuklemeTipi, onTipiDegistir),
+            const SizedBox(width: 10),
+            _TipBtn('Veli', 'veli', Icons.family_restroom_outlined, yuklemeTipi, onTipiDegistir),
           ]),
+        ]),
+      ),
 
-          if (_tip.isNotEmpty) ...[
-            const SizedBox(height: 20),
+      const SizedBox(height: 16),
 
-            // ── ADIM 2: Yöntem seç ───────────────────────────
-            _AdimBaslik('2. Nasıl yuklemek istiyorsunuz?'),
-            const SizedBox(height: 12),
+      // Excel format rehberi
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.2))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.info_outline, color: Colors.blue, size: 16),
+            SizedBox(width: 6),
+            Text('Excel Kolon Sirasi', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            yuklemeTipi == 'sofor'
+                ? 'A: Ad Soyad  |  B: Telefon  |  C: Arac Plakasi'
+                : 'A: Ad Soyad  |  B: Veli Tel  |  C: Adres  |  D: Veli Ad  |  E: Sinif',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ]),
+      ),
 
-            // CSV butonu
-            _YontemButon(
-              ikon: Icons.table_chart_outlined,
-              baslik: 'Excel / CSV Dosyasi',
-              aciklama: 'Hazirladiginiz CSV dosyasini yukleyin',
-              renk: Colors.teal,
-              secili: _yontem == 'csv',
-              onTap: () {
-                setState(() => _yontem = 'csv');
-                _csvSec();
-              },
-            ),
-            const SizedBox(height: 10),
+      const SizedBox(height: 16),
 
-            // Manuel kamera
-            _YontemButon(
-              ikon: Icons.add_circle_outline,
-              baslik: 'Manuel Ekle',
-              aciklama: 'Tek tek form doldurarak listeye ekle',
-              renk: Colors.orange,
-              secili: _yontem == 'kamera',
-              onTap: () {
-                setState(() => _yontem = 'kamera');
-                _kameraIleEkle();
-              },
-            ),
+      // Yükle butonu
+      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+            backgroundColor: _navy, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+        icon: yukleniyor
+            ? const SizedBox(width: 16, height: 16,
+            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Icon(Icons.upload_file_outlined),
+        label: Text(yukleniyor ? 'Yukleniyor...' : 'Excel Dosyasi Sec',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: yukleniyor ? null : onExcelYukle,
+      )),
 
-            // CSV format bilgisi
-            if (_yontem == 'csv') ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: _navy.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _navy.withValues(alpha: 0.15)),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Row(children: [
-                    Icon(Icons.info_outline, color: _navy, size: 15),
-                    SizedBox(width: 6),
-                    Text('CSV Kolon Sirasi',
-                        style: TextStyle(fontWeight: FontWeight.bold,
-                            color: _navy, fontSize: 12)),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(
-                    _tip == 'ogrenci'
-                        ? 'Ad, Soyad, TC, AnneAd, AnneTel, BabaAd, BabaTel, Adres\n\n'
-                        'Ornek:\nAhmet, Yilmaz, 12345678901, Fatma Yilmaz, 5551234567, Ali Yilmaz, 5557654321, Istanbul'
-                        : 'Ad, Soyad, Telefon, AracPlaka, Email\n\n'
-                        'Ornek:\nMehmet, Kaya, 5559876543, 34ABC123, mehmet@mail.com',
-                    style: const TextStyle(
-                        fontSize: 11, fontFamily: 'monospace', color: _navy, height: 1.5),
-                  ),
-                ]),
-              ),
-            ],
-          ],
+      if (sonuc.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: sonuc.startsWith('✅') ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10)),
+          child: Text(sonuc, style: TextStyle(
+              color: sonuc.startsWith('✅') ? Colors.green : Colors.orange,
+              fontWeight: FontWeight.w600)),
+        ),
+      ],
 
-          // ── Hata ─────────────────────────────────────────────
-          if (_hata != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
+      // Önizleme tablosu
+      if (onizleme.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        Row(children: [
+          Text('${onizleme.length} kayit hazir',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: _navy)),
+          const Spacer(),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _orange, foregroundColor: Colors.white),
+            icon: const Icon(Icons.save_outlined, size: 16),
+            label: const Text('Hepsini Kaydet'),
+            onPressed: onKaydet,
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+          child: Column(children: onizleme.take(10).toList().asMap().entries.map((e) {
+            final d = e.value;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-              ),
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade100))),
               child: Row(children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                const SizedBox(width: 8),
-                Expanded(child: Text(_hata!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13))),
+                CircleAvatar(radius: 14, backgroundColor: _navy.withValues(alpha: 0.1),
+                    child: Text('${e.key + 1}',
+                        style: const TextStyle(fontSize: 10, color: _navy))),
+                const SizedBox(width: 10),
+                Expanded(child: Text(d['ad'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                Text(d['veliTel'] ?? d['telefon'] ?? '',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500])),
               ]),
-            ),
-          ],
+            );
+          }).toList()),
+        ),
+        if (onizleme.length > 10)
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text('... ve ${onizleme.length - 10} kayit daha',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+          ),
+      ],
+    ]),
+  );
+}
 
-          // ── Önizleme ─────────────────────────────────────────
-          if (_onizleme.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Row(children: [
-                const Icon(Icons.list_alt, color: _navy, size: 18),
-                const SizedBox(width: 6),
-                Text('${_onizleme.length} kayit hazir',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: _navy, fontSize: 14)),
-              ]),
-              Row(children: [
-                TextButton.icon(
-                  onPressed: _kameraIleEkle,
-                  icon: const Icon(Icons.add, size: 16, color: _turuncu),
-                  label: const Text('Ekle', style: TextStyle(color: _turuncu, fontSize: 12)),
-                ),
-                TextButton.icon(
-                  onPressed: () => setState(() => _onizleme = []),
-                  icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                  label: const Text('Temizle', style: TextStyle(color: Colors.red, fontSize: 12)),
-                ),
-              ]),
-            ]),
-            const SizedBox(height: 8),
-
-            // Liste önizleme
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-              ),
-              child: Column(
-                children: _onizleme.asMap().entries.take(10).map((e) {
-                  final i = e.key;
-                  final v = e.value;
-                  final ad = '${v['ad'] ?? ''} ${v['soyad'] ?? ''}'.trim();
-                  final alt = _tip == 'ogrenci'
-                      ? (v['anneTel'] ?? v['tc'] ?? '')
-                      : (v['telefon'] ?? v['aracPlaka'] ?? '');
-                  return Container(
-                    decoration: BoxDecoration(
-                      border: i > 0
-                          ? Border(top: BorderSide(
-                          color: Colors.grey.withValues(alpha: 0.1)))
-                          : null,
-                    ),
-                    child: ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: _navy.withValues(alpha: 0.1),
-                        child: Text('${i + 1}',
-                            style: const TextStyle(
-                                color: _navy, fontSize: 11,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(ad.isNotEmpty ? ad : 'Isimsiz',
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)),
-                      subtitle: Text(alt.toString(),
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                        onPressed: () => setState(() => _onizleme.removeAt(i)),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            if (_onizleme.length > 10)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  '... ve ${_onizleme.length - 10} kayit daha',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                ),
-              ),
-
-            const SizedBox(height: 16),
-
-            // Yükle butonu
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  elevation: 3,
-                ),
-                onPressed: _isleniyor ? null : _yukle,
-                icon: _isleniyor
-                    ? const SizedBox(
-                    width: 18, height: 18,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.cloud_upload_outlined),
-                label: Text(
-                  _isleniyor
-                      ? 'Yukleniyor...'
-                      : '${_onizleme.length} Kaydi Firestore\'a Yukle',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 80),
+class _TipBtn extends StatelessWidget {
+  final String etiket, deger, secili; final IconData ikon;
+  final ValueChanged<String> onSec;
+  static const _navy = Color(0xFF1a3a6b);
+  const _TipBtn(this.etiket, this.deger, this.ikon, this.secili, this.onSec);
+  @override
+  Widget build(BuildContext context) {
+    final aktif = secili == deger;
+    return GestureDetector(
+      onTap: () => onSec(deger),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+            color: aktif ? _navy : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(ikon, size: 16, color: aktif ? Colors.white : Colors.grey),
+          const SizedBox(width: 6),
+          Text(etiket, style: TextStyle(
+              color: aktif ? Colors.white : Colors.grey,
+              fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
       ),
     );
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  ORTAK WİDGETLAR
-// ════════════════════════════════════════════════════════════════
-class _AdimBaslik extends StatelessWidget {
-  final String metin;
-  const _AdimBaslik(this.metin);
-  @override
-  Widget build(BuildContext context) => Text(metin,
-      style: const TextStyle(
-          fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1a3a6b)));
-}
+// ── PDF SEKME ────────────────────────────────────────────────────
+class _PdfYukle extends StatelessWidget {
+  final String firmaId, projeId;
+  final bool yukleniyor;
+  final VoidCallback onPdfYukle;
+  static const _navy = Color(0xFF1a3a6b);
 
-class _TipButonu extends StatelessWidget {
-  final String deger, secili, metin;
-  final IconData ikon;
-  final Color renk;
-  final VoidCallback onTap;
-  const _TipButonu({
-    required this.deger, required this.secili, required this.metin,
-    required this.ikon, required this.renk, required this.onTap,
-  });
+  const _PdfYukle({required this.firmaId, required this.projeId,
+    required this.yukleniyor, required this.onPdfYukle});
+
   @override
-  Widget build(BuildContext context) {
-    final aktif = secili == deger;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: aktif ? renk : renk.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: aktif ? renk : renk.withValues(alpha: 0.2), width: 2),
-            boxShadow: aktif ? [BoxShadow(
-                color: renk.withValues(alpha: 0.3), blurRadius: 8,
-                offset: const Offset(0, 3))] : [],
-          ),
-          child: Column(children: [
-            Icon(ikon, color: aktif ? Colors.white : renk, size: 28),
-            const SizedBox(height: 6),
-            Text(metin, style: TextStyle(
-                color: aktif ? Colors.white : renk,
-                fontWeight: FontWeight.bold, fontSize: 13)),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.picture_as_pdf_outlined, color: Colors.red, size: 24),
+            SizedBox(width: 10),
+            Text('PDF Yukleme', style: TextStyle(fontWeight: FontWeight.bold,
+                fontSize: 16, color: _navy)),
           ]),
-        ),
+          const SizedBox(height: 12),
+          const Text(
+            'Okul kayit formu, veli basvuru formu veya sofor bilgi formunu '
+                'PDF olarak yukleyebilirsiniz. Admin inceledikten sonra kayitlar '
+                'sisteme eklenecektir.',
+            style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3))),
+            child: const Row(children: [
+              Icon(Icons.info_outline, color: Colors.orange, size: 16),
+              SizedBox(width: 8),
+              Expanded(child: Text(
+                'PDF icindeki veriler manuel olarak incelenecek ve 24 saat icinde sisteme eklenecektir.',
+                style: TextStyle(fontSize: 12, color: Colors.orange),
+              )),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(width: double.infinity, child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            icon: yukleniyor
+                ? const SizedBox(width: 16, height: 16,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.upload_file_outlined),
+            label: Text(yukleniyor ? 'Yukleniyor...' : 'PDF Dosyasi Sec',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: yukleniyor ? null : onPdfYukle,
+          )),
+        ]),
       ),
-    );
-  }
-}
-
-class _YontemButon extends StatelessWidget {
-  final IconData ikon;
-  final String baslik, aciklama;
-  final Color renk;
-  final bool secili;
-  final VoidCallback onTap;
-  const _YontemButon({
-    required this.ikon, required this.baslik, required this.aciklama,
-    required this.renk, required this.secili, required this.onTap,
-  });
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: secili ? renk.withValues(alpha: 0.08) : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: secili ? renk : Colors.grey.withValues(alpha: 0.2),
-            width: secili ? 2 : 1),
+      const SizedBox(height: 16),
+      // Yüklenen PDF'ler
+      StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('pdf_yuklemeler')
+            .where('firmaId', isEqualTo: firmaId)
+            .orderBy('tarih', descending: true).limit(10).snapshots(),
+        builder: (_, snap) {
+          final docs = snap.data?.docs ?? [];
+          if (docs.isEmpty) return const SizedBox();
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Yuklenen PDF\'ler', style: TextStyle(
+                fontWeight: FontWeight.bold, color: _navy)),
+            const SizedBox(height: 8),
+            ...docs.map((doc) {
+              final d = doc.data() as Map<String, dynamic>;
+              final durum = d['durum'] as String? ?? 'isleniyor';
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)]),
+                child: Row(children: [
+                  const Icon(Icons.picture_as_pdf_outlined, color: Colors.red, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(d['dosyaAdi'] ?? 'PDF',
+                      style: const TextStyle(fontSize: 13))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: (durum == 'tamamlandi' ? Colors.green : Colors.orange)
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Text(durum, style: TextStyle(fontSize: 11,
+                        color: durum == 'tamamlandi' ? Colors.green : Colors.orange,
+                        fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+              );
+            }),
+          ]);
+        },
       ),
-      child: Row(children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-              color: renk.withValues(alpha: 0.1), shape: BoxShape.circle),
-          child: Icon(ikon, color: renk, size: 22),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(baslik, style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 13,
-              color: secili ? renk : Colors.black87)),
-          Text(aciklama, style: TextStyle(
-              fontSize: 11, color: Colors.grey[500])),
-        ])),
-        Icon(secili ? Icons.check_circle : Icons.chevron_right,
-            color: secili ? renk : Colors.grey[300], size: 20),
-      ]),
-    ),
+    ]),
   );
 }
-
-Widget _Alan(TextEditingController ctrl, String label, IconData ikon,
-    {TextInputType tip = TextInputType.text}) =>
-    TextField(
-      controller: ctrl, keyboardType: tip,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(ikon, color: const Color(0xFF1a3a6b), size: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        isDense: true,
-        filled: true, fillColor: const Color(0xFFF8F9FA),
-      ),
-    );

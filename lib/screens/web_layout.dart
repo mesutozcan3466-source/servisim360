@@ -69,7 +69,19 @@ class _WebLayoutState extends State<WebLayout> {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(uid).get();
-      _rol = doc.data()?['rol'] as String? ?? '';
+      final rawRol = doc.data()?['rol'] as String? ?? '';
+      // Tüm rol varyantlarını normalize et
+      if (rawRol == 'superAdmin' || rawRol == 'super_admin' ||
+          rawRol == 'superadmin' || rawRol == 'süper yönetici' ||
+          rawRol == 'Süper Admin') {
+        _rol = 'superAdmin';
+      } else if (rawRol == 'firmaAdmin' || rawRol == 'firma_admin' ||
+          rawRol == 'firmaadmin' || rawRol == 'firma yöneticisi' ||
+          rawRol == 'Firma Admin' || rawRol == 'admin') {
+        _rol = 'firmaAdmin';
+      } else {
+        _rol = rawRol;
+      }
 
       final firmaId = doc.data()?['firmaId'] as String? ?? '';
       if (firmaId.isNotEmpty) {
@@ -149,7 +161,8 @@ class _WebLayoutState extends State<WebLayout> {
                         color: _rol == 'superAdmin' ? Colors.amber : _orange),
                     const SizedBox(width: 5),
                     Text(
-                      _rol == 'superAdmin' ? 'Super Admin' : 'Firma Admin',
+                      _rol == 'superAdmin' ? 'Super Admin' :
+                      _rol == 'firmaAdmin' ? 'Firma Admin' : _rol,
                       style: TextStyle(
                           color: _rol == 'superAdmin' ? Colors.amber : _orange,
                           fontSize: 11, fontWeight: FontWeight.bold),

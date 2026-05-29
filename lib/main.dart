@@ -59,15 +59,9 @@ import 'screens/veli_kayit_yuz_yuze_scren.dart';
 import 'screens/toplu_yukle_screen.dart';
 import 'screens/veli_kayit_link_screen.dart';
 import 'screens/web_layout.dart';
-import 'screens/web_dashboard.dart';
-import 'screens/web_ogrenciler.dart';
-import 'screens/web_soforler.dart';
-import 'screens/web_harita.dart';
-import 'screens/web_raporlar.dart';
-import 'screens/web_fiyat.dart';
-import 'screens/web_ayarlar.dart';
-import 'screens/web_super_admin.dart';
 import 'screens/web_veli_takip.dart';
+import 'screens/web_sofor_panel.dart';
+import 'screens/web_veli_panel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
