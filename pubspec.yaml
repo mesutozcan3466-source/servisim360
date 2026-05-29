@@ -22,6 +22,7 @@ dependencies:
 
   # Harita & Konum
   google_maps_flutter: ^2.9.0
+  google_maps_flutter_web: ^0.5.10
   geolocator: ^13.0.0
   geocoding: ^3.0.0
 
@@ -47,7 +48,7 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^6.0.0
 
-  # OCR (ML Kit)
+  # OCR (ML Kit) - Sadece mobil
   google_mlkit_text_recognition: ^0.13.0
 
   # Ses
@@ -57,15 +58,17 @@ dependencies:
   # Bildirim
   flutter_local_notifications: ^17.2.4
 
-  # Arka Plan Servis (konum + bildirim ekran kapali iken)
+  # Arka Plan Servis - Sadece mobil
   flutter_background_service: ^5.0.5
   flutter_background_service_android: ^6.2.2
+
+  # Grafik
+  fl_chart: ^1.2.0
 
   # UI
   cupertino_icons: ^1.0.8
   provider: ^6.1.5
   flutter_launcher_icons: ^0.14.4
-  fl_chart: ^1.2.0
 
 dev_dependencies:
   flutter_test:

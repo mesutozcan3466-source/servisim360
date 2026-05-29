@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -56,7 +57,7 @@ class _QrCheckInScreenState extends State<QrCheckInScreen> {
 
     try {
       final uid      = FirebaseAuth.instance.currentUser?.uid ?? '';
-      final firmaId  = await SessionService.instance.firmaldAl() ?? '';
+      final firmaId  = await SessionService.instance.firmaIdAl() ?? '';
 
       // Öğrenci belgesini çek
       final ogrDoc = await FirebaseFirestore.instance
@@ -181,7 +182,18 @@ class _QrCheckInScreenState extends State<QrCheckInScreen> {
               onPressed: () => _kamera.toggleTorch()),
         ],
       ),
-      body: Stack(children: [
+      body: kIsWeb
+          ? const Center(child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.qr_code_scanner, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text('QR tarama sadece mobil uygulamada kullanilabilir.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 15)),
+        ]),
+      ))
+          : Stack(children: [
         MobileScanner(controller: _kamera, onDetect: _qrOkundu),
 
         // Tarama çerçevesi

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -21,6 +22,7 @@ class ArkaplanKonumServisi {
 
   // ── SERVİS BAŞLAT ───────────────────────────────────────────
   static Future<void> baslatServisi() async {
+    if (kIsWeb) return; // Web'de arka plan servisi yok
     // Bildirim kanalı
     await _notifications.initialize(
       const InitializationSettings(
@@ -50,17 +52,21 @@ class ArkaplanKonumServisi {
 
   // ── SERVİS BAŞLAT / DURDUR ──────────────────────────────────
   static Future<void> baslat() async {
+    if (kIsWeb) return;
     final service = FlutterBackgroundService();
     final calisiyorMu = await service.isRunning();
     if (!calisiyorMu) await service.startService();
   }
 
   static Future<void> durdur() async {
+    if (kIsWeb) return;
     FlutterBackgroundService().invoke('durdur');
   }
 
-  static Future<bool> calisiyorMu() =>
-      FlutterBackgroundService().isRunning();
+  static Future<bool> calisiyorMu() async {
+    if (kIsWeb) return false;
+    return FlutterBackgroundService().isRunning();
+  }
 
   // ── BİLDİRİM GÖNDER ────────────────────────────────────────
   static Future<void> bildirimGonder({

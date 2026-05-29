@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
@@ -53,10 +54,23 @@ class _SplashScreenState extends State<SplashScreen>
       final rol = doc.data()?['rol'] as String? ?? 'veli';
       if (!mounted) return;
       switch (rol) {
-        case 'superAdmin':  Navigator.pushReplacementNamed(context, '/super_admin'); break;
-        case 'firmaAdmin':  Navigator.pushReplacementNamed(context, '/firma_admin'); break;
-        case 'sofor':       Navigator.pushReplacementNamed(context, '/sofor_panel'); break;
-        default:            Navigator.pushReplacementNamed(context, '/veli_panel');
+        case 'superAdmin':
+        case 'super_admin':
+        case 'superadmin':
+        case 'süper yönetici':
+          Navigator.pushReplacementNamed(context,
+              kIsWeb ? '/web_panel' : '/super_admin'); break;
+        case 'firmaAdmin':
+        case 'firma_admin':
+        case 'firmaadmin':
+        case 'firma yöneticisi':
+          Navigator.pushReplacementNamed(context,
+              kIsWeb ? '/web_panel' : '/firma_admin'); break;
+        case 'sofor':
+          Navigator.pushReplacementNamed(context, '/sofor_panel'); break;
+        default:
+          Navigator.pushReplacementNamed(context,
+              kIsWeb ? '/web_veli' : '/veli_panel');
       }
     } catch (_) {
       if (mounted) Navigator.pushReplacementNamed(context, '/login');

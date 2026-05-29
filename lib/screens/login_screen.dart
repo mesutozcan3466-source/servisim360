@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -84,11 +85,22 @@ class _LoginScreenState extends State<LoginScreen>
 
   String _rotaAl(String rol) {
     switch (rol) {
-      case 'superAdmin': return '/super_admin';
-      case 'firmaAdmin': return '/firma_admin';
-      case 'sofor':      return '/sofor_panel';
-      case 'veli':       return '/veli_panel';
-      default:             return '/veli_panel';
+      case 'superAdmin':
+      case 'super_admin':
+      case 'superadmin':
+      case 'süper yönetici':
+        return kIsWeb ? '/web_panel' : '/super_admin';
+      case 'firmaAdmin':
+      case 'firma_admin':
+      case 'firmaadmin':
+      case 'firma yöneticisi':
+        return kIsWeb ? '/web_panel' : '/firma_admin';
+      case 'sofor':
+        return '/sofor_panel';
+      case 'veli':
+        return kIsWeb ? '/web_veli' : '/veli_panel';
+      default:
+        return kIsWeb ? '/web_veli' : '/veli_panel';
     }
   }
 
@@ -117,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) Navigator.pushReplacementNamed(context, _rotaAl(rol));
     } on FirebaseAuthException catch (e) {
       _snack(e.code == 'wrong-password' || e.code == 'user-not-found'
-          ? 'E-posta veya sifre yanlis' : 'Hata: \${e.message}', Colors.red);
+          ? 'E-posta veya sifre yanlis' : 'Hata: ${e.message}', Colors.red);
     } catch (e) {
       _snack('Hata: \$e', Colors.red);
     } finally {
@@ -159,10 +171,12 @@ class _LoginScreenState extends State<LoginScreen>
       if (cred.user != null && mounted) {
         Navigator.pushReplacementNamed(context, _rotaAl(_secilenRol));
       }
-    } on FirebaseAuthException catch (_) {
-      _snack('Sifre yanlis', Colors.red);
+    } on FirebaseAuthException catch (e) {
+      _snack(e.code == 'invalid-credential'
+          ? 'Kullanici adi veya sifre yanlis'
+          : 'Giris hatasi: \${e.code}', Colors.red);
     } catch (e) {
-      _snack('Hata: \$e', Colors.red);
+      _snack('Hata: \${e.toString().replaceAll("Exception: ", "")}', Colors.red);
     } finally {
       if (mounted) setState(() => _yukleniyor = false);
     }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'services/notification_service.dart';
 import 'services/hata_raporlama.dart';
 import 'services/push_bildirim_service.dart';
@@ -56,19 +58,51 @@ import 'screens/qr_afis_screen.dart';
 import 'screens/veli_kayit_yuz_yuze_scren.dart';
 import 'screens/toplu_yukle_screen.dart';
 import 'screens/veli_kayit_link_screen.dart';
+import 'screens/web_layout.dart';
+import 'screens/web_dashboard.dart';
+import 'screens/web_ogrenciler.dart';
+import 'screens/web_soforler.dart';
+import 'screens/web_harita.dart';
+import 'screens/web_raporlar.dart';
+import 'screens/web_fiyat.dart';
+import 'screens/web_ayarlar.dart';
+import 'screens/web_super_admin.dart';
+import 'screens/web_veli_takip.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: kIsWeb
+        ? const FirebaseOptions(
+      apiKey: 'AIzaSyDtuxahEVj780TSIZKaa6z8Q69CNWymO78',
+      appId: '1:708576389273:web:15dce7b898db575097f008',
+      messagingSenderId: '708576389273',
+      projectId: 'servis360-15b4a',
+      authDomain: 'servis360-15b4a.firebaseapp.com',
+      storageBucket: 'servis360-15b4a.firebasestorage.app',
+      measurementId: 'G-FMH5TW36HL',
+    )
+        : const FirebaseOptions(
+      apiKey: 'AIzaSyBX-9HFavvc7PvH7MuM22Xd9ymJSeWDdSo',
+      appId: '1:708576389273:android:ANDROID_APP_ID_BURAYA',
+      messagingSenderId: '708576389273',
+      projectId: 'servis360-15b4a',
+      storageBucket: 'servis360-15b4a.firebasestorage.app',
+    ),
+  );
 
-  await CrashlyticsService.instance.baslat();
-  await RemoteConfigService.instance.baslat();
+  if (!kIsWeb) {
+    await CrashlyticsService.instance.baslat();
+    await RemoteConfigService.instance.baslat();
+  }
 
   HataRaporlama.kur();
-  await NotificationService.baslat();
-  await PushBildirimService.baslat();
+  if (!kIsWeb) {
+    await NotificationService.baslat();
+    await PushBildirimService.baslat();
+  }
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  if (!kIsWeb) SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -151,6 +185,8 @@ class ServisimApp extends StatelessWidget {
         '/super_admin':      (_) => const SuperAdminShell(),
         '/firma_admin':      (_) => const DashboardScreen(),
         '/dashboard':        (_) => const DashboardScreen(),
+        '/web_panel':        (_) => const WebLayout(),
+        '/web_veli':         (_) => const WebVeliTakip(),
         '/sekreter':         (_) => const DashboardScreen(), // Sekreter de dashboard açar
         '/proje_sec':        (_) => const ProjeSecScreen(),
         '/projeler':         (_) => const ProjelerScreen(),
