@@ -1,4 +1,5 @@
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const { onRequest } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -83,16 +84,15 @@ exports.yaklasmaUyarisi = onDocumentUpdated(
   'drivers/{driverId}',
   async (event) => {
     try {
-      const sonraki  = event.data.after.data();
+      const sonraki   = event.data.after.data();
       if (!sonraki.servisAktif) return null;
       const yeniKonum = sonraki.konum;
       if (!yeniKonum) return null;
-
-      const driverId = event.params.driverId;
+      const driverId  = event.params.driverId;
 
       const ogrSnap = await db.collection('students')
         .where('surucuId', '==', driverId)
-        .where('bindi', '==', false)
+        .where('bindi',    '==', false)
         .get();
 
       const promises = [];
@@ -139,6 +139,45 @@ exports.yaklasmaUyarisi = onDocumentUpdated(
       console.error('yaklasmaUyarisi hata:', e);
     }
     return null;
+  }
+);
+
+// ── Anthropic AI Proxy ───────────────────────────────────────
+exports.aiProxy = onRequest(
+  { cors: true },
+  async (req, res) => {
+    try {
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed' });
+        return;
+      }
+
+      // API key environment variable olarak set edilmeli
+      // firebase functions:config:set anthropic.key="YOUR_KEY"
+      const apiKey = process.env.ANTHROPIC_KEY ||
+          (functions.config().anthropic || {}).key || '';
+
+      if (!apiKey) {
+        res.status(500).json({ error: 'API key not configured' });
+        return;
+      }
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type':      'application/json',
+          'x-api-key':         apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(req.body),
+      });
+
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (e) {
+      console.error('aiProxy hata:', e);
+      res.status(500).json({ error: e.message });
+    }
   }
 );
 
