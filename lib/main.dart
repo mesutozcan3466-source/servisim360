@@ -62,9 +62,13 @@ import 'screens/web_layout.dart';
 import 'screens/web_veli_takip.dart';
 import 'screens/web_sofor_panel.dart';
 import 'screens/web_veli_panel.dart';
+// Web'e özel yeni ekranlar
+import 'screens/web_giris_yonlendirici.dart';
+import 'screens/web_admin_panel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(
     options: kIsWeb
         ? const FirebaseOptions(
@@ -88,21 +92,23 @@ void main() async {
   if (!kIsWeb) {
     await CrashlyticsService.instance.baslat();
     await RemoteConfigService.instance.baslat();
-  }
-
-  HataRaporlama.kur();
-  if (!kIsWeb) {
     await NotificationService.baslat();
     await PushBildirimService.baslat();
   }
 
-  if (!kIsWeb) SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  HataRaporlama.kur();
+
+  if (!kIsWeb) {
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  }
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ),
   );
+
   runApp(const ServisimApp());
 }
 
@@ -121,126 +127,219 @@ class ServisimApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: _navy, primary: _navy, secondary: _turuncu, brightness: Brightness.light,
+          seedColor: _navy,
+          primary: _navy,
+          secondary: _turuncu,
+          brightness: Brightness.light,
         ),
         appBarTheme: const AppBarTheme(
-          backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0, centerTitle: false,
-          titleTextStyle: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Roboto'),
+          backgroundColor: _navy,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: false,
+          titleTextStyle: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Roboto'),
           iconTheme: IconThemeData(color: Colors.white),
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(
-          backgroundColor: _navy, foregroundColor: Colors.white, elevation: 2,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        )),
-        outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
-          foregroundColor: _navy, side: const BorderSide(color: _navy),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-        )),
-        textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: _navy)),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _navy,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12))),
+              textStyle: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14),
+            )),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _navy,
+              side: const BorderSide(color: _navy),
+              shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12))),
+            )),
+        textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: _navy)),
         inputDecorationTheme: const InputDecorationTheme(
-          filled: true, fillColor: Color(0xFFF8F9FA),
-          border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: Color(0xFFE0E0E0))),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: Color(0xFFE0E0E0))),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: _navy, width: 1.5)),
-          errorBorder: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide(color: Colors.red)),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          labelStyle: TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+          filled: true,
+          fillColor: Color(0xFFF8F9FA),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderSide: BorderSide(color: Color(0xFFE0E0E0))),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderSide: BorderSide(color: Color(0xFFE0E0E0))),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderSide: BorderSide(color: _navy, width: 1.5)),
+          errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderSide: BorderSide(color: Colors.red)),
+          contentPadding:
+          EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          labelStyle:
+          TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
         ),
         cardTheme: const CardThemeData(
-          elevation: 2, shadowColor: Color(0x14000000),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+          elevation: 2,
+          shadowColor: Color(0x14000000),
+          shape: RoundedRectangleBorder(
+              borderRadius:
+              BorderRadius.all(Radius.circular(16))),
           color: Colors.white,
         ),
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+          shape: RoundedRectangleBorder(
+              borderRadius:
+              BorderRadius.all(Radius.circular(10))),
         ),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateProperty.all(Colors.white),
-          trackColor: WidgetStateProperty.resolveWith(
-                  (s) => s.contains(WidgetState.selected) ? Colors.green : Colors.grey[300]),
+          trackColor: WidgetStateProperty.resolveWith((s) =>
+          s.contains(WidgetState.selected)
+              ? Colors.green
+              : Colors.grey[300]),
         ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: _navy, foregroundColor: Colors.white, elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+        floatingActionButtonTheme:
+        const FloatingActionButtonThemeData(
+          backgroundColor: _navy,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+              borderRadius:
+              BorderRadius.all(Radius.circular(16))),
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-        dividerTheme: const DividerThemeData(color: Color(0xFFEEEEEE), thickness: 0.5),
+        dividerTheme: const DividerThemeData(
+            color: Color(0xFFEEEEEE), thickness: 0.5),
       ),
-      home: const SplashScreen(),
+
+      // ── BAŞLANGIÇ EKRANI ──────────────────────────────────────
+      // Web: direkt web giriş yönlendirici
+      // Mobil: splash ekranı
+      home: kIsWeb
+          ? const WebGirisYonlendirici()
+          : const SplashScreen(),
+
       routes: {
-        '/onboarding':       (_) => const OnboardingScreen(),
-        '/login':            (_) => const LoginScreen(),
-        '/company_login':    (_) => const CompanyLoginScreen(),
-        '/kayit':            (_) => const KayitScreen(),
-        '/onay_bekleme':     (_) => const OnayBeklemeScreen(),
-        '/rol':              (_) => const RolYonlendirici(),
-        '/super_admin':      (_) => const SuperAdminShell(),
-        '/firma_admin':      (_) => const DashboardScreen(),
-        '/dashboard':        (_) => const DashboardScreen(),
-        '/web_panel':        (_) => const WebLayout(),
-        '/web_veli':         (_) => const WebVeliTakip(),
-        '/sekreter':         (_) => const DashboardScreen(), // Sekreter de dashboard açar
-        '/proje_sec':        (_) => const ProjeSecScreen(),
-        '/projeler':         (_) => const ProjelerScreen(),
-        '/ogrenci':          (_) => const OgrencilerScreen(),
-        '/ogrenci_paneli':   (_) => const OgrenciPaneliScreen(),
-        '/suruculer':        (_) => const SurucularScreen(),
-        '/gruplama':         (_) => const GruplamaScreen(),
-        '/bolge_atama':      (_) => const BolgeAtamaScreen(),
-        '/servis_bolme':     (_) => const ServisBolmeScreen(),
-        '/harita':           (_) => const HaritaScreen(),
-        '/durak_takip':      (_) => const HaritaScreen(),
-        '/rotalar':          (_) => const RotalarScreen(),
-        '/akilli_rota':      (_) => const GruplamaScreen(),
-        '/admin_takip':      (_) => const AdminAracTakipScreen(),
-        '/canli_rota':       (_) => const CanliRotaScreen(),
-        '/canli_takip':      (_) => const CanliTakipScreen(),
-        '/guzergah_kayit':   (_) => const GuzergahKayitScreen(),
-        '/guzergah_gecmis':  (_) => const GuzergahGecmisScreen(),
-        '/fiyat_yonetim':    (_) => const FiyatYonetimScreen(),
-        '/sozlesme':         (_) => const SozlesmeScreen(),
-        '/ayarlar':          (_) => const AyarlarScreen(),
-        '/bildirimler':      (_) => const BildirimlerScreen(),
-        '/servis_saati':     (_) => const ServisSaatiScreen(),
-        '/hazir_mesajlar':   (_) => const HazirMesajlarScreen(),
-        '/toplu_mesaj':      (_) => const TopluMesajScreen(),
-        '/toplu_whatsapp':   (_) => const TopluWhatsappScreen(),
-        '/qr_afis':          (_) => const QrAfisScreen(),
-        '/yuz_yuze_kayit':   (_) => const VeliKayitYuzYuzeScreen(),
-        '/toplu_yukle':      (_) => const TopluYukleScreen(),
-        '/veli_kayit_link':  (_) => const VeliKayitLinkiScreen(),
-        '/sofor_panel':          (_) => const SoforPanelScreen(),
-        '/bireysel_sofor_panel': (_) => const BireyselSoforScreen(),
-        '/bireysel_sofor_basvuru': (_) => const BireyselSoforScreen(),
-        '/veli_panel':       (_) => const VeliPanelScreen(),
-        '/personel_panel':   (_) => const PersonelPanelScreen(),
-        '/yoklama':          (_) => const YoklamaScreen(),
-        '/kayit_link':       (_) => const KayitLinkScreen(),
-        '/analiz':           (_) => const AnalizScreen(),
-        '/ai_asistan':       (_) => const AiAsistanScreen(),
-        '/sifre_degistir':   (_) => const SifreDegistirScreen(),
-        '/veli_sozlesme':    (_) => const VeliSozlesmeScreen(dolduran: 'admin'),
+        // ── Ortak rotalar ──────────────────────────────────────
+        '/onboarding':    (_) => const OnboardingScreen(),
+        '/login':         (_) => kIsWeb
+            ? const WebGirisYonlendirici()
+            : const LoginScreen(),
+        '/company_login': (_) => const CompanyLoginScreen(),
+        '/kayit':         (_) => const KayitScreen(),
+        '/onay_bekleme':  (_) => const OnayBeklemeScreen(),
+        '/rol':           (_) => const RolYonlendirici(),
+
+        // ── Admin rotalar ──────────────────────────────────────
+        '/super_admin':   (_) => kIsWeb
+            ? const WebSuperAdmin()
+            : const SuperAdminShell(),
+        '/firma_admin':   (_) => kIsWeb
+            ? const WebAdminPanel()
+            : const DashboardScreen(),
+        '/dashboard':     (_) => kIsWeb
+            ? const WebAdminPanel()
+            : const DashboardScreen(),
+        '/web_panel':     (_) => const WebLayout(),
+        '/web_admin':     (_) => const WebAdminPanel(),
+
+        // ── Web'e özel ─────────────────────────────────────────
+        '/web_veli':      (_) => const WebVeliTakip(),
+        '/web_sofor':     (_) => const WebSoforPanel(),
+        '/web_veli_panel':(_) => const WebVeliPanel(),
+
+        // ── Proje & Öğrenci ────────────────────────────────────
+        '/proje_sec':     (_) => const ProjeSecScreen(),
+        '/projeler':      (_) => const ProjelerScreen(),
+        '/ogrenci':       (_) => const OgrencilerScreen(),
+        '/ogrenci_paneli':(_) => const OgrenciPaneliScreen(),
+        '/suruculer':     (_) => const SurucularScreen(),
+
+        // ── Harita & Rota ──────────────────────────────────────
+        '/gruplama':      (_) => const GruplamaScreen(),
+        '/bolge_atama':   (_) => const BolgeAtamaScreen(),
+        '/servis_bolme':  (_) => const ServisBolmeScreen(),
+        '/harita':        (_) => const HaritaScreen(),
+        '/durak_takip':   (_) => const HaritaScreen(),
+        '/rotalar':       (_) => const RotalarScreen(),
+        '/akilli_rota':   (_) => const GruplamaScreen(),
+        '/admin_takip':   (_) => const AdminAracTakipScreen(),
+        '/canli_rota':    (_) => const CanliRotaScreen(),
+        '/canli_takip':   (_) => const CanliTakipScreen(),
+        '/guzergah_kayit':(_) => const GuzergahKayitScreen(),
+        '/guzergah_gecmis':(_) => const GuzergahGecmisScreen(),
+
+        // ── Finans & Sözleşme ──────────────────────────────────
+        '/fiyat_yonetim': (_) => const FiyatYonetimScreen(),
+        '/sozlesme':      (_) => const SozlesmeScreen(),
+
+        // ── Ayarlar & Bildirim ────────────────────────────────
+        '/ayarlar':       (_) => const AyarlarScreen(),
+        '/bildirimler':   (_) => const BildirimlerScreen(),
+        '/servis_saati':  (_) => const ServisSaatiScreen(),
+        '/hazir_mesajlar':(_) => const HazirMesajlarScreen(),
+        '/toplu_mesaj':   (_) => const TopluMesajScreen(),
+        '/toplu_whatsapp':(_) => const TopluWhatsappScreen(),
+
+        // ── QR & Kayıt ────────────────────────────────────────
+        '/qr_afis':       (_) => const QrAfisScreen(),
+        '/yuz_yuze_kayit':(_) => const VeliKayitYuzYuzeScreen(),
+        '/toplu_yukle':   (_) => const TopluYukleScreen(),
+        '/veli_kayit_link':(_) => const VeliKayitLinkiScreen(),
+
+        // ── Rol panelleri ─────────────────────────────────────
+        '/sofor_panel':           (_) => const SoforPanelScreen(),
+        '/bireysel_sofor_panel':  (_) => const BireyselSoforScreen(),
+        '/bireysel_sofor_basvuru':(_) => const BireyselSoforScreen(),
+        '/veli_panel':            (_) => const VeliPanelScreen(),
+        '/personel_panel':        (_) => const PersonelPanelScreen(),
+
+        // ── Diğer ─────────────────────────────────────────────
+        '/yoklama':       (_) => const YoklamaScreen(),
+        '/kayit_link':    (_) => const KayitLinkScreen(),
+        '/analiz':        (_) => const AnalizScreen(),
+        '/ai_asistan':    (_) => const AiAsistanScreen(),
+        '/sifre_degistir':(_) => const SifreDegistirScreen(),
+        '/veli_sozlesme': (_) => const VeliSozlesmeScreen(dolduran: 'admin'),
+        '/sekreter':      (_) => const DashboardScreen(),
       },
+
       onGenerateRoute: (settings) {
         if (settings.name == '/veli_basvuru') {
           final args = settings.arguments as Map<String, String?>?;
-          return MaterialPageRoute(builder: (_) => VeliBasvuruFormScreen(linkId: args?['linkId'], linkKod: args?['kod']));
+          return MaterialPageRoute(
+              builder: (_) => VeliBasvuruFormScreen(
+                  linkId: args?['linkId'], linkKod: args?['kod']));
         }
         if (settings.name == '/sofor_rota') {
           final args = settings.arguments as Map<String, String?>?;
-          return MaterialPageRoute(builder: (_) => SoforRotaScreen(surucuId: args?['surucuId'] ?? '', surucuAd: args?['surucuAd'] ?? 'Sofor'));
+          return MaterialPageRoute(
+              builder: (_) => SoforRotaScreen(
+                  surucuId: args?['surucuId'] ?? '',
+                  surucuAd: args?['surucuAd'] ?? 'Sofor'));
         }
         if (settings.name == '/firma_transfer') {
           final args = settings.arguments as Map<String, String>?;
-          return MaterialPageRoute(builder: (_) => KullaniciFirmaTransferScreen(
-              kullaniciId: args?['kullaniciId'] ?? '', kullaniciAd: args?['kullaniciAd'] ?? '',
-              koleksiyon: args?['koleksiyon'] ?? 'drivers', mevcutFirmaId: args?['firmaId'] ?? ''));
+          return MaterialPageRoute(
+              builder: (_) => KullaniciFirmaTransferScreen(
+                  kullaniciId: args?['kullaniciId'] ?? '',
+                  kullaniciAd: args?['kullaniciAd'] ?? '',
+                  koleksiyon: args?['koleksiyon'] ?? 'drivers',
+                  mevcutFirmaId: args?['firmaId'] ?? ''));
         }
         if (settings.name == '/veli_sozlesme_link') {
           final args = settings.arguments as Map<String, String?>?;
-          return MaterialPageRoute(builder: (_) => VeliSozlesmeScreen(dolduran: 'veli', linkId: args?['linkId'], linkKod: args?['kod']));
+          return MaterialPageRoute(
+              builder: (_) => VeliSozlesmeScreen(
+                  dolduran: 'veli',
+                  linkId: args?['linkId'],
+                  linkKod: args?['kod']));
         }
         return null;
       },

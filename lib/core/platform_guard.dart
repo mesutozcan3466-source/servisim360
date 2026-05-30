@@ -1,29 +1,35 @@
 import 'package:flutter/foundation.dart';
 
 class PlatformGuard {
-  // Web'de çalışmayan özellikler için kontrol
-  static bool get isMobileOnly => !kIsWeb;
-  static bool get isWeb => kIsWeb;
+  // ── Platform tespiti ──────────────────────────────────────────
+  static bool get isWeb    => kIsWeb;
+  static bool get isMobile => !kIsWeb;
 
-  // Rol bazlı platform kısıtı
-  // Şoför ekranları sadece mobilde açılır
-  static bool canAccessDriverFeatures() => !kIsWeb;
+  // ── Rol bazlı web erişim kontrolü ────────────────────────────
+  // Web'de tam yetkili roller
+  static bool webdeYetkili(String rol) {
+    return rol == 'superAdmin' ||
+        rol == 'admin'      ||
+        rol == 'firmaAdmin' ||
+        rol == 'kolejAdmin';
+  }
 
-  // QR okuma sadece mobilde
-  static bool canScanQR() => !kIsWeb;
+  // Sadece mobilde çalışan özellikler
+  static bool get gpsKullanabilir         => isMobile;
+  static bool get qrTarayabilir           => isMobile;
+  static bool get ocrKullanabilir         => isMobile;
+  static bool get sesliYonlendirme        => isMobile;
+  static bool get arkaplanServis          => isMobile;
+  static bool get canliKonumPaylasabilir  => isMobile;
 
-  // OCR sadece mobilde
-  static bool canUseOCR() => !kIsWeb;
+  // Her platformda çalışan özellikler
+  static bool get haritaGorebilir         => true;
+  static bool get raporGorebilir          => true;
+  static bool get bildirimAlabilir        => true;
+  static bool get ogrenciYonetebilir      => true;
+  static bool get surucuYonetebilir       => true;
 
-  // Canlı konum takibi her yerde
-  static bool canTrackLocation() => true;
-
-  // Harita her yerde
-  static bool canShowMap() => true;
-
-  // Admin paneli her yerde
-  static bool canAccessAdmin() => true;
-
-  // Veli paneli her yerde
-  static bool canAccessParent() => true;
+  // Web'e özel özellikler
+  static bool get webPaneliGorebilir      => isWeb;
+  static bool get genisEkranLayout        => isWeb;
 }
