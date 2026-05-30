@@ -128,7 +128,7 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
         await PushBildirimService.tokenaPushGonder(
           token:  fcmToken,
           baslik: 'Devamsizlik Bildirimi',
-          mesaj:  mesaj,
+          govde: mesaj,
           data:   {'tip': 'devamsizlik', 'ogrenciId': ogrenciId},
         );
       }

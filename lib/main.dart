@@ -8,6 +8,7 @@ import 'services/hata_raporlama.dart';
 import 'services/push_bildirim_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/crashlytics_service.dart';
+import 'services/fcm_service.dart';
 
 import 'screens/splash_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -49,7 +50,8 @@ import 'screens/ai_asistan_screen.dart';
 import 'screens/bireysel_sofor_screen.dart';
 import 'screens/personel_panel_screen.dart';
 import 'screens/super_admin_screen.dart';
-import 'screens/veli_basvuru_screen.dart';
+import 'screens/veli_basvuru_form_screen.dart';
+import 'screens/veli_basvurular_screen.dart';
 import 'screens/sofor_rota_screen.dart';
 import 'screens/sifre_degistir_screen.dart';
 import 'screens/kullanici_firma_transfer_screen.dart';
@@ -58,6 +60,8 @@ import 'screens/qr_afis_screen.dart';
 import 'screens/veli_kayit_yuz_yuze_scren.dart';
 import 'screens/toplu_yukle_screen.dart';
 import 'screens/veli_kayit_link_screen.dart';
+import 'screens/hazir_mesaj_screen.dart';
+import 'screens/acil_durum_screen.dart';
 import 'screens/web_layout.dart';
 import 'screens/web_veli_takip.dart';
 import 'screens/web_sofor_panel.dart';
@@ -93,6 +97,8 @@ void main() async {
     await RemoteConfigService.instance.baslat();
     await NotificationService.baslat();
     await PushBildirimService.baslat();
+    // YENİ: FCM servisi başlat
+    await FcmServisi.instance.baslat();
   }
 
   HataRaporlama.kur();
@@ -150,7 +156,8 @@ class ServisimApp extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 2,
               shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12))),
+                  borderRadius:
+                  BorderRadius.all(Radius.circular(12))),
               textStyle: const TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 14),
             )),
@@ -159,7 +166,8 @@ class ServisimApp extends StatelessWidget {
               foregroundColor: _navy,
               side: const BorderSide(color: _navy),
               shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12))),
+                  borderRadius:
+                  BorderRadius.all(Radius.circular(12))),
             )),
         textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(foregroundColor: _navy)),
@@ -167,16 +175,23 @@ class ServisimApp extends StatelessWidget {
           filled: true,
           fillColor: Color(0xFFF8F9FA),
           border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(color: Color(0xFFE0E0E0))),
+              borderRadius:
+              BorderRadius.all(Radius.circular(12)),
+              borderSide:
+              BorderSide(color: Color(0xFFE0E0E0))),
           enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(color: Color(0xFFE0E0E0))),
+              borderRadius:
+              BorderRadius.all(Radius.circular(12)),
+              borderSide:
+              BorderSide(color: Color(0xFFE0E0E0))),
           focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(color: _navy, width: 1.5)),
+              borderRadius:
+              BorderRadius.all(Radius.circular(12)),
+              borderSide:
+              BorderSide(color: _navy, width: 1.5)),
           errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderRadius:
+              BorderRadius.all(Radius.circular(12)),
               borderSide: BorderSide(color: Colors.red)),
           contentPadding:
           EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -187,13 +202,15 @@ class ServisimApp extends StatelessWidget {
           elevation: 2,
           shadowColor: Color(0x14000000),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16))),
+              borderRadius:
+              BorderRadius.all(Radius.circular(16))),
           color: Colors.white,
         ),
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(10))),
+              borderRadius:
+              BorderRadius.all(Radius.circular(10))),
         ),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateProperty.all(Colors.white),
@@ -208,21 +225,20 @@ class ServisimApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 4,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16))),
+              borderRadius:
+              BorderRadius.all(Radius.circular(16))),
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
         dividerTheme: const DividerThemeData(
             color: Color(0xFFEEEEEE), thickness: 0.5),
       ),
 
-      // Web: WebGirisYonlendirici (rol kontrolu yapar)
-      // Mobil: SplashScreen
       home: kIsWeb
           ? const WebGirisYonlendirici()
           : const SplashScreen(),
 
       routes: {
-        // Ortak
+        // ── Ortak ──────────────────────────────────────
         '/onboarding':     (_) => const OnboardingScreen(),
         '/login':          (_) => kIsWeb
             ? const WebGirisYonlendirici()
@@ -232,7 +248,7 @@ class ServisimApp extends StatelessWidget {
         '/onay_bekleme':   (_) => const OnayBeklemeScreen(),
         '/rol':            (_) => const RolYonlendirici(),
 
-        // Admin — web'de WebGirisYonlendirici rol bazli yonlendirir
+        // ── Admin ──────────────────────────────────────
         '/super_admin':    (_) => kIsWeb
             ? const WebGirisYonlendirici()
             : const SuperAdminShell(),
@@ -245,19 +261,19 @@ class ServisimApp extends StatelessWidget {
         '/web_panel':      (_) => const WebLayout(),
         '/web_admin':      (_) => const WebAdminPanel(),
 
-        // Web ozel
+        // ── Web özel ───────────────────────────────────
         '/web_veli':       (_) => const WebVeliTakip(),
         '/web_sofor':      (_) => const WebSoforPanel(),
         '/web_veli_panel': (_) => const WebVeliPanel(),
 
-        // Proje & Ogrenci
+        // ── Proje & Öğrenci ────────────────────────────
         '/proje_sec':      (_) => const ProjeSecScreen(),
         '/projeler':       (_) => const ProjelerScreen(),
         '/ogrenci':        (_) => const OgrencilerScreen(),
         '/ogrenci_paneli': (_) => const OgrenciPaneliScreen(),
         '/suruculer':      (_) => const SurucularScreen(),
 
-        // Harita & Rota
+        // ── Harita & Rota ──────────────────────────────
         '/gruplama':        (_) => const GruplamaScreen(),
         '/bolge_atama':     (_) => const BolgeAtamaScreen(),
         '/servis_bolme':    (_) => const ServisBolmeScreen(),
@@ -271,79 +287,105 @@ class ServisimApp extends StatelessWidget {
         '/guzergah_kayit':  (_) => const GuzergahKayitScreen(),
         '/guzergah_gecmis': (_) => const GuzergahGecmisScreen(),
 
-        // Finans
+        // ── Finans ─────────────────────────────────────
         '/fiyat_yonetim':  (_) => const FiyatYonetimScreen(),
         '/sozlesme':        (_) => const SozlesmeScreen(),
 
-        // Ayarlar & Bildirim
-        '/ayarlar':         (_) => const AyarlarScreen(),
-        '/bildirimler':     (_) => const BildirimlerScreen(),
-        '/servis_saati':    (_) => const ServisSaatiScreen(),
+        // ── Veli Kayıt Sistemi ─────────────────────────
+        '/kayit_link':          (_) => const KayitLinkScreen(),
+        '/veli_basvurular':     (_) => const VeliBasvurularScreen(),
+        '/qr_afis':             (_) => const QrAfisScreen(),
+        '/yuz_yuze_kayit':      (_) => const VeliKayitYuzYuzeScreen(),
+        '/toplu_yukle':         (_) => const TopluYukleScreen(),
+        '/veli_kayit_link':     (_) => const VeliKayitLinkiScreen(),
+
+        // ── Mesajlaşma ─────────────────────────────────
         '/hazir_mesajlar':  (_) => const HazirMesajlarScreen(),
         '/toplu_mesaj':     (_) => const TopluMesajScreen(),
         '/toplu_whatsapp':  (_) => const TopluWhatsappScreen(),
 
-        // QR & Kayit
-        '/qr_afis':         (_) => const QrAfisScreen(),
-        '/yuz_yuze_kayit':  (_) => const VeliKayitYuzYuzeScreen(),
-        '/toplu_yukle':     (_) => const TopluYukleScreen(),
-        '/veli_kayit_link': (_) => const VeliKayitLinkiScreen(),
+        // ── Ayarlar & Bildirim ─────────────────────────
+        '/ayarlar':         (_) => const AyarlarScreen(),
+        '/bildirimler':     (_) => const BildirimlerScreen(),
+        '/servis_saati':    (_) => const ServisSaatiScreen(),
 
-        // Rol panelleri
+        // ── Rol Panelleri ──────────────────────────────
         '/sofor_panel':            (_) => const SoforPanelScreen(),
         '/bireysel_sofor_panel':   (_) => const BireyselSoforScreen(),
         '/bireysel_sofor_basvuru': (_) => const BireyselSoforScreen(),
         '/veli_panel':             (_) => const VeliPanelScreen(),
         '/personel_panel':         (_) => const PersonelPanelScreen(),
 
-        // Diger
+        // ── Diğer ──────────────────────────────────────
         '/yoklama':        (_) => const YoklamaScreen(),
-        '/kayit_link':     (_) => const KayitLinkScreen(),
         '/analiz':         (_) => const AnalizScreen(),
         '/ai_asistan':     (_) => const AiAsistanScreen(),
         '/sifre_degistir': (_) => const SifreDegistirScreen(),
-        '/veli_sozlesme':  (_) => const VeliSozlesmeScreen(
-            dolduran: 'admin'),
+        '/veli_sozlesme':  (_) =>
+        const VeliSozlesmeScreen(dolduran: 'admin'),
+        '/acil_durum':     (_) => const AcilDurumScreen(),
         '/sekreter':       (_) => const DashboardScreen(),
       },
 
       onGenerateRoute: (settings) {
+        // /veli_basvuru?linkId=xxx&kod=yyy
         if (settings.name == '/veli_basvuru') {
           final args =
           settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
               builder: (_) => VeliBasvuruFormScreen(
-                  linkId: args?['linkId'],
-                  linkKod: args?['kod']));
+                linkId: args?['linkId'] ?? '',
+              ));
         }
+
+        // /sofor_rota
         if (settings.name == '/sofor_rota') {
           final args =
           settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
               builder: (_) => SoforRotaScreen(
-                  surucuId: args?['surucuId'] ?? '',
-                  surucuAd: args?['surucuAd'] ?? 'Sofor'));
+                surucuId: args?['surucuId'] ?? '',
+                surucuAd: args?['surucuAd'] ?? 'Sofor',
+              ));
         }
+
+        // /firma_transfer
         if (settings.name == '/firma_transfer') {
           final args =
           settings.arguments as Map<String, String>?;
           return MaterialPageRoute(
               builder: (_) => KullaniciFirmaTransferScreen(
-                  kullaniciId: args?['kullaniciId'] ?? '',
-                  kullaniciAd: args?['kullaniciAd'] ?? '',
-                  koleksiyon:
-                  args?['koleksiyon'] ?? 'drivers',
-                  mevcutFirmaId: args?['firmaId'] ?? ''));
+                kullaniciId: args?['kullaniciId'] ?? '',
+                kullaniciAd: args?['kullaniciAd'] ?? '',
+                koleksiyon: args?['koleksiyon'] ?? 'drivers',
+                mevcutFirmaId: args?['firmaId'] ?? '',
+              ));
         }
+
+        // /veli_sozlesme_link?linkId=xxx
         if (settings.name == '/veli_sozlesme_link') {
           final args =
           settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
               builder: (_) => VeliSozlesmeScreen(
-                  dolduran: 'veli',
-                  linkId: args?['linkId'],
-                  linkKod: args?['kod']));
+                dolduran: 'veli',
+                linkId: args?['linkId'],
+                linkKod: args?['kod'],
+              ));
         }
+
+        // /hazir_mesaj?mod=sofor&karsiId=xxx&karsiAdi=yyy
+        if (settings.name == '/hazir_mesaj') {
+          final args =
+          settings.arguments as Map<String, String?>?;
+          return MaterialPageRoute(
+              builder: (_) => HazirMesajScreen(
+                mod: args?['mod'] ?? 'veli',
+                karsiId: args?['karsiId'] ?? '',
+                karsiAdi: args?['karsiAdi'] ?? '',
+              ));
+        }
+
         return null;
       },
     );

@@ -89,6 +89,18 @@ service cloud.firestore {
       allow delete: if adminMi() || superAdminMi();
     }
 
+    // ── surucu_konumlar ────────────────────────────────────────────────
+    // Canli takip icin – sofor yazar, herkes okur (saat kontrolu Flutter'da)
+    match /surucu_konumlar/{surucuId} {
+      allow read: if girisYapilmis();
+      allow create: if soforMu() && request.auth.uid == surucuId;
+      allow update: if soforMu() && request.auth.uid == surucuId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['konum', 'hiz', 'guncellemeZamani',
+                    'servisAktif', 'firmaId', 'projeId']);
+      allow delete: if adminMi() || superAdminMi();
+    }
+
     // ── students ───────────────────────────────────────────────────────
     match /students/{ogrId} {
       allow read: if girisYapilmis() && (
@@ -119,7 +131,6 @@ service cloud.firestore {
     }
 
     // ── routes ─────────────────────────────────────────────────────────
-    // DÜZELTİLDİ: firma izolasyonu eklendi
     match /routes/{rotaId} {
       allow read: if girisYapilmis() && (
         superAdminMi() ||
@@ -131,7 +142,6 @@ service cloud.firestore {
     }
 
     // ── vehicles ───────────────────────────────────────────────────────
-    // DÜZELTİLDİ: firma izolasyonu eklendi
     match /vehicles/{aracId} {
       allow read: if girisYapilmis() && (
         superAdminMi() ||
@@ -172,7 +182,7 @@ service cloud.firestore {
     // ── projects ───────────────────────────────────────────────────────
     match /projects/{projeId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() || adminMi() || personelMi()
+        superAdminMi() || adminMi() || personelMi() || soforMu()
       );
       allow write: if adminMi() || superAdminMi();
     }
@@ -189,27 +199,64 @@ service cloud.firestore {
       allow delete: if adminMi() || superAdminMi();
     }
 
+    // ── bildirimler ────────────────────────────────────────────────────
+    match /bildirimler/{bildirimId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() ||
+        resource.data.aliciId == request.auth.uid
+      );
+      allow create: if girisYapilmis();
+      allow update: if kendi(resource.data.aliciId) || adminMi();
+      allow delete: if adminMi() || superAdminMi();
+    }
+
     // ── kayit_linkleri ─────────────────────────────────────────────────
-    // DÜZELTİLDİ: artık doğru konumda (parantez içinde)
+    // Veli kayit linki – auth gerektirmez (public link)
     match /kayit_linkleri/{linkId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── acil_durumlar ──────────────────────────────────────────────────
-    match /acil_durumlar/{acilId} {
+    // ── veli_basvurular ────────────────────────────────────────────────
+    // Link ile gelen veli formu – auth gerektirmez
+    match /veli_basvurular/{basvuruId} {
+      allow create: if true; // public kayit formu
       allow read: if girisYapilmis() && (
-        superAdminMi() || adminMi() || soforMu() || personelMi()
+        superAdminMi() || adminMi() || personelMi()
       );
-      allow create: if girisYapilmis();
       allow update: if adminMi() || superAdminMi();
       allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── sozlesmeler ────────────────────────────────────────────────────
+    match /sozlesmeler/{sozlesmeId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() ||
+        kendi(resource.data.veliId)
+      );
+      allow create: if girisYapilmis();
+      allow update: if adminMi() || superAdminMi() ||
+        kendi(resource.data.veliId);
+      allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── sozlesme_sablonu ───────────────────────────────────────────────
+    match /sozlesme_sablonu/{sablonId} {
+      allow read: if girisYapilmis();
+      allow write: if adminMi() || superAdminMi();
+    }
+
+    // ── fiyatlar ───────────────────────────────────────────────────────
+    // Firma izolasyonu: veli de okuyabilir (kayit formunda fiyat gosterimi)
+    match /fiyatlar/{fiyatId} {
+      allow read: if girisYapilmis() || true; // kayit formunda auth olmadan da okunabilir
+      allow write: if adminMi() || superAdminMi();
     }
 
     // ── hazir_mesajlar ─────────────────────────────────────────────────
     match /hazir_mesajlar/{mesajId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() || adminMi() || soforMu()
+        superAdminMi() || adminMi() || soforMu() || veliMi()
       );
       allow write: if adminMi() || superAdminMi();
     }
@@ -231,6 +278,7 @@ service cloud.firestore {
     }
 
     // ── guzergah_kayitlar ──────────────────────────────────────────────
+    // 4 gun saklanir, Cloud Function ile otomatik silinir
     match /guzergah_kayitlar/{kayitId} {
       allow read: if girisYapilmis() && (
         superAdminMi() || adminMi() || soforMu()
@@ -239,21 +287,14 @@ service cloud.firestore {
       allow update, delete: if adminMi() || superAdminMi();
     }
 
-    // ── bildirimler ────────────────────────────────────────────────────
-    match /bildirimler/{bildirimId} {
+    // ── acil_durumlar ──────────────────────────────────────────────────
+    match /acil_durumlar/{acilId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() || adminMi() ||
-        resource.data.aliciId == request.auth.uid
+        superAdminMi() || adminMi() || soforMu() || personelMi()
       );
       allow create: if girisYapilmis();
-      allow update: if kendi(resource.data.aliciId) || adminMi();
+      allow update: if adminMi() || superAdminMi();
       allow delete: if adminMi() || superAdminMi();
-    }
-
-    // ── fiyatlar ───────────────────────────────────────────────────────
-    match /fiyatlar/{fiyatId} {
-      allow read: if girisYapilmis();
-      allow write: if adminMi() || superAdminMi();
     }
 
     // ── qr_logs ────────────────────────────────────────────────────────

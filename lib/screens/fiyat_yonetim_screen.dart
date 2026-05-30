@@ -1,94 +1,241 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
 
-// ════════════════════════════════════════════════════════════════
-//  FİYAT YÖNETİMİ — Mahalle + Km (okul adresi bazlı)
-// ════════════════════════════════════════════════════════════════
+// ─── FiyatSonucu modeli ──────────────────────────────────────────────────────
+// tip: 'mahalle' | 'ilce' | 'yok'
+class FiyatSonucu {
+  final double? ucret;   // null = fiyat bulunamadi
+  final String ilce;
+  final String mahalle;
+  final bool bulundu;
+  final String aciklama;
+  final String tip;      // 'mahalle' | 'ilce' | 'yok'
+
+  const FiyatSonucu({
+    required this.ucret,
+    required this.ilce,
+    required this.mahalle,
+    required this.bulundu,
+    required this.aciklama,
+    required this.tip,
+  });
+
+  static const FiyatSonucu bulunamadi = FiyatSonucu(
+    ucret: null,
+    ilce: '',
+    mahalle: '',
+    bulundu: false,
+    aciklama: 'Bu bolge icin fiyat belirlenmemis.',
+    tip: 'yok',
+  );
+}
+
+// ─── FiyatHesaplamaServisi ───────────────────────────────────────────────────
+class FiyatHesaplamaServisi {
+  /// [veliAdresi] ile cagrilabilir (veli_sozlesme_screen uyumu)
+  /// veya [ilce]+[mahalle] ile direkt cagrilabilir.
+  static Future<FiyatSonucu> hesapla({
+    required String firmaId,
+    String ilce = '',
+    String mahalle = '',
+    String? veliAdresi, // veli_sozlesme_screen'den gelir, adres string'i
+  }) async {
+    if (firmaId.isEmpty) return FiyatSonucu.bulunamadi;
+
+    // veliAdresi varsa adres stringinden ilce/mahalle cikarmaya calis
+    // (basit kelime eslesmesi — geolocator olmadan)
+    String _ilce = ilce;
+    String _mahalle = mahalle;
+    if (veliAdresi != null && veliAdresi.isNotEmpty) {
+      // Adres string'ini parcala: "Merkez Mahallesi, Kadikoy, Istanbul"
+      final parcalar = veliAdresi
+          .split(RegExp(r'[,/\n]'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (parcalar.isNotEmpty && _ilce.isEmpty) _ilce = parcalar.length > 1 ? parcalar[1] : parcalar[0];
+      if (parcalar.isNotEmpty && _mahalle.isEmpty) _mahalle = parcalar[0];
+    }
+
+    if (_ilce.isEmpty) return FiyatSonucu.bulunamadi;
+
+    // 1. Mahalle bazli
+    if (_mahalle.isNotEmpty) {
+      final snap = await FirebaseFirestore.instance
+          .collection('fiyatlar')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('ilce', isEqualTo: _ilce)
+          .where('mahalle', isEqualTo: _mahalle)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        final d = snap.docs.first.data();
+        return FiyatSonucu(
+          ucret: (d['ucret'] as num?)?.toDouble(),
+          ilce: _ilce,
+          mahalle: _mahalle,
+          bulundu: true,
+          aciklama: '$_ilce / $_mahalle bolgesi icin aylik servis ucreti',
+          tip: 'mahalle',
+        );
+      }
+    }
+
+    // 2. Ilce bazli
+    final snap = await FirebaseFirestore.instance
+        .collection('fiyatlar')
+        .where('firmaId', isEqualTo: firmaId)
+        .where('ilce', isEqualTo: _ilce)
+        .where('mahalle', isEqualTo: '')
+        .limit(1)
+        .get();
+    if (snap.docs.isNotEmpty) {
+      final d = snap.docs.first.data();
+      return FiyatSonucu(
+        ucret: (d['ucret'] as num?)?.toDouble(),
+        ilce: _ilce,
+        mahalle: '',
+        bulundu: true,
+        aciklama: '$_ilce ilcesi geneli icin aylik servis ucreti',
+        tip: 'ilce',
+      );
+    }
+
+    return FiyatSonucu.bulunamadi;
+  }
+}
+
+// ─── FiyatYonetimScreen ──────────────────────────────────────────────────────
 class FiyatYonetimScreen extends StatefulWidget {
   const FiyatYonetimScreen({super.key});
+
   @override
   State<FiyatYonetimScreen> createState() => _FiyatYonetimScreenState();
 }
 
 class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
     with SingleTickerProviderStateMixin {
-  static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
-  static const _mapsKey = 'AIzaSyBX-9HFavvc7PvH7MuM22Xd9ymJSeWDdSo';
+  static const Color navy = Color(0xFF1a3a6b);
+  static const Color orange = Color(0xFFFF8C00);
 
-  late TabController _tab;
+  late TabController _tabCtrl;
+  final _ilceCtrl = TextEditingController();
+  final _mahalleCtrl = TextEditingController();
+  final _ucretCtrl = TextEditingController();
+  final _notCtrl = TextEditingController();
+  bool _yukleniyor = false;
   String _firmaId = '';
-  bool   _yuklendi = false;
-
-  // Okul adresi
-  final _okulAdresCtrl = TextEditingController();
-  bool _okulKaydediliyor = false;
-  String _kayitliOkulAdres = '';
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
-    _yukle();
+    _tabCtrl = TabController(length: 2, vsync: this);
+    _firmaIdAl();
   }
 
-  @override
-  void dispose() {
-    _tab.dispose();
-    _okulAdresCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _yukle() async {
+  Future<void> _firmaIdAl() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) { setState(() => _yuklendi = true); return; }
-    final doc = await FirebaseFirestore.instance.collection('kullanicilar').doc(uid).get();
-    final firmaId = doc.data()?['firmaId'] as String? ?? '';
-
-    // Kayitli okul adresini al
-    if (firmaId.isNotEmpty) {
-      final firmaDoc = await FirebaseFirestore.instance.collection('firms').doc(firmaId).get();
-      _kayitliOkulAdres = firmaDoc.data()?['okulAdresi'] ?? '';
-      _okulAdresCtrl.text = _kayitliOkulAdres;
-    }
-
-    if (mounted) setState(() { _firmaId = firmaId; _yuklendi = true; });
+    if (uid == null) return;
+    final snap = await FirebaseFirestore.instance
+        .collection('kullanicilar')
+        .doc(uid)
+        .get();
+    setState(() => _firmaId = snap.data()?['firmaId'] ?? '');
   }
 
-  Future<void> _okulAdresKaydet() async {
-    if (_okulAdresCtrl.text.trim().isEmpty || _firmaId.isEmpty) return;
-    setState(() => _okulKaydediliyor = true);
-    try {
-      // Geocoding ile koordinat al
-      final adres = Uri.encodeComponent('${_okulAdresCtrl.text.trim()}, Turkey');
-      final resp  = await http.get(Uri.parse(
-          'https://maps.googleapis.com/maps/api/geocode/json?address=$adres&key=$_mapsKey'));
-      final json  = jsonDecode(resp.body);
-      double? lat, lng;
-      if (json['status'] == 'OK') {
-        final loc = json['results'][0]['geometry']['location'];
-        lat = loc['lat']?.toDouble();
-        lng = loc['lng']?.toDouble();
-      }
-
-      await FirebaseFirestore.instance.collection('firms').doc(_firmaId).update({
-        'okulAdresi': _okulAdresCtrl.text.trim(),
-        if (lat != null) 'okulLat': lat,
-        if (lng != null) 'okulLng': lng,
-      });
-
-      setState(() => _kayitliOkulAdres = _okulAdresCtrl.text.trim());
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Okul adresi kaydedildi!'), backgroundColor: Colors.green));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _okulKaydediliyor = false);
+  Future<void> _fiyatEkle() async {
+    final ilce = _ilceCtrl.text.trim();
+    final mahalle = _mahalleCtrl.text.trim();
+    final ucretStr = _ucretCtrl.text.trim();
+    if (ilce.isEmpty || ucretStr.isEmpty) {
+      _snack('Ilce ve ucret zorunlu', hata: true);
+      return;
     }
+    final ucret = double.tryParse(ucretStr.replaceAll(',', '.'));
+    if (ucret == null) {
+      _snack('Gecerli ucret girin', hata: true);
+      return;
+    }
+    setState(() => _yukleniyor = true);
+    try {
+      final sorgu = await FirebaseFirestore.instance
+          .collection('fiyatlar')
+          .where('firmaId', isEqualTo: _firmaId)
+          .where('ilce', isEqualTo: ilce)
+          .where('mahalle', isEqualTo: mahalle)
+          .get();
+      if (sorgu.docs.isNotEmpty) {
+        await sorgu.docs.first.reference.update({
+          'ucret': ucret,
+          'not': _notCtrl.text.trim(),
+          'guncellenmeTarihi': FieldValue.serverTimestamp(),
+        });
+        _snack('Fiyat guncellendi');
+      } else {
+        await FirebaseFirestore.instance.collection('fiyatlar').add({
+          'firmaId': _firmaId,
+          'ilce': ilce,
+          'mahalle': mahalle,
+          'ucret': ucret,
+          'not': _notCtrl.text.trim(),
+          'olusturmaTarihi': FieldValue.serverTimestamp(),
+          'guncellenmeTarihi': FieldValue.serverTimestamp(),
+        });
+        _snack('Fiyat eklendi');
+      }
+      _ilceCtrl.clear();
+      _mahalleCtrl.clear();
+      _ucretCtrl.clear();
+      _notCtrl.clear();
+      _tabCtrl.animateTo(1);
+    } catch (e) {
+      _snack('Hata: $e', hata: true);
+    } finally {
+      setState(() => _yukleniyor = false);
+    }
+  }
+
+  Future<void> _fiyatSil(String docId) async {
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Fiyati Sil'),
+        content: const Text('Bu fiyat kaydini silmek istiyor musunuz?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Iptal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sil',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (onay != true) return;
+    await FirebaseFirestore.instance
+        .collection('fiyatlar')
+        .doc(docId)
+        .delete();
+    _snack('Silindi');
+  }
+
+  void _duzenlemeyiAc(Map<String, dynamic> data) {
+    _ilceCtrl.text = data['ilce'] ?? '';
+    _mahalleCtrl.text = data['mahalle'] ?? '';
+    _ucretCtrl.text = (data['ucret'] ?? '').toString();
+    _notCtrl.text = data['not'] ?? '';
+    _tabCtrl.animateTo(0);
+  }
+
+  void _snack(String msg, {bool hata = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: hata ? Colors.red : Colors.green,
+    ));
   }
 
   @override
@@ -96,591 +243,318 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0,
-        title: const Text('Fiyat Yonetimi', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: navy,
+        foregroundColor: Colors.white,
+        title: const Text('Fiyat Yonetimi',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(
-          controller: _tab,
-          indicatorColor: _turuncu, indicatorWeight: 3,
-          labelColor: Colors.white, unselectedLabelColor: Colors.white54,
+          controller: _tabCtrl,
+          indicatorColor: orange,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
           tabs: const [
-            Tab(icon: Icon(Icons.location_city_outlined, size: 18), text: 'Mahalle'),
-            Tab(icon: Icon(Icons.straighten_outlined,    size: 18), text: 'Km Bazli'),
+            Tab(icon: Icon(Icons.add), text: 'Fiyat Ekle'),
+            Tab(icon: Icon(Icons.list), text: 'Fiyat Listesi'),
           ],
         ),
       ),
-      body: !_yuklendi
-          ? const Center(child: CircularProgressIndicator(color: _navy))
-          : Column(children: [
-        // Okul adresi bandi
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          child: Row(children: [
-            const Icon(Icons.school_outlined, color: _navy, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: TextField(
-              controller: _okulAdresCtrl,
-              style: const TextStyle(fontSize: 12),
-              decoration: InputDecoration(
-                  hintText: 'Okul adresi (km hesabi icin)',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  filled: true, fillColor: const Color(0xFFF5F7FA)),
-            )),
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: _okulKaydediliyor ? null : _okulAdresKaydet,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                    color: _navy, borderRadius: BorderRadius.circular(8)),
-                child: _okulKaydediliyor
-                    ? const SizedBox(width: 14, height: 14,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Kaydet', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: [_eklemeFormu(), _fiyatListesi()],
+      ),
+    );
+  }
+
+  Widget _eklemeFormu() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: navy.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: navy.withValues(alpha: 0.1)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, color: navy, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Mahalle bos birakilirsa ilce geneli uygulanir. '
+                        'Mahalle bazli fiyat onceliklidir.',
+                    style: TextStyle(fontSize: 12, color: navy),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _etiket('Ilce *'),
+          _alan(ctrl: _ilceCtrl, hint: 'Ornek: Merkez, Kadiköy', ikon: Icons.location_city),
+          const SizedBox(height: 14),
+          _etiket('Mahalle (Opsiyonel)'),
+          _alan(ctrl: _mahalleCtrl, hint: 'Ornek: Bagcilar Mah.', ikon: Icons.map),
+          const SizedBox(height: 14),
+          _etiket('Aylik Ucret (TL) *'),
+          _alan(
+            ctrl: _ucretCtrl,
+            hint: 'Ornek: 2500',
+            ikon: Icons.attach_money,
+            tip: TextInputType.number,
+          ),
+          const SizedBox(height: 14),
+          _etiket('Not (Opsiyonel)'),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: TextField(
+              controller: _notCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.all(14),
+                border: InputBorder.none,
+                hintText: 'Varsa ozel not...',
               ),
             ),
-          ]),
-        ),
-        if (_kayitliOkulAdres.isNotEmpty)
-          Container(
-            color: Colors.green.withValues(alpha: 0.05),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-            child: Row(children: [
-              const Icon(Icons.check_circle_outline, color: Colors.green, size: 13),
-              const SizedBox(width: 6),
-              Expanded(child: Text('Okul: $_kayitliOkulAdres',
-                  style: const TextStyle(color: Colors.green, fontSize: 11),
-                  overflow: TextOverflow.ellipsis)),
-            ]),
           ),
-        Expanded(child: TabBarView(controller: _tab, children: [
-          _MahalleFiyatlari(firmaId: _firmaId),
-          _KmFiyatlari(firmaId: _firmaId),
-        ])),
-      ]),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-//  MAHALLE FİYATLARI
-// ══════════════════════════════════════════════════════════════
-class _MahalleFiyatlari extends StatefulWidget {
-  final String firmaId;
-  const _MahalleFiyatlari({required this.firmaId});
-  @override
-  State<_MahalleFiyatlari> createState() => _MahalleFiyatlariState();
-}
-
-class _MahalleFiyatlariState extends State<_MahalleFiyatlari> {
-  static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
-  String _filtre = '';
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _navy, foregroundColor: Colors.white,
-        onPressed: () => _ekleDialog(context),
-        icon: const Icon(Icons.add), label: const Text('Ekle'),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('fiyatlar')
-            .where('firmaId', isEqualTo: widget.firmaId)
-            .where('tip', isEqualTo: 'mahalle')
-            .snapshots(),
-        builder: (_, snap) {
-          if (snap.connectionState == ConnectionState.waiting)
-            return const Center(child: CircularProgressIndicator(color: _navy));
-          final docs = snap.data?.docs ?? [];
-          if (docs.isEmpty) return _Bos('Henuz mahalle fiyati yok',
-              'Ornek: Sultanbeyli / Adil Mah / 3400 TL', Icons.location_city_outlined);
-
-          final ilceler = docs.map((d) =>
-          (d.data() as Map)['ilce'] as String? ?? '').toSet().toList()..sort();
-          final filtered = _filtre.isEmpty ? docs
-              : docs.where((d) => (d.data() as Map)['ilce'] == _filtre).toList();
-
-          return Column(children: [
-            // Ilce filtresi
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: SingleChildScrollView(scrollDirection: Axis.horizontal,
-                  child: Row(children: [
-                    _Chip('Tumu', '', _filtre, (v) => setState(() => _filtre = v)),
-                    const SizedBox(width: 6),
-                    ...ilceler.map((i) => Padding(padding: const EdgeInsets.only(right: 6),
-                        child: _Chip(i, i, _filtre, (v) => setState(() => _filtre = v)))),
-                  ])),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: _yukleniyor ? null : _fiyatEkle,
+              icon: _yukleniyor
+                  ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.save),
+              label: const Text('Kaydet',
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: orange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
-            // Baslik
-            Container(
-              margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(8)),
-              child: const Row(children: [
-                Expanded(flex: 3, child: Text('Ilce', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-                Expanded(flex: 4, child: Text('Mahalle', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-                SizedBox(width: 80, child: Text('Fiyat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
-                SizedBox(width: 28),
-              ]),
-            ),
-            Expanded(child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 2, 12, 100),
-              itemCount: filtered.length,
-              itemBuilder: (_, i) {
-                final doc = filtered[i];
-                final d   = doc.data() as Map<String, dynamic>;
-                final bg  = i.isEven ? Colors.white : const Color(0xFFF8F9FA);
-                return Container(
-                  decoration: BoxDecoration(color: bg,
-                      border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.12)))),
-                  child: Row(children: [
-                    Expanded(flex: 3, child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                        child: Text(d['ilce'] ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)))),
-                    Expanded(flex: 4, child: Text(d['mahalle'] ?? '',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[700]))),
-                    SizedBox(width: 80, child: Text(
-                        '${(d['fiyat'] as num? ?? 0).toStringAsFixed(0)} TL',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: _turuncu, fontSize: 12),
-                        textAlign: TextAlign.right)),
-                    IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 14, color: Colors.grey),
-                        onPressed: () => _duzenleDialog(context, doc.id, d),
-                        splashRadius: 14, padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
-                  ]),
-                );
-              },
-            )),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              color: Colors.white,
-              child: Row(children: [
-                Text('${filtered.length} kayit', style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-                const Spacer(),
-                if (_filtre.isNotEmpty)
-                  Text(_filtre, style: const TextStyle(color: _navy, fontSize: 11, fontWeight: FontWeight.bold)),
-              ]),
-            ),
-          ]);
-        },
+          ),
+        ],
       ),
     );
   }
 
-  void _ekleDialog(BuildContext ctx) {
-    final iCtrl = TextEditingController();
-    final mCtrl = TextEditingController();
-    final fCtrl = TextEditingController();
-    bool yuk = false;
-    showDialog(context: ctx, builder: (_) => StatefulBuilder(
-      builder: (c, ss) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Fiyat Ekle', style: TextStyle(color: _navy, fontWeight: FontWeight.bold)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _F(iCtrl, 'Ilce *',    Icons.location_city_outlined),
-          const SizedBox(height: 8),
-          _F(mCtrl, 'Mahalle *', Icons.maps_home_work_outlined),
-          const SizedBox(height: 8),
-          _F(fCtrl, 'Ucret (TL) *', Icons.attach_money, tipi: TextInputType.number),
-          const SizedBox(height: 6),
-          Container(padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
-              child: const Text('Ornek:\nSultanbeyli / Adil Mah / 3400',
-                  style: TextStyle(fontSize: 11, color: Colors.blue))),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Iptal')),
-          ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
-              onPressed: yuk ? null : () async {
-                if (iCtrl.text.trim().isEmpty || mCtrl.text.trim().isEmpty || fCtrl.text.trim().isEmpty) return;
-                ss(() => yuk = true);
-                try {
-                  await FirebaseFirestore.instance.collection('fiyatlar').add({
-                    'firmaId': widget.firmaId, 'tip': 'mahalle',
-                    'ilce': iCtrl.text.trim(), 'mahalle': mCtrl.text.trim(),
-                    'fiyat': double.tryParse(fCtrl.text.trim()) ?? 0.0,
-                    'olusturma': FieldValue.serverTimestamp(),
-                  });
-                  if (c.mounted) Navigator.pop(c);
-                } catch (e) {
-                  ss(() => yuk = false);
-                  if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(
-                      SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
-                }
-              },
-              child: yuk ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Ekle')),
-        ],
-      ),
-    ));
-  }
-
-  void _duzenleDialog(BuildContext ctx, String id, Map<String, dynamic> d) {
-    final iCtrl = TextEditingController(text: d['ilce'] ?? '');
-    final mCtrl = TextEditingController(text: d['mahalle'] ?? '');
-    final fCtrl = TextEditingController(text: (d['fiyat'] ?? 0).toString());
-    bool yuk = false;
-    showDialog(context: ctx, builder: (_) => StatefulBuilder(
-      builder: (c, ss) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Duzenle', style: TextStyle(color: _navy, fontWeight: FontWeight.bold)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _F(iCtrl, 'Ilce',   Icons.location_city_outlined),
-          const SizedBox(height: 8),
-          _F(mCtrl, 'Mahalle', Icons.maps_home_work_outlined),
-          const SizedBox(height: 8),
-          _F(fCtrl, 'Ucret (TL)', Icons.attach_money, tipi: TextInputType.number),
-        ]),
-        actions: [
-          TextButton(onPressed: () async {
-            await FirebaseFirestore.instance.collection('fiyatlar').doc(id).delete();
-            if (c.mounted) Navigator.pop(c);
-          }, child: const Text('Sil', style: TextStyle(color: Colors.red))),
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Iptal')),
-          ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
-              onPressed: yuk ? null : () async {
-                ss(() => yuk = true);
-                await FirebaseFirestore.instance.collection('fiyatlar').doc(id).update({
-                  'ilce': iCtrl.text.trim(), 'mahalle': mCtrl.text.trim(),
-                  'fiyat': double.tryParse(fCtrl.text.trim()) ?? 0.0,
-                });
-                if (c.mounted) Navigator.pop(c);
-              },
-              child: yuk ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Kaydet')),
-        ],
-      ),
-    ));
-  }
-}
-
-// ══════════════════════════════════════════════════════════════
-//  KM FİYATLARI
-// ══════════════════════════════════════════════════════════════
-class _KmFiyatlari extends StatelessWidget {
-  final String firmaId;
-  static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
-  const _KmFiyatlari({required this.firmaId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _navy, foregroundColor: Colors.white,
-        onPressed: () => _ekleDialog(context),
-        icon: const Icon(Icons.add), label: const Text('Aralik Ekle'),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('fiyatlar')
-            .where('firmaId', isEqualTo: firmaId)
-            .where('tip', isEqualTo: 'km')
-            .snapshots(),
-        builder: (_, snap) {
-          if (snap.connectionState == ConnectionState.waiting)
-            return const Center(child: CircularProgressIndicator(color: _navy));
-          final docs = snap.data?.docs ?? [];
-          if (docs.isEmpty) return _Bos('Henuz km fiyati yok',
-              'Ornek: 0-3 km / 2500 TL', Icons.straighten_outlined);
-          return Column(children: [
-            Container(
-              margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: _navy, borderRadius: BorderRadius.circular(8)),
-              child: const Row(children: [
-                Expanded(child: Text('Km Araligi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-                SizedBox(width: 90, child: Text('Aylik Ucret', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
-                SizedBox(width: 28),
-              ]),
-            ),
-            Expanded(child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 2, 12, 100),
-              itemCount: docs.length,
-              itemBuilder: (_, i) {
-                final doc = docs[i];
-                final d   = doc.data() as Map<String, dynamic>;
-                final kmB = (d['kmBaslangic'] ?? 0).toStringAsFixed(0);
-                final kmE = (d['kmBitis']     ?? 0).toStringAsFixed(0);
-                final bg  = i.isEven ? Colors.white : const Color(0xFFF8F9FA);
-                return Container(
-                  decoration: BoxDecoration(color: bg,
-                      border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.12)))),
-                  child: Row(children: [
-                    Expanded(child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        child: Text('$kmB – $kmE km', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)))),
-                    SizedBox(width: 90, child: Text(
-                        '${(d['fiyat'] as num? ?? 0).toStringAsFixed(0)} TL',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: _turuncu, fontSize: 13),
-                        textAlign: TextAlign.right)),
-                    IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 14, color: Colors.red),
-                        onPressed: () => FirebaseFirestore.instance.collection('fiyatlar').doc(doc.id).delete(),
-                        splashRadius: 14, padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
-                  ]),
-                );
-              },
-            )),
-          ]);
-        },
-      ),
-    );
-  }
-
-  void _ekleDialog(BuildContext ctx) {
-    final bCtrl = TextEditingController();
-    final eCtrl = TextEditingController();
-    final fCtrl = TextEditingController();
-    bool yuk = false;
-    showDialog(context: ctx, builder: (_) => StatefulBuilder(
-      builder: (c, ss) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Km Aralik Fiyati', style: TextStyle(color: _navy, fontWeight: FontWeight.bold)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Row(children: [
-            Expanded(child: _F(bCtrl, 'Min Km', Icons.arrow_right_alt, tipi: TextInputType.number)),
-            const SizedBox(width: 8),
-            Expanded(child: _F(eCtrl, 'Max Km', Icons.arrow_right_alt, tipi: TextInputType.number)),
-          ]),
-          const SizedBox(height: 8),
-          _F(fCtrl, 'Aylik Ucret (TL)', Icons.attach_money, tipi: TextInputType.number),
-          const SizedBox(height: 6),
-          Container(padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(8)),
-              child: const Text('Okul adresine gore mesafe hesaplanir.\nVeli adres girince otomatik fiyat cikacak.',
-                  style: TextStyle(fontSize: 11, color: Colors.blue))),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Iptal')),
-          ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
-              onPressed: yuk ? null : () async {
-                if (bCtrl.text.isEmpty || eCtrl.text.isEmpty || fCtrl.text.isEmpty) return;
-                ss(() => yuk = true);
-                try {
-                  await FirebaseFirestore.instance.collection('fiyatlar').add({
-                    'firmaId': firmaId, 'tip': 'km',
-                    'kmBaslangic': double.tryParse(bCtrl.text.trim()) ?? 0.0,
-                    'kmBitis':     double.tryParse(eCtrl.text.trim()) ?? 0.0,
-                    'fiyat':       double.tryParse(fCtrl.text.trim()) ?? 0.0,
-                    'olusturma': FieldValue.serverTimestamp(),
-                  });
-                  if (c.mounted) Navigator.pop(c);
-                } catch (e) {
-                  ss(() => yuk = false);
-                  if (c.mounted) ScaffoldMessenger.of(c).showSnackBar(
-                      SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
-                }
-              },
-              child: yuk ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Ekle')),
-        ],
-      ),
-    ));
-  }
-}
-
-// ════════════════════════════════════════════════════════════════
-//  FİYAT HESAPLAMA SERVİSİ — veli_basvuru_screen'den cagrilir
-// ════════════════════════════════════════════════════════════════
-class FiyatHesaplamaServisi {
-  static const _mapsKey = 'AIzaSyBX-9HFavvc7PvH7MuM22Xd9ymJSeWDdSo';
-
-  /// Veli adresine gore fiyat hesapla
-  /// Once mahalle eslesimi dener, sonra km hesabi yapar
-  static Future<FiyatSonucu> hesapla({
-    required String firmaId,
-    required String veliAdresi,
-  }) async {
-    // 1. Firma okul adresini al
-    final firmaDoc = await FirebaseFirestore.instance.collection('firms').doc(firmaId).get();
-    final okulAdresi = firmaDoc.data()?['okulAdresi'] as String? ?? '';
-    final okulLat    = firmaDoc.data()?['okulLat']    as double?;
-    final okulLng    = firmaDoc.data()?['okulLng']    as double?;
-
-    // 2. Mahalle eslesimi dene
-    final mahalleSnap = await FirebaseFirestore.instance
-        .collection('fiyatlar')
-        .where('firmaId', isEqualTo: firmaId)
-        .where('tip', isEqualTo: 'mahalle')
-        .get();
-
-    if (mahalleSnap.docs.isNotEmpty) {
-      final adresLower = veliAdresi.toLowerCase();
-      // Ilce + mahalle tam eslesmesi
-      for (final doc in mahalleSnap.docs) {
-        final d      = doc.data();
-        final ilce   = (d['ilce']    ?? '').toString().toLowerCase();
-        final mahalle= (d['mahalle'] ?? '').toString().toLowerCase();
-        if (ilce.isNotEmpty && mahalle.isNotEmpty &&
-            adresLower.contains(ilce) && adresLower.contains(mahalle)) {
-          return FiyatSonucu(
-            ucret: (d['fiyat'] as num?)?.toDouble() ?? 0,
-            aciklama: '${d['ilce']} / ${d['mahalle']}',
-            tip: 'mahalle',
-          );
-        }
-      }
-      // Sadece mahalle eslesimi
-      for (final doc in mahalleSnap.docs) {
-        final d      = doc.data();
-        final mahalle= (d['mahalle'] ?? '').toString().toLowerCase();
-        if (mahalle.isNotEmpty && adresLower.contains(mahalle)) {
-          return FiyatSonucu(
-            ucret: (d['fiyat'] as num?)?.toDouble() ?? 0,
-            aciklama: '${d['ilce'] ?? ''} ${d['mahalle']} bolgesi',
-            tip: 'mahalle',
-          );
-        }
-      }
+  Widget _fiyatListesi() {
+    if (_firmaId.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
     }
-
-    // 3. Km bazli hesap
-    if (okulAdresi.isNotEmpty) {
-      final km = await _mesafeHesapla(veliAdresi, okulLat, okulLng, okulAdresi);
-      if (km != null) {
-        final kmSnap = await FirebaseFirestore.instance
-            .collection('fiyatlar')
-            .where('firmaId', isEqualTo: firmaId)
-            .where('tip', isEqualTo: 'km')
-            .orderBy('kmBaslangic')
-            .get();
-        for (final doc in kmSnap.docs) {
-          final d  = doc.data();
-          final b  = (d['kmBaslangic'] ?? 0).toDouble();
-          final e  = (d['kmBitis']     ?? 0).toDouble();
-          if (km >= b && km <= e) {
-            return FiyatSonucu(
-              ucret: (d['fiyat'] as num?)?.toDouble() ?? 0,
-              aciklama: '${km.toStringAsFixed(1)} km uzaklik (${b.toStringAsFixed(0)}-${e.toStringAsFixed(0)} km araligi)',
-              tip: 'km',
-              mesafeKm: km,
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('fiyatlar')
+          .where('firmaId', isEqualTo: _firmaId)
+          .orderBy('ilce')
+          .snapshots(),
+      builder: (ctx, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.price_change, size: 64, color: Colors.grey),
+                SizedBox(height: 12),
+                Text('Henuz fiyat eklenmemis',
+                    style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          );
+        }
+        final Map<String, List<QueryDocumentSnapshot>> gruplar = {};
+        for (final doc in docs) {
+          final d = doc.data() as Map<String, dynamic>;
+          final ilce = d['ilce'] ?? 'Diger';
+          gruplar.putIfAbsent(ilce, () => []).add(doc);
+        }
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: gruplar.entries.map((entry) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: navy,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(entry.key,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('${entry.value.length} kayit',
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                ...entry.value.map((doc) {
+                  final d = doc.data() as Map<String, dynamic>;
+                  final mahalle = (d['mahalle'] ?? '') as String;
+                  final ucret =
+                      (d['ucret'] as num?)?.toDouble() ?? 0;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade100),
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: orange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          mahalle.isEmpty
+                              ? Icons.location_city
+                              : Icons.map,
+                          color: orange,
+                        ),
+                      ),
+                      title: Text(
+                        mahalle.isEmpty
+                            ? '${d['ilce']} (Genel)'
+                            : mahalle,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14),
+                      ),
+                      subtitle:
+                      (d['not'] != null && (d['not'] as String).isNotEmpty)
+                          ? Text(d['not'],
+                          style: const TextStyle(fontSize: 12))
+                          : null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${ucret.toStringAsFixed(0)} TL',
+                                style: TextStyle(
+                                    color: orange,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const Text('/ay',
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 11)),
+                            ],
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (val) {
+                              if (val == 'duzenle') _duzenlemeyiAc(d);
+                              if (val == 'sil') _fiyatSil(doc.id);
+                            },
+                            itemBuilder: (ctx) => [
+                              const PopupMenuItem(
+                                  value: 'duzenle',
+                                  child: Row(children: [
+                                    Icon(Icons.edit, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Duzenle'),
+                                  ])),
+                              const PopupMenuItem(
+                                  value: 'sil',
+                                  child: Row(children: [
+                                    Icon(Icons.delete,
+                                        size: 16, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text('Sil',
+                                        style:
+                                        TextStyle(color: Colors.red)),
+                                  ])),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
             );
-          }
-        }
-        // Araliga girmeyen - en yakin araligi bul
-        if (kmSnap.docs.isNotEmpty) {
-          final son = kmSnap.docs.last.data();
-          return FiyatSonucu(
-            ucret: (son['fiyat'] as num?)?.toDouble() ?? 0,
-            aciklama: '${km.toStringAsFixed(1)} km uzaklik',
-            tip: 'km',
-            mesafeKm: km,
-          );
-        }
-      }
-    }
-
-    return FiyatSonucu(ucret: null, aciklama: 'Fiyat bulunamadi', tip: 'yok');
+          }).toList(),
+        );
+      },
+    );
   }
 
-  static Future<double?> _mesafeHesapla(
-      String veliAdres, double? okulLat, double? okulLng, String okulAdres) async {
-    try {
-      // Veli adresinin koordinatlarini al
-      final veliEnc = Uri.encodeComponent('$veliAdres, Turkey');
-      final geoResp = await http.get(Uri.parse(
-          'https://maps.googleapis.com/maps/api/geocode/json?address=$veliEnc&key=$_mapsKey'));
-      final geoJson = jsonDecode(geoResp.body);
-      if (geoJson['status'] != 'OK') return null;
-      final veliLoc = geoJson['results'][0]['geometry']['location'];
-      final veliLat = veliLoc['lat'].toDouble();
-      final veliLng = veliLoc['lng'].toDouble();
+  Widget _etiket(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(text,
+        style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF444444))),
+  );
 
-      // Okul koordinati yoksa adresinden al
-      double? oLat = okulLat, oLng = okulLng;
-      if (oLat == null || oLng == null) {
-        final okulEnc = Uri.encodeComponent('$okulAdres, Turkey');
-        final okulResp = await http.get(Uri.parse(
-            'https://maps.googleapis.com/maps/api/geocode/json?address=$okulEnc&key=$_mapsKey'));
-        final okulJson = jsonDecode(okulResp.body);
-        if (okulJson['status'] == 'OK') {
-          final loc = okulJson['results'][0]['geometry']['location'];
-          oLat = loc['lat'].toDouble();
-          oLng = loc['lng'].toDouble();
-        }
-      }
-      if (oLat == null || oLng == null) return null;
+  Widget _alan({
+    required TextEditingController ctrl,
+    required String hint,
+    required IconData ikon,
+    TextInputType tip = TextInputType.text,
+  }) =>
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: TextField(
+          controller: ctrl,
+          keyboardType: tip,
+          decoration: InputDecoration(
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: InputBorder.none,
+            hintText: hint,
+            prefixIcon: Icon(ikon, color: Colors.grey, size: 20),
+          ),
+        ),
+      );
 
-      // Distance Matrix API
-      final distResp = await http.get(Uri.parse(
-          'https://maps.googleapis.com/maps/api/distancematrix/json'
-              '?origins=$veliLat,$veliLng'
-              '&destinations=$oLat,$oLng'
-              '&units=metric'
-              '&key=$_mapsKey'));
-      final distJson = jsonDecode(distResp.body);
-      if (distJson['status'] == 'OK') {
-        final element = distJson['rows'][0]['elements'][0];
-        if (element['status'] == 'OK') {
-          final metres = element['distance']['value'] as int;
-          return metres / 1000.0;
-        }
-      }
-      return null;
-    } catch (_) { return null; }
-  }
-}
-
-class FiyatSonucu {
-  final double? ucret;
-  final String  aciklama;
-  final String  tip; // 'mahalle', 'km', 'yok'
-  final double? mesafeKm;
-  const FiyatSonucu({required this.ucret, required this.aciklama, required this.tip, this.mesafeKm});
-}
-
-// ── Ortak ────────────────────────────────────────────────────────
-Widget _Bos(String baslik, String alt, IconData ikon) =>
-    Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(ikon, size: 64, color: Colors.grey[300]),
-      const SizedBox(height: 12),
-      Text(baslik, style: TextStyle(color: Colors.grey[500])),
-      const SizedBox(height: 4),
-      Text(alt, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-    ]));
-
-Widget _F(TextEditingController ctrl, String label, IconData ikon,
-    {TextInputType tipi = TextInputType.text}) =>
-    TextField(controller: ctrl, keyboardType: tipi,
-        decoration: InputDecoration(
-            labelText: label,
-            prefixIcon: Icon(ikon, color: const Color(0xFF1a3a6b), size: 18),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            isDense: true));
-
-class _Chip extends StatelessWidget {
-  final String etiket, deger, secili; final ValueChanged<String> onSec;
-  const _Chip(this.etiket, this.deger, this.secili, this.onSec);
   @override
-  Widget build(BuildContext context) {
-    final aktif = secili == deger;
-    return GestureDetector(onTap: () => onSec(deger),
-        child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-                color: aktif ? const Color(0xFF1a3a6b) : const Color(0xFFF0F2F5),
-                borderRadius: BorderRadius.circular(20)),
-            child: Text(etiket, style: TextStyle(
-                color: aktif ? Colors.white : Colors.grey[600],
-                fontSize: 11, fontWeight: aktif ? FontWeight.bold : FontWeight.normal))));
+  void dispose() {
+    _tabCtrl.dispose();
+    _ilceCtrl.dispose();
+    _mahalleCtrl.dispose();
+    _ucretCtrl.dispose();
+    _notCtrl.dispose();
+    super.dispose();
   }
 }

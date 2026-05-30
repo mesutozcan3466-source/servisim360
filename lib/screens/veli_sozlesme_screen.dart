@@ -6,19 +6,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../services/session_service.dart';
 import 'fiyat_yonetim_screen.dart' show FiyatHesaplamaServisi, FiyatSonucu;
 
 // ════════════════════════════════════════════════════════════════
 //  VELİ SOZLESME EKRANI
 //  dolduran: 'veli' (link) veya 'admin' (manuel)
-//  linkId / linkKod: link sisteminden gelir
 // ════════════════════════════════════════════════════════════════
 class VeliSozlesmeScreen extends StatefulWidget {
   final String  dolduran;  // 'veli' | 'admin'
   final String? linkId;
   final String? linkKod;
-  final String? firmaId;   // admin manuel girerse
+  final String? firmaId;
 
   const VeliSozlesmeScreen({
     super.key,
@@ -37,14 +35,12 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
   static const _turuncu = Color(0xFFFF8C00);
 
   final _pageCtrl = PageController();
-  int _sayfa = 0; // 0:Bilgiler 1:Adres 2:Fiyat 3:Sozlesme 4:Onay
+  int _sayfa = 0;
 
-  // Firma
-  String  _firmaId      = '';
-  String  _firmaAd      = '';
+  String  _firmaId  = '';
+  String  _firmaAd  = '';
   Map<String, dynamic> _sozlesmeAyar = {};
 
-  // Form alanları
   final _ogrAd     = TextEditingController();
   final _ogrSoyad  = TextEditingController();
   final _ogrTc     = TextEditingController();
@@ -56,23 +52,17 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
   final _anneEmail = TextEditingController();
   final _adresCtrl = TextEditingController();
 
-  // Harita
   LatLng? _seciliKonum;
   GoogleMapController? _mapCtrl;
-  bool _haritaYuklendi = false;
 
-  // Fiyat
   FiyatSonucu? _fiyatSonucu;
   bool _fiyatYukleniyor = false;
 
-  // Onay
-  bool _sozlesmeOnay   = false;
-  bool _kvkkOnay       = false;
-
-  // Genel
-  bool _yukleniyor     = false;
-  bool _formYuklendi   = false;
-  bool _tamamlandi     = false;
+  bool _sozlesmeOnay = false;
+  bool _kvkkOnay     = false;
+  bool _yukleniyor   = false;
+  bool _formYuklendi = false;
+  bool _tamamlandi   = false;
 
   @override
   void initState() {
@@ -84,7 +74,9 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
   void dispose() {
     _pageCtrl.dispose();
     for (final c in [_ogrAd, _ogrSoyad, _ogrTc, _ogrTel, _anneTel,
-      _babaTel, _anneAd, _babaAd, _anneEmail, _adresCtrl]) { c.dispose(); }
+      _babaTel, _anneAd, _babaAd, _anneEmail, _adresCtrl]) {
+      c.dispose();
+    }
     _mapCtrl?.dispose();
     super.dispose();
   }
@@ -93,18 +85,22 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
     try {
       String? fId = widget.firmaId;
 
-      // Link sisteminden firma bul
       if (fId == null && widget.linkId != null) {
-        final linkDoc = await FirebaseFirestore.instance
+        final doc = await FirebaseFirestore.instance
             .collection('kayit_linkleri').doc(widget.linkId).get();
-        if (linkDoc.exists) {
-          fId = linkDoc.data()?['firmaId'] as String?;
+        if (doc.exists) {
+          fId = doc.data()?['firmaId'] as String?;
         }
       }
 
-      // Admin giriyorsa session'dan al
+      // Admin girisi: Firebase Auth'dan firmaId al
       if (fId == null && widget.dolduran == 'admin') {
-        fId = await SessionService.instance.firmaIdAl();
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          final snap = await FirebaseFirestore.instance
+              .collection('kullanicilar').doc(uid).get();
+          fId = snap.data()?['firmaId'] as String?;
+        }
       }
 
       if (fId == null || fId.isEmpty) {
@@ -114,7 +110,6 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
 
       _firmaId = fId;
 
-      // Firma ve sözleşme verisi
       final firmaDoc = await FirebaseFirestore.instance
           .collection('firms').doc(_firmaId).get();
       _firmaAd = firmaDoc.data()?['firmaAd'] ?? 'Firma';
@@ -127,32 +122,31 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
     } catch (e) {
       debugPrint('VeliSozlesme yukle hata: $e');
     }
-
     if (mounted) setState(() => _formYuklendi = true);
   }
 
-  // ── Fiyat hesapla ────────────────────────────────────────────
   Future<void> _fiyatHesapla() async {
     if (_firmaId.isEmpty || _adresCtrl.text.trim().isEmpty) return;
     setState(() { _fiyatYukleniyor = true; _fiyatSonucu = null; });
     try {
       final sonuc = await FiyatHesaplamaServisi.hesapla(
-        firmaId:    _firmaId,
+        firmaId: _firmaId,
         veliAdresi: _adresCtrl.text.trim(),
       );
       if (mounted) setState(() => _fiyatSonucu = sonuc);
     } catch (e) {
-      if (mounted) setState(() => _fiyatSonucu =
-          FiyatSonucu(ucret: null, aciklama: 'Hata olustu', tip: 'yok'));
+      if (mounted) setState(() => _fiyatSonucu = const FiyatSonucu(
+        ucret: null, ilce: '', mahalle: '', bulundu: false,
+        aciklama: 'Hata olustu', tip: 'yok',
+      ));
     } finally {
       if (mounted) setState(() => _fiyatYukleniyor = false);
     }
   }
 
-  // ── Sayfa geçiş ──────────────────────────────────────────────
   void _ileri() {
     if (_sayfa == 0 && !_bilgilerDolu()) {
-      _snack('Lutfen tum zorunlu alanlari doldurun', Colors.orange);
+      _snack('Lutfen zorunlu alanlari doldurun', Colors.orange);
       return;
     }
     if (_sayfa == 1 && _seciliKonum == null) {
@@ -160,7 +154,9 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
       return;
     }
     if (_sayfa < 4) {
-      _pageCtrl.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _pageCtrl.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut);
       setState(() => _sayfa++);
       if (_sayfa == 2) _fiyatHesapla();
     }
@@ -168,7 +164,9 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
 
   void _geri() {
     if (_sayfa > 0) {
-      _pageCtrl.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _pageCtrl.previousPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut);
       setState(() => _sayfa--);
     }
   }
@@ -179,7 +177,6 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
           _anneTel.text.trim().isNotEmpty &&
           _anneEmail.text.trim().isNotEmpty;
 
-  // ── Kayıt ────────────────────────────────────────────────────
   Future<void> _kaydet() async {
     if (!_sozlesmeOnay || !_kvkkOnay) {
       _snack('Lutfen sozlesmeyi ve KVKK\'yi onaylayin', Colors.orange);
@@ -187,110 +184,97 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
     }
     setState(() => _yukleniyor = true);
     try {
-      // Şifre oluştur
       final sifre = _sifreOlustur();
       final email = _anneEmail.text.trim();
 
-      // Firebase Auth hesabı oluştur
       UserCredential? cred;
       try {
-        cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: email, password: sifre);
+        cred = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: sifre);
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'email-already-in-use') {
-          // Mevcut hesabı kullan
-          _snack('Bu e-posta zaten kayitli, bilgiler guncelleniyor', Colors.orange);
-        } else {
-          rethrow;
-        }
+        if (e.code != 'email-already-in-use') rethrow;
+        _snack('E-posta zaten kayitli, guncelleniyor', Colors.orange);
       }
 
-      final veliUid = cred?.user?.uid ??
-          (await FirebaseAuth.instance.signInWithEmailAndPassword(
-              email: email, password: sifre)).user?.uid ?? '';
-
+      final veliUid = cred?.user?.uid ?? '';
       final now = FieldValue.serverTimestamp();
 
-      // Parent kaydı
-      final parentRef = await FirebaseFirestore.instance.collection('parents').add({
-        'uid':       veliUid,
-        'firmaId':   _firmaId,
-        'ad':        _anneAd.text.trim(),
-        'babaAd':    _babaAd.text.trim(),
-        'email':     email,
-        'anneTel':   _anneTel.text.trim(),
-        'babaTel':   _babaTel.text.trim(),
-        'telefon':   _anneTel.text.trim(),
+      final parentRef = await FirebaseFirestore.instance
+          .collection('parents').add({
+        'uid':         veliUid,
+        'firmaId':     _firmaId,
+        'ad':          _anneAd.text.trim(),
+        'babaAd':      _babaAd.text.trim(),
+        'email':       email,
+        'anneTel':     _anneTel.text.trim(),
+        'babaTel':     _babaTel.text.trim(),
+        'telefon':     _anneTel.text.trim(),
         'kayitTarihi': now,
-        'durum':     'aktif',
+        'durum':       'aktif',
       });
 
-      // Kullanıcı kaydı
-      await FirebaseFirestore.instance.collection('kullanicilar').doc(veliUid).set({
-        'email':   email,
-        'firmaId': _firmaId,
-        'rol':     'veli',
-        'durum':   'aktif',
-        'kayitTarihi': now,
-      });
+      if (veliUid.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('kullanicilar').doc(veliUid).set({
+          'email':       email,
+          'firmaId':     _firmaId,
+          'rol':         'veli',
+          'durum':       'aktif',
+          'kayitTarihi': now,
+        });
+      }
 
-      // Öğrenci kaydı
-      final ogrRef = await FirebaseFirestore.instance.collection('students').add({
-        'firmaId':   _firmaId,
-        'veliId':    parentRef.id,
-        'uid':       veliUid,
-        'ad':        _ogrAd.text.trim(),
-        'soyad':     _ogrSoyad.text.trim(),
-        'tc':        _ogrTc.text.trim(),
-        'telefon':   _ogrTel.text.trim(),
-        'adres':     _adresCtrl.text.trim(),
-        'konum':     _seciliKonum != null
+      await FirebaseFirestore.instance.collection('students').add({
+        'firmaId':          _firmaId,
+        'veliId':           parentRef.id,
+        'uid':              veliUid,
+        'ad':               _ogrAd.text.trim(),
+        'soyad':            _ogrSoyad.text.trim(),
+        'tc':               _ogrTc.text.trim(),
+        'telefon':          _ogrTel.text.trim(),
+        'adres':            _adresCtrl.text.trim(),
+        'konum':            _seciliKonum != null
             ? GeoPoint(_seciliKonum!.latitude, _seciliKonum!.longitude)
             : null,
-        'fiyat':     _fiyatSonucu?.ucret,
-        'fiyatKilitli': true,
-        'fiyatAciklama': _fiyatSonucu?.aciklama ?? '',
-        'bindi':     false,
-        'kayitTarihi': now,
-        'durum':     'aktif',
-        'sozlesmeOnay': true,
-        'sozlesmeTarihi': now,
-        'dolduran':  widget.dolduran,
+        'fiyat':            _fiyatSonucu?.ucret,
+        'fiyatKilitli':     true,
+        'fiyatAciklama':    _fiyatSonucu?.aciklama ?? '',
+        'bindi':            false,
+        'kayitTarihi':      now,
+        'durum':            'aktif',
+        'sozlesmeOnay':     true,
+        'sozlesmeTarihi':   now,
+        'dolduran':         widget.dolduran,
       });
 
-      // Sözleşme kaydı (gizli — sadece admin görür)
       await FirebaseFirestore.instance
           .collection('firms').doc(_firmaId)
           .collection('sozlesmeler').add({
-        'ogrenciId':  ogrRef.id,
-        'veliId':     parentRef.id,
-        'ogrenciAd':  '${_ogrAd.text.trim()} ${_ogrSoyad.text.trim()}',
-        'anneAd':     _anneAd.text.trim(),
-        'babaAd':     _babaAd.text.trim(),
-        'email':      email,
-        'anneTel':    _anneTel.text.trim(),
-        'babaTel':    _babaTel.text.trim(),
-        'adres':      _adresCtrl.text.trim(),
-        'fiyat':      _fiyatSonucu?.ucret,
-        'onayTarihi': now,
-        'dolduran':   widget.dolduran,
-        'sozlesmeMetni': _sozlesmeAyar['sozlesme'] ?? '',
+        'veliId':       parentRef.id,
+        'ogrenciAd':    '${_ogrAd.text.trim()} ${_ogrSoyad.text.trim()}',
+        'anneAd':       _anneAd.text.trim(),
+        'babaAd':       _babaAd.text.trim(),
+        'email':        email,
+        'anneTel':      _anneTel.text.trim(),
+        'babaTel':      _babaTel.text.trim(),
+        'adres':        _adresCtrl.text.trim(),
+        'fiyat':        _fiyatSonucu?.ucret,
+        'onayTarihi':   now,
+        'dolduran':     widget.dolduran,
       });
 
-      // WhatsApp bildirimi — anne
       await _whatsappGonder(
-        tel:  _anneTel.text.trim(),
-        ad:   _anneAd.text.trim().isNotEmpty ? _anneAd.text.trim() : 'Veli',
+        tel:   _anneTel.text.trim(),
+        ad:    _anneAd.text.trim().isNotEmpty ? _anneAd.text.trim() : 'Veli',
         ogrAd: '${_ogrAd.text.trim()} ${_ogrSoyad.text.trim()}',
         email: email,
         sifre: sifre,
       );
 
-      // WhatsApp bildirimi — baba
       if (_babaTel.text.trim().isNotEmpty) {
         await _whatsappGonder(
-          tel:  _babaTel.text.trim(),
-          ad:   _babaAd.text.trim().isNotEmpty ? _babaAd.text.trim() : 'Veli',
+          tel:   _babaTel.text.trim(),
+          ad:    _babaAd.text.trim().isNotEmpty ? _babaAd.text.trim() : 'Veli',
           ogrAd: '${_ogrAd.text.trim()} ${_ogrSoyad.text.trim()}',
           email: email,
           sifre: sifre,
@@ -298,7 +282,6 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
       }
 
       if (mounted) setState(() => _tamamlandi = true);
-
     } catch (e) {
       if (mounted) _snack('Hata: $e', Colors.red);
     } finally {
@@ -317,11 +300,9 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
       final n = tel.replaceAll(RegExp(r'[^\d]'), '');
       final mesaj = Uri.encodeComponent(
         'Merhaba $ad,\n\n'
-            '$ogrAd icin ${ _firmaAd} servis kaydınız tamamlandı. 🎉\n\n'
-            '📱 Uygulama: https://play.google.com/store/apps/details?id=com.servisim.servisim\n\n'
-            '🔑 Kullanici: $email\n'
-            '🔒 Sifre: $sifre\n\n'
-            'Uygulamadan servis takibi yapabilir, bildirim alabilirsiniz.\n\n'
+            '$ogrAd icin $_firmaAd servis kaydı tamamlandi.\n\n'
+            'Kullanici: $email\n'
+            'Sifre: $sifre\n\n'
             'Servisim360',
       );
       final url = Uri.parse('https://wa.me/90$n?text=$mesaj');
@@ -342,26 +323,32 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
         SnackBar(content: Text(msg), backgroundColor: renk));
   }
 
-  // ── BUILD ─────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (!_formYuklendi) {
       return const Scaffold(
           backgroundColor: _navy,
-          body: Center(child: CircularProgressIndicator(color: _turuncu)));
+          body: Center(
+              child: CircularProgressIndicator(color: _turuncu)));
     }
-
     if (_tamamlandi) return _TamamlandiEkrani(firmaAd: _firmaAd);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0,
-        title: Text(widget.dolduran == 'admin'
-            ? 'Yeni Ogrenci Kaydi' : '$_firmaAd - Kayit Formu',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        backgroundColor: _navy,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+            widget.dolduran == 'admin'
+                ? 'Yeni Ogrenci Kaydi'
+                : '$_firmaAd - Kayit Formu',
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 16)),
         leading: _sayfa > 0
-            ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: _geri)
+            ? IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _geri)
             : null,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(6),
@@ -373,14 +360,16 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
         physics: const NeverScrollableScrollPhysics(),
         children: [
           _BilgilerSayfasi(
-            ogrAd: _ogrAd, ogrSoyad: _ogrSoyad, ogrTc: _ogrTc,
-            ogrTel: _ogrTel, anneTel: _anneTel, babaTel: _babaTel,
-            anneAd: _anneAd, babaAd: _babaAd, anneEmail: _anneEmail,
+            ogrAd: _ogrAd, ogrSoyad: _ogrSoyad,
+            ogrTc: _ogrTc, ogrTel: _ogrTel,
+            anneTel: _anneTel, babaTel: _babaTel,
+            anneAd: _anneAd, babaAd: _babaAd,
+            anneEmail: _anneEmail,
           ),
           _AdresSayfasi(
             adresCtrl: _adresCtrl,
             seciliKonum: _seciliKonum,
-            onKonumSec: (latLng) => setState(() => _seciliKonum = latLng),
+            onKonumSec: (ll) => setState(() => _seciliKonum = ll),
             onMapCreated: (ctrl) => _mapCtrl = ctrl,
           ),
           _FiyatSayfasi(
@@ -391,17 +380,18 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
           ),
           _SozlesmeSayfasi(ayar: _sozlesmeAyar, firmaAd: _firmaAd),
           _OnaySayfasi(
-            ayar:          _sozlesmeAyar,
-            sozlesmeOnay:  _sozlesmeOnay,
-            kvkkOnay:      _kvkkOnay,
-            yukleniyor:    _yukleniyor,
-            fiyatSonucu:   _fiyatSonucu,
-            ogrAd:         '${_ogrAd.text} ${_ogrSoyad.text}',
-            adres:         _adresCtrl.text,
-            onSozlesme:    (v) => setState(() => _sozlesmeOnay = v ?? false),
-            onKvkk:        (v) => setState(() => _kvkkOnay = v ?? false),
-            onKaydet:      _kaydet,
-            onYazdir:      _yazdir,
+            ayar: _sozlesmeAyar,
+            sozlesmeOnay: _sozlesmeOnay,
+            kvkkOnay: _kvkkOnay,
+            yukleniyor: _yukleniyor,
+            fiyatSonucu: _fiyatSonucu,
+            ogrAd: '${_ogrAd.text} ${_ogrSoyad.text}',
+            adres: _adresCtrl.text,
+            onSozlesme: (v) => setState(() => _sozlesmeOnay = v ?? false),
+            onKvkk: (v) => setState(() => _kvkkOnay = v ?? false),
+            onKaydet: _kaydet,
+            onYazdir: () => _snack(
+                'Yazdir ozelligi yakin zamanda eklenecek', Colors.blue),
           ),
         ],
       ),
@@ -412,15 +402,10 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
       ),
     );
   }
-
-  void _yazdir() {
-    // Yazdır: PDF veya paylaş
-    _snack('Yazdir ozelligi yakin zamanda eklenecek', Colors.blue);
-  }
 }
 
 // ════════════════════════════════════════════════════════════════
-//  SAYFA 1 — ÖĞRENCİ & AİLE BİLGİLERİ
+//  SAYFA 1 — BILGILER
 // ════════════════════════════════════════════════════════════════
 class _BilgilerSayfasi extends StatelessWidget {
   final TextEditingController ogrAd, ogrSoyad, ogrTc, ogrTel;
@@ -429,7 +414,7 @@ class _BilgilerSayfasi extends StatelessWidget {
 
   const _BilgilerSayfasi({
     required this.ogrAd, required this.ogrSoyad,
-    required this.ogrTc, required this.ogrTel,
+    required this.ogrTc,  required this.ogrTel,
     required this.anneTel, required this.babaTel,
     required this.anneAd, required this.babaAd,
     required this.anneEmail,
@@ -442,29 +427,25 @@ class _BilgilerSayfasi extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _SayfaBaslik('Ogrenci & Aile Bilgileri', Icons.person_outline),
         const SizedBox(height: 20),
-
         _Bolum('Ogrenci Bilgileri', Icons.school_outlined),
-        _FormAlan(ctrl: ogrAd,    label: 'Ad *',          ikon: Icons.person_outline),
-        _FormAlan(ctrl: ogrSoyad, label: 'Soyad *',       ikon: Icons.person_outline),
-        _FormAlan(ctrl: ogrTc,    label: 'TC Kimlik No',   ikon: Icons.badge_outlined,
+        _FormAlan(ctrl: ogrAd,    label: 'Ad *',        ikon: Icons.person_outline),
+        _FormAlan(ctrl: ogrSoyad, label: 'Soyad *',     ikon: Icons.person_outline),
+        _FormAlan(ctrl: ogrTc,    label: 'TC Kimlik',   ikon: Icons.badge_outlined,
             tip: TextInputType.number, uzunluk: 11),
-        _FormAlan(ctrl: ogrTel,   label: 'Ogrenci Tel',    ikon: Icons.phone_outlined,
+        _FormAlan(ctrl: ogrTel,   label: 'Ogrenci Tel', ikon: Icons.phone_outlined,
             tip: TextInputType.phone),
-
         const SizedBox(height: 16),
         _Bolum('Anne Bilgileri', Icons.woman_outlined),
-        _FormAlan(ctrl: anneAd,    label: 'Anne Ad Soyad *', ikon: Icons.person_outline),
-        _FormAlan(ctrl: anneTel,   label: 'Anne Telefon *',  ikon: Icons.phone_outlined,
+        _FormAlan(ctrl: anneAd,    label: 'Anne Ad Soyad *',         ikon: Icons.person_outline),
+        _FormAlan(ctrl: anneTel,   label: 'Anne Telefon *',          ikon: Icons.phone_outlined,
             tip: TextInputType.phone),
-        _FormAlan(ctrl: anneEmail, label: 'E-posta * (giris icin)', ikon: Icons.email_outlined,
+        _FormAlan(ctrl: anneEmail, label: 'E-posta * (giris icin)',  ikon: Icons.email_outlined,
             tip: TextInputType.emailAddress),
-
         const SizedBox(height: 16),
         _Bolum('Baba Bilgileri', Icons.man_outlined),
-        _FormAlan(ctrl: babaAd,  label: 'Baba Ad Soyad',  ikon: Icons.person_outline),
-        _FormAlan(ctrl: babaTel, label: 'Baba Telefon',   ikon: Icons.phone_outlined,
+        _FormAlan(ctrl: babaAd,  label: 'Baba Ad Soyad', ikon: Icons.person_outline),
+        _FormAlan(ctrl: babaTel, label: 'Baba Telefon',  ikon: Icons.phone_outlined,
             tip: TextInputType.phone),
-
         Container(
           margin: const EdgeInsets.only(top: 16),
           padding: const EdgeInsets.all(12),
@@ -476,8 +457,7 @@ class _BilgilerSayfasi extends StatelessWidget {
             Icon(Icons.info_outline, color: Colors.blue, size: 16),
             SizedBox(width: 8),
             Expanded(child: Text(
-              'Anne ve baba ayni hesabi paylasacak. '
-                  'Giris e-postasi ve sifresi WhatsApp ile gonderilecek.',
+              'Giris e-postasi ve sifresi WhatsApp ile gonderilecek.',
               style: TextStyle(color: Colors.blue, fontSize: 12),
             )),
           ]),
@@ -489,7 +469,7 @@ class _BilgilerSayfasi extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  SAYFA 2 — ADRES & HARİTA
+//  SAYFA 2 — ADRES & HARITA
 // ════════════════════════════════════════════════════════════════
 class _AdresSayfasi extends StatefulWidget {
   final TextEditingController adresCtrl;
@@ -510,7 +490,7 @@ class _AdresSayfasi extends StatefulWidget {
 
 class _AdresSayfasiState extends State<_AdresSayfasi> {
   static const _navy = Color(0xFF1a3a6b);
-  static const _baslangic = LatLng(41.0082, 28.9784); // Istanbul
+  static const _baslangic = LatLng(41.0082, 28.9784);
 
   LatLng? _konum;
 
@@ -527,8 +507,11 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
       if (izin == LocationPermission.denied ||
           izin == LocationPermission.deniedForever) return;
       final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-      if (mounted) setState(() => _konum = LatLng(pos.latitude, pos.longitude));
+          locationSettings:
+          const LocationSettings(accuracy: LocationAccuracy.high));
+      if (mounted) {
+        setState(() => _konum = LatLng(pos.latitude, pos.longitude));
+      }
     } catch (_) {}
   }
 
@@ -542,7 +525,6 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
         infoWindow: const InfoWindow(title: 'Evinizin konumu'),
       ));
     }
-
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -554,9 +536,12 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
             maxLines: 2,
             decoration: InputDecoration(
               labelText: 'Ev adresi (il, ilce, mahalle, sokak)',
-              prefixIcon: const Icon(Icons.home_outlined, color: _navy),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true, fillColor: Colors.white,
+              prefixIcon:
+              const Icon(Icons.home_outlined, color: _navy),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
@@ -565,15 +550,16 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
             decoration: BoxDecoration(
                 color: Colors.orange.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.3))),
+                border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3))),
             child: const Row(children: [
               Icon(Icons.touch_app, color: Colors.orange, size: 16),
               SizedBox(width: 8),
-              Expanded(child: Text(
-                'Haritada evinizin konumunu isaretleyin. '
-                    'Bu bilgi fiyat hesaplamada ve soforun sizi bulmasinda kullanilir.',
-                style: TextStyle(color: Colors.orange, fontSize: 11),
-              )),
+              Expanded(
+                  child: Text(
+                    'Haritada evinizin konumunu isaretleyin.',
+                    style: TextStyle(color: Colors.orange, fontSize: 11),
+                  )),
             ]),
           ),
           const SizedBox(height: 8),
@@ -585,7 +571,8 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
             onMapCreated: (ctrl) {
               widget.onMapCreated(ctrl);
               if (_konum != null) {
-                ctrl.animateCamera(CameraUpdate.newLatLngZoom(_konum!, 15));
+                ctrl.animateCamera(
+                    CameraUpdate.newLatLngZoom(_konum!, 15));
               }
             },
             initialCameraPosition: CameraPosition(
@@ -600,22 +587,28 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
             zoomControlsEnabled: false,
           ),
           if (_konum != null)
-            Positioned(bottom: 16, left: 16, right: 16,
-                child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(10)),
-                    child: Row(children: [
-                      const Icon(Icons.check_circle, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(
+            Positioned(
+              bottom: 16, left: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(10)),
+                child: Row(children: [
+                  const Icon(Icons.check_circle,
+                      color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text(
                         'Konum secildi: '
                             '${_konum!.latitude.toStringAsFixed(4)}, '
                             '${_konum!.longitude.toStringAsFixed(4)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 12),
                       )),
-                    ]))),
+                ]),
+              ),
+            ),
         ]),
       ),
     ]);
@@ -623,7 +616,7 @@ class _AdresSayfasiState extends State<_AdresSayfasi> {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  SAYFA 3 — FİYAT
+//  SAYFA 3 — FIYAT
 // ════════════════════════════════════════════════════════════════
 class _FiyatSayfasi extends StatelessWidget {
   final String adres;
@@ -634,10 +627,8 @@ class _FiyatSayfasi extends StatelessWidget {
   static const _turuncu = Color(0xFFFF8C00);
 
   const _FiyatSayfasi({
-    required this.adres,
-    required this.fiyatSonucu,
-    required this.yukleniyor,
-    required this.onYenile,
+    required this.adres, required this.fiyatSonucu,
+    required this.yukleniyor, required this.onYenile,
   });
 
   @override
@@ -647,14 +638,13 @@ class _FiyatSayfasi extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _SayfaBaslik('Ucret Bilgisi', Icons.attach_money),
         const SizedBox(height: 24),
-
-        // Adres özeti
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+              border: Border.all(
+                  color: Colors.grey.withValues(alpha: 0.2))),
           child: Row(children: [
             const Icon(Icons.home_outlined, color: _navy, size: 20),
             const SizedBox(width: 10),
@@ -665,15 +655,14 @@ class _FiyatSayfasi extends StatelessWidget {
           ]),
         ),
         const SizedBox(height: 20),
-
-        // Fiyat kutusu
         if (yukleniyor)
           const Center(child: Padding(
             padding: EdgeInsets.all(32),
             child: Column(children: [
               CircularProgressIndicator(color: _navy),
               SizedBox(height: 12),
-              Text('Fiyat hesaplaniyor...', style: TextStyle(color: Colors.grey)),
+              Text('Fiyat hesaplaniyor...',
+                  style: TextStyle(color: Colors.grey)),
             ]),
           ))
         else if (fiyatSonucu == null)
@@ -689,73 +678,66 @@ class _FiyatSayfasi extends StatelessWidget {
               decoration: BoxDecoration(
                   gradient: const LinearGradient(
                       colors: [_navy, Color(0xFF2a5298)],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight),
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [BoxShadow(
                       color: _navy.withValues(alpha: 0.3),
-                      blurRadius: 12, offset: const Offset(0, 4))]),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4))]),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Fiyatiniz Belirlendi',
+                const Row(children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  SizedBox(width: 8),
+                  Text('Fiyatiniz Belirlendi',
                       style: TextStyle(color: Colors.white70, fontSize: 13)),
                 ]),
                 const SizedBox(height: 12),
                 Text(
                   '${fiyatSonucu!.ucret!.toStringAsFixed(0)} TL / ay',
                   style: const TextStyle(
-                      color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(fiyatSonucu!.aciklama,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const Row(children: [
-                    Icon(Icons.lock_outline, color: Colors.white70, size: 14),
-                    SizedBox(width: 6),
-                    Expanded(child: Text(
-                      'Bu fiyat sozlesmenize islenir ve kilitlenir. '
-                          'Sadece firma yetkilisi degistirebilir.',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                    )),
-                  ]),
-                ),
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13)),
               ]),
             )
           else
-          // Fiyat bulunamadı
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.3))),
+                  border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.3))),
               child: Column(children: [
-                const Icon(Icons.pending_outlined, color: Colors.orange, size: 48),
+                const Icon(Icons.pending_outlined,
+                    color: Colors.orange, size: 48),
                 const SizedBox(height: 12),
                 const Text('Fiyatiniz Belirleniyor',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.orange)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.orange)),
                 const SizedBox(height: 8),
                 const Text(
-                  'Bolgeniz icin fiyat henuz tanimlanmamis. '
-                      'Firma yetkilisi inceleyip size WhatsApp ile bildirecek.',
+                  'Bolgeniz icin fiyat tanimlanmamis. '
+                      'Firma yetkilisi inceleyip bildirecek.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
-                const SizedBox(height: 12),
                 TextButton.icon(
                     onPressed: onYenile,
                     icon: const Icon(Icons.refresh, color: Colors.orange),
-                    label: const Text('Tekrar Dene', style: TextStyle(color: Colors.orange))),
+                    label: const Text('Tekrar Dene',
+                        style: TextStyle(color: Colors.orange))),
               ]),
             ),
-
         const SizedBox(height: 80),
       ]),
     );
@@ -763,7 +745,7 @@ class _FiyatSayfasi extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  SAYFA 4 — SÖZLEŞME METNİ
+//  SAYFA 4 — SOZLESME METNI
 // ════════════════════════════════════════════════════════════════
 class _SozlesmeSayfasi extends StatelessWidget {
   final Map<String, dynamic> ayar;
@@ -773,37 +755,25 @@ class _SozlesmeSayfasi extends StatelessWidget {
   const _SozlesmeSayfasi({required this.ayar, required this.firmaAd});
 
   String get _sozlesmeMetni => '''
-$firmaAd OKUL SERVİS HİZMETLERİ SÖZLEŞMESİ
+$firmaAd OKUL SERVIS HIZMETLERI SOZLESMESI
 
 ${ayar['sozlesme'] ?? 'Taraflar arasinda akdedilen bu sozlesme ile veli/vasi asagidaki sartlari kabul etmektedir.'}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MADDE 1 - KAPSAM
+Bu sozlesme bir egitim-ogretim donemi icin gecerlidir.
 
-MADDE 1 — KAPSAM VE SURE
-Bu sozlesme bir egitim-ogretim donemi (Eylul - Haziran) icin gecerlidir.
-
-MADDE 2 — UCRET VE ODEME
+MADDE 2 - UCRET
 ${ayar['ucretBilgi'] ?? 'Ucret adresinize gore otomatik hesaplanir.'}
-${ayar['odeme'] ?? 'Odeme her ayin 1-5 arasinda yapilir. Gecikme halinde %5 faiz uygulanir.'}
+${ayar['odeme'] ?? 'Odeme her ayin 1-5 arasinda yapilir.'}
 
-MADDE 3 — IPTAL VE IADE
+MADDE 3 - IPTAL
 ${ayar['iptal'] ?? 'Iptal bildirimi en az 15 gun oncesinde yapilmalidir.'}
 
-MADDE 4 — SERVİS KURALLARI
-${ayar['kurallar'] ?? '- Ogrenci belirlenen noktada hazir olmalidir.\n- Servis bekleme suresi 3 dakikadir.\n- Veli bilgi guncellemelerini zamaninda yapmayi kabul eder.'}
+MADDE 4 - SERVIS KURALLARI
+${ayar['kurallar'] ?? '- Ogrenci belirlenen noktada hazir olmalidir.\n- Servis bekleme suresi 3 dakikadir.'}
 
-MADDE 5 — BİLDİRİM VE İLETİŞİM
-Veli, ogrencinin servise binmeyecegi durumlarda en az 1 saat once uygulama uzerinden bildirim yapmakla yukumludur.
-
-MADDE 6 — SORUMLULUK
-Firma, ogrenciyi belirlenen duraktan teslim alip okula bırakmaktan sorumludur. Okul icindeki sorumluluk okula aittir.
-
-MADDE 7 — VERİ GİZLİLİĞİ (KVKK)
+MADDE 5 - VERI GIZLILIGI
 ${ayar['kvkk'] ?? 'Kisisel verileriniz KVKK kapsaminda islenmektedir.'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Bu sozlesmeyi dijital olarak onaylamaniz, ıslak imza ile aynı hukuki gerce sahiptir.
 ''';
 
   @override
@@ -820,9 +790,11 @@ Bu sozlesmeyi dijital olarak onaylamaniz, ıslak imza ile aynı hukuki gerce sah
           decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+              border: Border.all(
+                  color: Colors.grey.withValues(alpha: 0.2))),
           child: Text(_sozlesmeMetni,
-              style: const TextStyle(fontSize: 13, height: 1.7, color: Colors.black87)),
+              style: const TextStyle(
+                  fontSize: 13, height: 1.7, color: Colors.black87)),
         ),
       )),
     ]);
@@ -858,86 +830,88 @@ class _OnaySayfasi extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _SayfaBaslik('Onay & Kayit', Icons.verified_outlined),
         const SizedBox(height: 20),
-
-        // Özet kutusu
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _navy.withValues(alpha: 0.15))),
+              border: Border.all(
+                  color: _navy.withValues(alpha: 0.15))),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Kayit Ozeti',
-                style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 14)),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _navy,
+                    fontSize: 14)),
             const Divider(height: 16),
             _OzetSatir('Ogrenci', ogrAd),
-            _OzetSatir('Adres', adres.length > 50 ? '${adres.substring(0, 50)}...' : adres),
+            _OzetSatir('Adres',
+                adres.length > 50 ? '${adres.substring(0, 50)}...' : adres),
             _OzetSatir('Ucret', fiyatSonucu?.ucret != null
                 ? '${fiyatSonucu!.ucret!.toStringAsFixed(0)} TL / ay'
                 : 'Belirleniyor'),
           ]),
         ),
         const SizedBox(height: 20),
-
-        // Onay kutucukları
         _OnayKutu(
           deger: sozlesmeOnay,
-          metin: ayar['onayKutu'] ?? 'Sozlesmeyi okudum, anladim ve kabul ediyorum.',
+          metin: ayar['onayKutu'] ??
+              'Sozlesmeyi okudum, anladim ve kabul ediyorum.',
           onChange: onSozlesme,
         ),
         const SizedBox(height: 10),
         _OnayKutu(
           deger: kvkkOnay,
-          metin: 'KVKK kapsaminda kisisel verilerimin islenmesini kabul ediyorum.',
+          metin:
+          'KVKK kapsaminda kisisel verilerimin islenmesini kabul ediyorum.',
           onChange: onKvkk,
         ),
         const SizedBox(height: 24),
-
-        // Yazdır butonu
         SizedBox(
           width: double.infinity,
           height: 48,
           child: OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
                 foregroundColor: _navy,
-                side: BorderSide(color: _navy.withValues(alpha: 0.4)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                side: BorderSide(
+                    color: _navy.withValues(alpha: 0.4)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
             onPressed: onYazdir,
             icon: const Icon(Icons.print_outlined, size: 18),
-            label: const Text('Sozlesmeyi Yazdir / Paylasim',
+            label: const Text('Sozlesmeyi Yazdir',
                 style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(height: 12),
-
-        // Kaydet butonu
         SizedBox(
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: sozlesmeOnay && kvkkOnay ? Colors.green : Colors.grey,
+                backgroundColor:
+                sozlesmeOnay && kvkkOnay ? Colors.green : Colors.grey,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
                 elevation: sozlesmeOnay && kvkkOnay ? 4 : 0),
-            onPressed: (sozlesmeOnay && kvkkOnay && !yukleniyor) ? onKaydet : null,
+            onPressed: (sozlesmeOnay && kvkkOnay && !yukleniyor)
+                ? onKaydet
+                : null,
             child: yukleniyor
                 ? const CircularProgressIndicator(color: Colors.white)
-                : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(Icons.check_circle_outline, size: 20),
-              SizedBox(width: 8),
-              Text('Kaydı Tamamla & Gonder',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ]),
+                : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_outline, size: 20),
+                  SizedBox(width: 8),
+                  Text('Kaydi Tamamla',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                ]),
           ),
         ),
-
-        const SizedBox(height: 12),
-        Center(child: Text(
-          'Onaylamaniz uzerine WhatsApp\'tan\nuygulama bilgileri gonderilecek.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey[500], fontSize: 12),
-        )),
         const SizedBox(height: 80),
       ]),
     );
@@ -945,12 +919,12 @@ class _OnaySayfasi extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  TAMAMLANDI EKRANI
+//  TAMAMLANDI
 // ════════════════════════════════════════════════════════════════
 class _TamamlandiEkrani extends StatelessWidget {
   final String firmaAd;
   const _TamamlandiEkrani({required this.firmaAd});
-  static const _navy = Color(0xFF1a3a6b);
+  static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
 
   @override
@@ -965,42 +939,22 @@ class _TamamlandiEkrani extends StatelessWidget {
             decoration: BoxDecoration(
                 color: Colors.green.withValues(alpha: 0.2),
                 shape: BoxShape.circle),
-            child: const Icon(Icons.check_circle, color: Colors.green, size: 80),
+            child: const Icon(Icons.check_circle,
+                color: Colors.green, size: 80),
           ),
           const SizedBox(height: 24),
           const Text('Kayit Tamamlandi!',
-              style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Text(
-            '$firmaAd servis sistemine kaydınız basariyla olusturuldu.',
+            '$firmaAd servis sistemine kaydiniz olusturuldu.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12)),
-            child: Column(children: [
-              Row(children: [
-                Icon(Icons.message, color: Color(0xFF25D366), size: 20),
-                SizedBox(width: 8),
-                Expanded(child: Text(
-                  'Uygulama linki, kullanici adi ve sifreniz WhatsApp\'tan gonderildi.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                )),
-              ]),
-              SizedBox(height: 10),
-              Row(children: [
-                Icon(Icons.directions_bus, color: _turuncu, size: 20),
-                SizedBox(width: 8),
-                Expanded(child: Text(
-                  'Ogrenciiniz en kisa surede bir servise atanacak ve bildirim alacaksiniz.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                )),
-              ]),
-            ]),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 14),
           ),
           const SizedBox(height: 32),
           SizedBox(
@@ -1009,10 +963,15 @@ class _TamamlandiEkrani extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                   backgroundColor: _turuncu,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () => Navigator.of(context).popUntil((r) => r.isFirst),
-              child: const Text('Kapat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  padding:
+                  const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              onPressed: () =>
+                  Navigator.of(context).popUntil((r) => r.isFirst),
+              child: const Text('Kapat',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ]),
@@ -1022,7 +981,7 @@ class _TamamlandiEkrani extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  ORTAK WİDGETLAR
+//  ORTAK WIDGETLAR
 // ════════════════════════════════════════════════════════════════
 class _SayfaBaslik extends StatelessWidget {
   final String baslik; final IconData ikon;
@@ -1060,23 +1019,29 @@ class _FormAlan extends StatelessWidget {
   final TextInputType tip;
   final int? uzunluk;
   static const _navy = Color(0xFF1a3a6b);
+
   const _FormAlan({
     required this.ctrl, required this.label, required this.ikon,
     this.tip = TextInputType.text, this.uzunluk,
   });
+
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: TextField(
-      controller: ctrl, keyboardType: tip,
+      controller: ctrl,
+      keyboardType: tip,
       inputFormatters: uzunluk != null
           ? [LengthLimitingTextInputFormatter(uzunluk!)] : null,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(ikon, color: _navy, size: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true, fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 12),
       ),
     ),
   );
@@ -1089,10 +1054,11 @@ class _OzetSatir extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 70, child: Text('$etiket:', style: TextStyle(
-          color: Colors.grey[600], fontSize: 12))),
-      Expanded(child: Text(deger, style: const TextStyle(
-          fontWeight: FontWeight.w600, fontSize: 12))),
+      SizedBox(width: 70, child: Text('$etiket:',
+          style: TextStyle(color: Colors.grey[600], fontSize: 12))),
+      Expanded(child: Text(deger,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600, fontSize: 12))),
     ]),
   );
 }
@@ -1102,31 +1068,37 @@ class _OnayKutu extends StatelessWidget {
   final String metin;
   final ValueChanged<bool?> onChange;
   static const _navy = Color(0xFF1a3a6b);
-  const _OnayKutu({required this.deger, required this.metin, required this.onChange});
+  const _OnayKutu({
+    required this.deger, required this.metin, required this.onChange});
   @override
   Widget build(BuildContext context) => Container(
     decoration: BoxDecoration(
         color: deger ? _navy.withValues(alpha: 0.05) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: deger ? _navy : Colors.grey.withValues(alpha: 0.3))),
+        border: Border.all(
+            color: deger
+                ? _navy
+                : Colors.grey.withValues(alpha: 0.3))),
     child: CheckboxListTile(
-      value: deger, onChanged: onChange,
+      value: deger,
+      onChanged: onChange,
       activeColor: _navy,
       title: Text(metin, style: const TextStyle(fontSize: 13)),
       controlAffinity: ListTileControlAffinity.leading,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      contentPadding:
+      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
     ),
   );
 }
 
 class _IlerlemeBar extends StatelessWidget {
   final int sayfa, toplam;
-  static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
   const _IlerlemeBar({required this.sayfa, required this.toplam});
   @override
   Widget build(BuildContext context) => Container(
-    height: 6, color: Colors.white24,
+    height: 6,
+    color: Colors.white24,
     child: FractionallySizedBox(
       alignment: Alignment.centerLeft,
       widthFactor: (sayfa + 1) / toplam,
@@ -1140,25 +1112,28 @@ class _AltBar extends StatelessWidget {
   final VoidCallback? onIleri, onGeri;
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
+  static const _adlar = ['Bilgiler', 'Adres', 'Ucret', 'Sozlesme', 'Onay'];
   const _AltBar({required this.sayfa, required this.toplam,
     required this.onIleri, required this.onGeri});
-
-  static const _adlar = ['Bilgiler', 'Adres', 'Ucret', 'Sozlesme', 'Onay'];
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
     decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8)]),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8)]),
     child: Row(children: [
       if (onGeri != null)
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
               foregroundColor: _navy,
               side: const BorderSide(color: _navy),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10))),
           onPressed: onGeri,
           icon: const Icon(Icons.arrow_back, size: 16),
           label: const Text('Geri'),
@@ -1172,11 +1147,15 @@ class _AltBar extends StatelessWidget {
       if (onIleri != null && sayfa < 4)
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-              backgroundColor: _turuncu, foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              backgroundColor: _turuncu,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10))),
           onPressed: onIleri,
-          label: const Text('Ileri', style: TextStyle(fontWeight: FontWeight.bold)),
+          label: const Text('Ileri',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           icon: const Icon(Icons.arrow_forward, size: 16),
         )
       else

@@ -1,140 +1,224 @@
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
-const { onRequest } = require('firebase-functions/v2/https');
-const admin = require('firebase-admin');
+"use strict";
+
+const functions = require("firebase-functions");
+const admin     = require("firebase-admin");
 admin.initializeApp();
 
-const db  = admin.firestore();
-const msg = admin.messaging();
+const db = admin.firestore();
 
-exports.devamsizlikBildirimi = onDocumentCreated(
-  'absence_requests/{reqId}',
-  async (event) => {
-    try {
-      const data      = event.data.data();
-      const surucuId  = data.surucuId;
-      const ogrenciAd = data.ogrenciAd || 'Ogrenci';
-      const aciklama  = data.aciklama  || 'Devamsizlik';
-      if (!surucuId) return null;
-      const doc = await db.collection('drivers').doc(surucuId).get();
-      if (!doc.exists) return null;
-      const token = doc.data().fcmToken;
-      if (!token) return null;
-      await msg.send({
-        token,
-        notification: { title: ogrenciAd + ' Devamsiz', body: aciklama },
-        android: { priority: 'high', notification: { channelId: 'servisim360_bildirim' } },
-        apns: { payload: { aps: { badge: 1, sound: 'default' } } },
-      });
-    } catch (e) { console.error('devamsizlik hata:', e); }
-    return null;
-  }
-);
-
-exports.binisBildirimi = onDocumentCreated(
-  'notifications/{notifId}',
-  async (event) => {
-    try {
-      const data    = event.data.data();
-      const aliciId = data.aliciId;
-      const baslik  = data.baslik || 'Servis Bildirimi';
-      const mesaj   = data.mesaj  || '';
-      if (!aliciId) return null;
-      const doc = await db.collection('kullanicilar').doc(aliciId).get();
-      if (!doc.exists) return null;
-      const token = doc.data().fcmToken;
-      if (!token) return null;
-      await msg.send({
-        token,
-        notification: { title: baslik, body: mesaj },
-        android: { priority: 'high', notification: { channelId: 'servisim360_bildirim' } },
-        apns: { payload: { aps: { badge: 1, sound: 'default' } } },
-      });
-    } catch (e) { console.error('binis hata:', e); }
-    return null;
-  }
-);
-
-exports.yaklasmaUyarisi = onDocumentUpdated(
-  'drivers/{driverId}',
-  async (event) => {
-    try {
-      const sonraki   = event.data.after.data();
-      if (!sonraki.servisAktif) return null;
-      const yeniKonum = sonraki.konum;
-      if (!yeniKonum) return null;
-      const driverId  = event.params.driverId;
-      const ogrSnap   = await db.collection('students')
-        .where('surucuId', '==', driverId)
-        .where('bindi', '==', false).get();
-      const promises  = [];
-      ogrSnap.docs.forEach((ogrDoc) => {
-        const ogr      = ogrDoc.data();
-        if (!ogr.veliId || !ogr.konum) return;
-        const mesafe   = haversine(
-          yeniKonum.latitude, yeniKonum.longitude,
-          ogr.konum.latitude, ogr.konum.longitude
-        );
-        if (mesafe <= 500) {
-          const p = db.collection('kullanicilar').doc(ogr.veliId).get()
-            .then((d) => {
-              if (!d.exists || !d.data().fcmToken) return null;
-              return msg.send({
-                token: d.data().fcmToken,
-                notification: {
-                  title: 'Servis Yaklasıyor!',
-                  body: (sonraki.ad || 'Sofor') + ' 500m yakininda!',
-                },
-                android: { priority: 'high', notification: { channelId: 'servisim360_bildirim' } },
-                apns: { payload: { aps: { badge: 1, sound: 'default' } } },
-              });
-            });
-          promises.push(p);
-        }
-      });
-      await Promise.all(promises);
-    } catch (e) { console.error('yaklasma hata:', e); }
-    return null;
-  }
-);
-
-exports.aiProxy = onRequest(
-  { cors: true, secrets: ['ANTHROPIC_KEY'] },
-  async (req, res) => {
-    try {
-      if (req.method !== 'POST') {
-        res.status(405).json({ error: 'Method not allowed' });
-        return;
-      }
-      const apiKey = process.env.ANTHROPIC_KEY;
-      if (!apiKey) {
-        res.status(500).json({ error: 'API key not configured' });
-        return;
-      }
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type':      'application/json',
-          'x-api-key':         apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(req.body),
-      });
-      const data = await response.json();
-      res.status(response.status).json(data);
-    } catch (e) {
-      console.error('aiProxy hata:', e);
-      res.status(500).json({ error: e.message });
-    }
-  }
-);
-
+// ── Haversine (metre) ────────────────────────────────────────
 function haversine(lat1, lon1, lat2, lon2) {
-  const R   = 6371000;
-  const dL  = (lat2 - lat1) * Math.PI / 180;
-  const dLn = (lon2 - lon1) * Math.PI / 180;
-  const a   = Math.sin(dL/2) * Math.sin(dL/2) +
-    Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLn/2) * Math.sin(dLn/2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const R  = 6371000;
+  const dL = (lat2 - lat1) * Math.PI / 180;
+  const dN = (lon2 - lon1) * Math.PI / 180;
+  const a  = Math.sin(dL / 2) * Math.sin(dL / 2) +
+             Math.cos(lat1 * Math.PI / 180) *
+             Math.cos(lat2 * Math.PI / 180) *
+             Math.sin(dN / 2) * Math.sin(dN / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
+// ── 1. Surucu konum guncellendi → Veli FCM ──────────────────
+exports.surucuKonumBildirimi = functions.firestore
+  .document("surucu_konumlar/{surucuId}")
+  .onWrite(async (change, context) => {
+    const sonra = change.after.data();
+    if (!sonra || !sonra.konum) return null;
+
+    const surucuId = context.params.surucuId;
+    const firmaId  = sonra.firmaId;
+    if (!firmaId) return null;
+
+    const sLat = sonra.konum.latitude;
+    const sLon = sonra.konum.longitude;
+
+    const ogrSnap = await db.collection("students")
+      .where("firmaId",  "==", firmaId)
+      .where("surucuId", "==", surucuId)
+      .where("durum",    "==", "aktif")
+      .where("bindi",    "==", false)
+      .get();
+
+    const promises = [];
+
+    for (const ogrDoc of ogrSnap.docs) {
+      const ogr = ogrDoc.data();
+      if (!ogr.konum) continue;
+
+      const mesafe = haversine(
+        sLat, sLon,
+        ogr.konum.latitude,
+        ogr.konum.longitude
+      );
+
+      if (!ogr.uid) continue;
+      const kulDoc = await db.collection("kullanicilar")
+        .doc(ogr.uid).get();
+      const fcmToken = kulDoc.data() && kulDoc.data().fcmToken;
+      if (!fcmToken) continue;
+
+      const onceki = change.before.data();
+      const oncekiMesafe = onceki && onceki.konum
+        ? haversine(
+            onceki.konum.latitude, onceki.konum.longitude,
+            ogr.konum.latitude,    ogr.konum.longitude
+          )
+        : 9999;
+
+      if (mesafe <= 500 && oncekiMesafe > 500) {
+        promises.push(admin.messaging().send({
+          token: fcmToken,
+          notification: {
+            title: "Servis Yaklasıyor",
+            body: ogr.ad + " icin servis " + Math.round(mesafe) + "m uzakta",
+          },
+          data: { tip: "yaklasıyor", mesafe: String(Math.round(mesafe)) },
+        }));
+      }
+
+      if (mesafe <= 100 && oncekiMesafe > 100) {
+        promises.push(admin.messaging().send({
+          token: fcmToken,
+          notification: {
+            title: "Servis Duraga Geliyor!",
+            body: ogr.ad + " icin servis duraginiza cok yakin",
+          },
+          data: { tip: "duraga_geldi", mesafe: String(Math.round(mesafe)) },
+        }));
+      }
+    }
+
+    return Promise.all(promises);
+  });
+
+// ── 2. Yeni veli basvurusu → Admin FCM ──────────────────────
+exports.yeniBasvuruBildirimi = functions.firestore
+  .document("veli_basvurular/{basvuruId}")
+  .onCreate(async (snap, context) => {
+    const data    = snap.data();
+    const firmaId = data.firmaId;
+    if (!firmaId) return null;
+
+    const adminSnap = await db.collection("kullanicilar")
+      .where("firmaId", "==", firmaId)
+      .where("rol", "in", ["admin", "firmaAdmin"])
+      .get();
+
+    const promises = [];
+    for (const adminDoc of adminSnap.docs) {
+      const fcmToken = adminDoc.data().fcmToken;
+      if (!fcmToken) continue;
+      promises.push(admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: "Yeni Veli Basvurusu",
+          body: data.ogrenciAdi + " - " + data.veliAdi + " kayit olmak istiyor",
+        },
+        data: {
+          tip: "yeni_basvuru",
+          basvuruId: context.params.basvuruId,
+        },
+      }));
+    }
+    return Promise.all(promises);
+  });
+
+// ── 3. Yoklama → Sofor FCM ───────────────────────────────────
+exports.yoklamaBildirimi = functions.firestore
+  .document("absence_requests/{reqId}")
+  .onCreate(async (snap) => {
+    const data = snap.data();
+    if (!data.surucuId) return null;
+
+    const kulDoc = await db.collection("kullanicilar")
+      .doc(data.surucuId).get();
+    const fcmToken = kulDoc.data() && kulDoc.data().fcmToken;
+    if (!fcmToken) return null;
+
+    return admin.messaging().send({
+      token: fcmToken,
+      notification: {
+        title: "Ogrenci Bugün Gelmiyor",
+        body: data.ogrenciAdi + " bugun servise binmeyecek",
+      },
+      data: { tip: "yoklama", ogrenciId: data.ogrenciId || "" },
+    });
+  });
+
+// ── 4. Acil durum → Admin FCM (yuksek oncelik) ───────────────
+exports.acilDurumBildirimi = functions.firestore
+  .document("acil_durumlar/{acilId}")
+  .onCreate(async (snap, context) => {
+    const data      = snap.data();
+    const surucuId  = data.surucuId;
+    if (!surucuId) return null;
+
+    const kulDoc  = await db.collection("kullanicilar").doc(surucuId).get();
+    const firmaId = kulDoc.data() && kulDoc.data().firmaId;
+    if (!firmaId) return null;
+
+    const adminSnap = await db.collection("kullanicilar")
+      .where("firmaId", "==", firmaId)
+      .where("rol", "in", ["admin", "firmaAdmin", "superAdmin"])
+      .get();
+
+    const promises = [];
+    for (const adminDoc of adminSnap.docs) {
+      const fcmToken = adminDoc.data().fcmToken;
+      if (!fcmToken) continue;
+      promises.push(admin.messaging().send({
+        token: fcmToken,
+        notification: {
+          title: "ACIL DURUM!",
+          body: "Surucu: " + (data.turBaslik || "Acil") + " bildirimi gonderdi",
+        },
+        android: { priority: "high" },
+        apns:    { headers: { "apns-priority": "10" } },
+        data: {
+          tip: "acil_durum",
+          acilId: context.params.acilId,
+        },
+      }));
+    }
+    return Promise.all(promises);
+  });
+
+// ── 5. Guzergah temizle — her gece 02:00 ────────────────────
+exports.guzergahTemizle = functions.pubsub
+  .schedule("0 2 * * *")
+  .timeZone("Europe/Istanbul")
+  .onRun(async () => {
+    const dortGunOnce = new Date();
+    dortGunOnce.setDate(dortGunOnce.getDate() - 4);
+
+    const snap = await db.collection("guzergah_kayitlar")
+      .where("tarih", "<", dortGunOnce)
+      .get();
+
+    const batch = db.batch();
+    snap.docs.forEach(function(doc) { batch.delete(doc.ref); });
+    await batch.commit();
+
+    console.log("Temizlendi: " + snap.size + " guzergah kaydi silindi");
+    return null;
+  });
+
+// ── 6. FCM token kaydet — Flutter callable ───────────────────
+exports.fcmTokenKaydet = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated", "Giris gerekli"
+    );
+  }
+  const token = data.token;
+  if (!token) {
+    throw new functions.https.HttpsError(
+      "invalid-argument", "Token gerekli"
+    );
+  }
+  await db.collection("kullanicilar").doc(context.auth.uid).update({
+    fcmToken: token,
+    fcmGuncellemeTarihi: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { basarili: true };
+});

@@ -4,295 +4,447 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// ════════════════════════════════════════════════════════════════
-//  VELi KAYIT LiNK EKRANI
-//  - Kayit linki olustur ve paylas
-//  - WhatsApp mesajina Play Store linki ekle
-//  - Basvuru istatistigi
-// ════════════════════════════════════════════════════════════════
 class KayitLinkScreen extends StatefulWidget {
   const KayitLinkScreen({super.key});
+
   @override
   State<KayitLinkScreen> createState() => _KayitLinkScreenState();
 }
 
 class _KayitLinkScreenState extends State<KayitLinkScreen> {
-  static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
-  // Play Store linki - yayinlaninca guncelle
-  static const _playStoreLink =
-      'https://play.google.com/store/apps/details?id=com.servisim.servisim';
+  static const Color navy = Color(0xFF1a3a6b);
+  static const Color orange = Color(0xFFFF8C00);
 
-  final _db = FirebaseFirestore.instance;
-  String? _firmaId;
-  String? _firmaAd;
-  bool _yukleniyor = true;
+  final _mesajController = TextEditingController();
+  final _telefonController = TextEditingController();
+  bool _yukleniyor = false;
+  String? _olusturulanLink;
+  String _secilenProjeId = '';
+  String _secilenProjeAdi = '';
+  List<Map<String, dynamic>> _projeler = [];
+  String _firmaId = '';
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+    _firmaIdAl();
+    _mesajController.text =
+    'Sayin Velimiz, servis kayit islemleri baslamistir. '
+        'Asagidaki link uzerinden kaydinizi tamamlayabilirsiniz.';
   }
 
-  Future<void> _init() async {
+  Future<void> _firmaIdAl() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final doc = await _db.collection('kullanicilar').doc(uid).get();
-    final firmaId = doc.data()?['firmaId'] as String? ?? '';
-    String firmaAd = '';
-    if (firmaId.isNotEmpty) {
-      // firms veya firmalar koleksiyonu
-      var fd = await _db.collection('firms').doc(firmaId).get();
-      if (!fd.exists) fd = await _db.collection('firmalar').doc(firmaId).get();
-      firmaAd = fd.data()?['firmaAdi'] ?? fd.data()?['ad'] ?? '';
-    }
-    if (mounted) setState(() { _firmaId = firmaId; _firmaAd = firmaAd; _yukleniyor = false; });
+    final snap = await FirebaseFirestore.instance
+        .collection('kullanicilar')
+        .doc(uid)
+        .get();
+    final fid = snap.data()?['firmaId'] ?? '';
+    setState(() => _firmaId = fid);
+    await _projeleriYukle(fid);
   }
 
-  String get _kayitLinki {
-    if (_firmaId == null || _firmaId!.isEmpty) return '';
-    return 'https://servisim360.app/kayit?firma=$_firmaId';
+  Future<void> _projeleriYukle(String firmaId) async {
+    if (firmaId.isEmpty) return;
+    final snap = await FirebaseFirestore.instance
+        .collection('projects')
+        .where('firmaId', isEqualTo: firmaId)
+        .get();
+    setState(() {
+      _projeler = snap.docs
+          .map((d) => {'id': d.id, 'ad': d.data()['ad'] ?? d.id})
+          .toList();
+      if (_projeler.isNotEmpty) {
+        _secilenProjeId = _projeler[0]['id'];
+        _secilenProjeAdi = _projeler[0]['ad'];
+      }
+    });
+  }
+
+  String _linkOlustur(String linkId) {
+    return 'https://servisim.org.tr/kayit/$linkId';
+  }
+
+  Future<void> _linkOlusturVeKaydet() async {
+    if (_secilenProjeId.isEmpty) {
+      _snack('Lutfen proje secin', hata: true);
+      return;
+    }
+    setState(() => _yukleniyor = true);
+    try {
+      final ref = await FirebaseFirestore.instance
+          .collection('kayit_linkleri')
+          .add({
+        'firmaId': _firmaId,
+        'projeId': _secilenProjeId,
+        'projeAdi': _secilenProjeAdi,
+        'mesaj': _mesajController.text.trim(),
+        'olusturmaTarihi': FieldValue.serverTimestamp(),
+        'aktif': true,
+        'kullanilmaSayisi': 0,
+      });
+      setState(() => _olusturulanLink = _linkOlustur(ref.id));
+      _snack('Link olusturuldu!');
+    } catch (e) {
+      _snack('Hata: $e', hata: true);
+    } finally {
+      setState(() => _yukleniyor = false);
+    }
   }
 
   void _linkKopyala() {
-    Clipboard.setData(ClipboardData(text: _kayitLinki));
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link kopyalandi!'), backgroundColor: Colors.green));
+    if (_olusturulanLink == null) return;
+    Clipboard.setData(ClipboardData(text: _olusturulanLink!));
+    _snack('Kopyalandi!');
   }
 
-
-  // SMS ile paylaşım
-  Future<void> _smsPaylasim() async {
-    if (_kayitLinki.isEmpty) return;
+  Future<void> _whatsappGonder() async {
+    if (_olusturulanLink == null) return;
+    final telefon = _telefonController.text.trim().replaceAll(' ', '');
     final mesaj = Uri.encodeComponent(
-        'Servis kaydi icin bu linke tiklayin:\n\$_kayitLinki');
-    final url = Uri.parse('sms:?body=\$mesaj');
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('SMS uygulamasi acilamadi'),
-                backgroundColor: Colors.red));
-      }
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('SMS gonderilemedi'),
-              backgroundColor: Colors.red));
-    }
-  }
-
-  // Tek kisi WhatsApp
-  Future<void> _whatsappTekKisi() async {
-    final mesaj = _veliMesaji();
-    final uri = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(mesaj)}');
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  // Genel WhatsApp paylasimi
-  Future<void> _whatsappGenel() async {
-    final mesaj = _veliMesaji();
-    final uri = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(mesaj)}');
+        '${_mesajController.text.trim()}\n\n$_olusturulanLink');
+    final uri = telefon.isNotEmpty
+        ? Uri.parse('https://wa.me/$telefon?text=$mesaj')
+        : Uri.parse('https://wa.me/?text=$mesaj');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      final web = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(mesaj)}');
-      if (await canLaunchUrl(web)) await launchUrl(web, mode: LaunchMode.externalApplication);
     }
   }
 
-  String _veliMesaji() {
-    return 'Sayin Velimiz,\n\n'
-        '${_firmaAd ?? 'Okul Servisimiz'} icin Servisim360 uygulamasina '
-        'kayit olmanizi rica ediyoruz.\n\n'
-        '--- Kayit Adimlariniz ---\n\n'
-        '1. Asagidaki linkten kayit formunu doldurun:\n'
-        '$_kayitLinki\n\n'
-        '2. Uygulamayi Play Store\'dan indirin:\n'
-        '$_playStoreLink\n\n'
-        '3. Kaydiniz onaylandiktan sonra\n'
-        '   e-posta ve sifrenizle giris yapabilirsiniz.\n\n'
-        'Servisim360 - Akilli Servis Yonetimi';
+  Future<void> _smsGonder() async {
+    if (_olusturulanLink == null) return;
+    final telefon = _telefonController.text.trim().replaceAll(' ', '');
+    final mesaj = Uri.encodeComponent(
+        '${_mesajController.text.trim()}\n\n$_olusturulanLink');
+    final uri = Uri.parse('sms:$telefon?body=$mesaj');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  void _snack(String mesaj, {bool hata = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(mesaj),
+      backgroundColor: hata ? Colors.red : Colors.green,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        backgroundColor: _navy,
-        title: const Text('Veli Kayit Linki', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
-        bottom: PreferredSize(preferredSize: const Size.fromHeight(2),
-            child: Container(color: _turuncu, height: 2)),
+        backgroundColor: navy,
+        foregroundColor: Colors.white,
+        title: const Text('Kayit Linki Olustur',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 0,
       ),
-      body: _yukleniyor
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-          // Link karti
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [_navy, Color(0xFF2a5298)]),
-                borderRadius: BorderRadius.circular(16)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Row(children: [
-                Icon(Icons.link, color: Colors.white, size: 24),
-                SizedBox(width: 10),
-                Text('Kayit Linki', style: TextStyle(color: Colors.white,
-                    fontWeight: FontWeight.bold, fontSize: 18)),
-              ]),
-              const SizedBox(height: 12),
-              const Text('Bu linki velilerle paylasin. Veliler bu link uzerinden '
-                  'kayit basvurusu yapabilir.',
-                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _baslik('Proje Sec'),
+            const SizedBox(height: 8),
+            _dropdown(),
+            const SizedBox(height: 20),
+            _baslik('Mesaj Icerigi'),
+            const SizedBox(height: 8),
+            _mesajAlani(),
+            const SizedBox(height: 20),
+            _baslik('Telefon (Opsiyonel - tek kisi icin)'),
+            const SizedBox(height: 8),
+            _telefonAlani(),
+            const SizedBox(height: 24),
+            _linkButon(),
+            if (_olusturulanLink != null) ...[
+              const SizedBox(height: 24),
+              _linkKarti(),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10)),
-                child: Row(children: [
-                  Expanded(child: Text(_kayitLinki,
-                      style: const TextStyle(color: Colors.white, fontSize: 12,
-                          fontFamily: 'monospace'),
-                      maxLines: 2, overflow: TextOverflow.ellipsis)),
-                  IconButton(
-                      icon: const Icon(Icons.copy, color: Colors.white70, size: 20),
-                      onPressed: _linkKopyala),
-                ]),
-              ),
-
-              // Play Store linki
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _turuncu.withValues(alpha: 0.5))),
-                child: Row(children: [
-                  const Icon(Icons.shop_outlined, color: _turuncu, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Play Store', style: TextStyle(color: _turuncu,
-                        fontWeight: FontWeight.bold, fontSize: 12)),
-                    Text(_playStoreLink,
-                        style: const TextStyle(color: Colors.white54, fontSize: 10),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ])),
-                  GestureDetector(
-                      onTap: () async {
-                        await Clipboard.setData(const ClipboardData(text: _playStoreLink));
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Play Store linki kopyalandi!'),
-                                backgroundColor: Colors.green));
-                      },
-                      child: const Icon(Icons.copy, color: Colors.white54, size: 16)),
-                ]),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 24),
-
-          // Mesaj onizleme
-          const Text('WhatsApp Mesaj Onizleme',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                color: const Color(0xFFDCF8C6),
-                borderRadius: BorderRadius.circular(12)),
-            child: Text(_veliMesaji(),
-                style: const TextStyle(fontSize: 12, height: 1.5, color: Color(0xFF1a1a1a))),
-          ),
-          const SizedBox(height: 20),
-
-          // Paylasim butonlari
-          const Text('Paylasim Secenekleri',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
-          const SizedBox(height: 12),
-          _PaylasimButonu(icon: Icons.copy, label: 'Linki Kopyala',
-              aciklama: 'Panoya kopyala', renk: _navy, onTap: _linkKopyala),
-          const SizedBox(height: 10),
-          _PaylasimButonu(icon: Icons.chat, label: 'WhatsApp ile Paylas',
-              aciklama: 'Kisi sec veya gruba gonder', renk: const Color(0xFF25D366),
-              onTap: _whatsappTekKisi),
-          const SizedBox(height: 10),
-          _PaylasimButonu(
-            icon: Icons.sms_outlined,
-            label: 'SMS ile Paylas',
-            aciklama: 'Mesaj uygulamasini ac',
-            renk: Colors.blue,
-            onTap: _smsPaylasim,
-          ),
-          const SizedBox(height: 24),
-
-          // Basvuru istatistigi
-          const Text('Basvuru Durumu',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
-          const SizedBox(height: 12),
-          if (_firmaId != null && _firmaId!.isNotEmpty)
-            StreamBuilder<QuerySnapshot>(
-              stream: _db.collection('parents')
-                  .where('firmaId', isEqualTo: _firmaId).snapshots(),
-              builder: (ctx, snap) {
-                final docs = snap.data?.docs ?? [];
-                final bekleyen = docs.where((d) => (d.data() as Map)['durum'] == 'beklemede').length;
-                final onaylandi = docs.where((d) => (d.data() as Map)['durum'] == 'onayli').length;
-                return Row(children: [
-                  _IstatKarti(Icons.people, '${docs.length}', 'Toplam', Colors.blue),
-                  const SizedBox(width: 10),
-                  _IstatKarti(Icons.pending_actions, '$bekleyen', 'Bekleyen', Colors.orange),
-                  const SizedBox(width: 10),
-                  _IstatKarti(Icons.check_circle, '$onaylandi', 'Onayli', Colors.green),
-                ]);
-              },
-            ),
-          const SizedBox(height: 40),
-        ]),
+              _aksiyonSatiri(),
+            ],
+            const SizedBox(height: 32),
+            _gecmisLinkler(),
+          ],
+        ),
       ),
     );
   }
-}
 
-class _PaylasimButonu extends StatelessWidget {
-  final IconData icon; final String label, aciklama; final Color renk; final VoidCallback onTap;
-  const _PaylasimButonu({required this.icon, required this.label, required this.aciklama,
-    required this.renk, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(onTap: onTap,
-      child: Container(padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
-          child: Row(children: [
-            Container(padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: renk.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: renk, size: 24)),
-            const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              Text(aciklama, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-            ])),
-            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
-          ])));
-}
+  Widget _dropdown() => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: _secilenProjeId.isEmpty ? null : _secilenProjeId,
+        isExpanded: true,
+        hint: const Text('Proje secin'),
+        items: _projeler
+            .map((p) => DropdownMenuItem<String>(
+          value: p['id'],
+          child: Text(p['ad']),
+        ))
+            .toList(),
+        onChanged: (val) {
+          if (val == null) return;
+          final proje = _projeler.firstWhere((p) => p['id'] == val);
+          setState(() {
+            _secilenProjeId = val;
+            _secilenProjeAdi = proje['ad'];
+            _olusturulanLink = null;
+          });
+        },
+      ),
+    ),
+  );
 
-class _IstatKarti extends StatelessWidget {
-  final IconData icon; final String deger, label; final Color renk;
-  const _IstatKarti(this.icon, this.deger, this.label, this.renk);
+  Widget _mesajAlani() => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: TextField(
+      controller: _mesajController,
+      maxLines: 4,
+      decoration: const InputDecoration(
+        contentPadding: EdgeInsets.all(16),
+        border: InputBorder.none,
+        hintText: 'Velilere gonderilecek mesaj...',
+      ),
+    ),
+  );
+
+  Widget _telefonAlani() => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: TextField(
+      controller: _telefonController,
+      keyboardType: TextInputType.phone,
+      decoration: const InputDecoration(
+        contentPadding:
+        EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: InputBorder.none,
+        hintText: '905xxxxxxxxx  (bos = toplu gonderim)',
+        prefixIcon: Icon(Icons.phone, color: Colors.grey),
+      ),
+    ),
+  );
+
+  Widget _linkButon() => SizedBox(
+    width: double.infinity,
+    height: 52,
+    child: ElevatedButton.icon(
+      onPressed: _yukleniyor ? null : _linkOlusturVeKaydet,
+      icon: _yukleniyor
+          ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+              color: Colors.white, strokeWidth: 2))
+          : const Icon(Icons.link),
+      label: Text(
+        _yukleniyor ? 'Olusturuluyor...' : 'Link Olustur',
+        style: const TextStyle(
+            fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: navy,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  );
+
+  Widget _linkKarti() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.green.shade50,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.green.shade200),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Link Hazir!',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(_olusturulanLink!,
+            style:
+            const TextStyle(fontSize: 13, color: Colors.blue)),
+      ],
+    ),
+  );
+
+  Widget _aksiyonSatiri() => Row(
+    children: [
+      Expanded(
+          child: _aksiyonButon(
+              ikon: Icons.copy,
+              etiket: 'Kopyala',
+              renk: navy,
+              onTap: _linkKopyala)),
+      const SizedBox(width: 10),
+      Expanded(
+          child: _aksiyonButon(
+              ikon: Icons.chat,
+              etiket: 'WhatsApp',
+              renk: const Color(0xFF25D366),
+              onTap: _whatsappGonder)),
+      const SizedBox(width: 10),
+      Expanded(
+          child: _aksiyonButon(
+              ikon: Icons.sms,
+              etiket: 'SMS',
+              renk: orange,
+              onTap: _smsGonder)),
+    ],
+  );
+
+  Widget _baslik(String text) => Text(text,
+      style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF333333)));
+
+  Widget _aksiyonButon({
+    required IconData ikon,
+    required String etiket,
+    required Color renk,
+    required VoidCallback onTap,
+  }) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: renk,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            children: [
+              Icon(ikon, color: Colors.white, size: 20),
+              const SizedBox(height: 4),
+              Text(etiket,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 12)),
+            ],
+          ),
+        ),
+      );
+
+  Widget _gecmisLinkler() {
+    if (_firmaId.isEmpty) return const SizedBox();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _baslik('Gecmis Linkler'),
+        const SizedBox(height: 8),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('kayit_linkleri')
+              .where('firmaId', isEqualTo: _firmaId)
+              .orderBy('olusturmaTarihi', descending: true)
+              .limit(10)
+              .snapshots(),
+          builder: (ctx, snap) {
+            if (!snap.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final docs = snap.data!.docs;
+            if (docs.isEmpty) {
+              return const Text('Henuz link olusturulmadi.',
+                  style: TextStyle(color: Colors.grey));
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (ctx, i) {
+                final d = docs[i].data() as Map<String, dynamic>;
+                final aktif = d['aktif'] ?? true;
+                final kullanim = d['kullanilmaSayisi'] ?? 0;
+                final link = _linkOlustur(docs[i].id);
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: aktif ? Colors.green : Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(d['projeAdi'] ?? '',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13)),
+                            Text('$kullanim kez kullanildi',
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: link));
+                          _snack('Kopyalandi!');
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          aktif ? Icons.toggle_on : Icons.toggle_off,
+                          color: aktif ? Colors.green : Colors.grey,
+                          size: 28,
+                        ),
+                        onPressed: () =>
+                            docs[i].reference.update({'aktif': !aktif}),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(color: renk.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-      child: Column(children: [
-        Icon(icon, color: renk, size: 20),
-        const SizedBox(height: 4),
-        Text(deger, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: renk)),
-        Text(label, style: TextStyle(fontSize: 10, color: renk)),
-      ])));
+  void dispose() {
+    _mesajController.dispose();
+    _telefonController.dispose();
+    super.dispose();
+  }
 }

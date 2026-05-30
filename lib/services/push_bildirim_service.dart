@@ -1,165 +1,43 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-/// FCM Push Bildirim Servisi
 class PushBildirimService {
-  static final _fcm    = FirebaseMessaging.instance;
+  static final _fcm = FirebaseMessaging.instance;
   static final _plugin = FlutterLocalNotificationsPlugin();
-
+  static const _kId = 'servisim_kanal'; static const _kAd = 'Servisim360'; static const _kAc = 'Servis bildirimleri';
+  static const _kanal = AndroidNotificationChannel(_kId,_kAd,description:_kAc,importance:Importance.high);
   static Future<void> baslat() async {
-    await _yerelBildirimKur();
-
-    await _fcm.requestPermission(alert: true, badge: true, sound: true);
-
-    // Token al ve kaydet
-    final token = await _fcm.getToken();
-    if (token != null) await _tokenKaydet(token);
-
-    // Token yenilenince guncelle
-    _fcm.onTokenRefresh.listen(_tokenKaydet);
-
-    // On planda bildirim → yerel bildirim goster
-    FirebaseMessaging.onMessage.listen((message) {
-      final notification = message.notification;
-      if (notification != null) {
-        _yerelBildirimGoster(
-          baslik: notification.title ?? 'Servisim360',
-          icerik: notification.body  ?? '',
-        );
-      }
-    });
-
-    // Arka plandan acilinca
-    FirebaseMessaging.onMessageOpenedApp.listen((_) {
-      // Ileride rota yonlendirmesi eklenebilir
-    });
-  }
-
-  // ── Yerel Bildirim Kur ───────────────────────────────────────────────────────
-  static Future<void> _yerelBildirimKur() async {
-    const androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+    if (kIsWeb) return;
+    await _plugin.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(),
+      ),
     );
-    const initSettings =
-    InitializationSettings(android: androidSettings, iOS: iosSettings);
-
-    await _plugin.initialize(initSettings);
-
-    const channel = AndroidNotificationChannel(
-      'servisim360_kanal',
-      'Servisim360 Bildirimleri',
-      description: 'Servis ve ogrenci bildirimleri',
-      importance: Importance.high,
-    );
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_kanal);
+    await _fcm.requestPermission(alert:true,badge:true,sound:true);
+    await _tokenKaydet();
+    _fcm.onTokenRefresh.listen((_) => _tokenKaydet());
+    FirebaseMessaging.onMessage.listen(_foregroundMesaj);
   }
-
-  // ── Yerel Bildirim Goster ────────────────────────────────────────────────────
-  static Future<void> _yerelBildirimGoster({
-    required String baslik,
-    required String icerik,
-    int id = 0,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'servisim360_kanal',
-      'Servisim360 Bildirimleri',
-      channelDescription: 'Servis ve ogrenci bildirimleri',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    );
-    const iosDetails = DarwinNotificationDetails();
-    const details =
-    NotificationDetails(android: androidDetails, iOS: iosDetails);
-    await _plugin.show(id, baslik, icerik, details);
-  }
-
-  // ── Disaridan Bildirim Goster ────────────────────────────────────────────────
-  static Future<void> bildirimGoster({
-    required String baslik,
-    required String icerik,
-    int id = 0,
-  }) =>
-      _yerelBildirimGoster(baslik: baslik, icerik: icerik, id: id);
-
-  // ── FCM Token Kaydet ─────────────────────────────────────────────────────────
-  static Future<void> _tokenKaydet(String token) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+  static Future<void> _tokenKaydet() async {
     try {
-      await FirebaseFirestore.instance
-          .collection('kullanicilar')
-          .doc(uid)
-          .update({
-        'fcmToken':        token,
-        'tokenGuncelleme': FieldValue.serverTimestamp(),
-      });
-    } catch (_) {}
+      final token = await _fcm.getToken(); if (token==null) return;
+      final uid = FirebaseAuth.instance.currentUser?.uid; if (uid==null) return;
+      await FirebaseFirestore.instance.collection('kullanicilar').doc(uid).update({'fcmToken':token,'fcmGuncelleme':FieldValue.serverTimestamp()});
+    } catch(_) {}
   }
-
-  // ── Kullaniciya Bildirim Kaydi Olustur ───────────────────────────────────────
-  // NOT: 'bildirimler' yerine 'notifications' koleksiyonu kullanilir
-  // Cloud Functions ile tutarli olmasi icin
-  static Future<void> kullaniciyaBildir({
-    required String firmaId,
-    required String baslik,
-    required String icerik,
-    String? hedefUid,
-  }) async {
-    await FirebaseFirestore.instance.collection('notifications').add({
-      'firmaId':  firmaId,
-      'baslik':   baslik,
-      'mesaj':    icerik,
-      'aliciId':  hedefUid ?? '',
-      'okundu':   false,
-      'tip':      'sistem',
-      'tarih':    FieldValue.serverTimestamp(),
-    });
+  static Future<void> tokenaPushGonder({required String token,required String baslik,required String govde,Map<String,String>? data}) async {}
+  static void _foregroundMesaj(RemoteMessage message) {
+    final notif = message.notification; if (notif==null) return;
+    _plugin.show(
+      notif.hashCode, notif.title, notif.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(_kId,_kAd,channelDescription:_kAc,importance:Importance.high,priority:Priority.high,icon:'@mipmap/ic_launcher'),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
   }
-
-  // ── Konuya Abone Ol ──────────────────────────────────────────────────────────
-  static Future<void> konuyaAbone(String konu) async =>
-      _fcm.subscribeToTopic(konu);
-  static Future<void> konudanCik(String konu) async =>
-      _fcm.unsubscribeFromTopic(konu);
-
-  // ── Tum Bildirimleri Temizle ─────────────────────────────────────────────────
-  static Future<void> tumBildirimleriTemizle() async => _plugin.cancelAll();
-
-  // ── Token'a direkt push gönder (Cloud Functions olmadan) ─────────────────────
-  /// NOT: Güvenli değil — production'da Cloud Functions kullan.
-  /// Şimdilik Firestore'a yaz, şoför panel dinleyici gösterir.
-  static Future<void> tokenaPushGonder({
-    required String token,
-    required String baslik,
-    required String mesaj,
-    Map<String, String>? data,
-  }) async {
-    // Firestore notifications koleksiyonuna yaz
-    // Şoför paneli bu koleksiyonu dinleyerek in-app gösterir
-    // Cloud Functions kurulduğunda bu metod FCM REST API'ye bağlanır
-    try {
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'token':  token,
-        'baslik': baslik,
-        'mesaj':  mesaj,
-        'data':   data ?? {},
-        'okundu': false,
-        'tarih':  FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('tokenaPushGonder hata: $e');
-    }
-  }
-
 }

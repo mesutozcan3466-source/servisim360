@@ -1,55 +1,31 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-/// Yerel bildirim servisi
 class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _kuruldu = false;
-
+  static const _kId = 'servisim_kanal';
+  static const _kAd = 'Servisim360';
+  static const _kAc = 'Servis takip bildirimleri';
+  static const _kanal = AndroidNotificationChannel(_kId,_kAd,description:_kAc,importance:Importance.high);
   static Future<void> baslat() async {
-    if (_kuruldu) return;
-    _kuruldu = true;
-
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings     = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+    if (_kuruldu) return; _kuruldu = true;
+    await _plugin.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(),
+      ),
     );
-    const initSettings = InitializationSettings(
-        android: androidSettings, iOS: iosSettings);
-
-    await _plugin.initialize(initSettings,
-        onDidReceiveNotificationResponse: (_) {});
-
-    const channel = AndroidNotificationChannel(
-      'servisim360_kanal',
-      'Servisim360 Bildirimleri',
-      description: 'Servis ve öğrenci bildirimleri',
-      importance: Importance.high,
-    );
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(_kanal);
   }
-
-  static Future<void> bildirimGoster({
-    required String baslik,
-    required String icerik,
-    int id = 0,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'servisim360_kanal',
-      'Servisim360 Bildirimleri',
-      channelDescription: 'Servis ve öğrenci bildirimleri',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+  static Future<void> goster({required int id,required String baslik,required String govde,String? payload}) async {
+    await _plugin.show(
+      id, baslik, govde,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(_kId,_kAd,channelDescription:_kAc,importance:Importance.high,priority:Priority.high,icon:'@mipmap/ic_launcher'),
+        iOS: DarwinNotificationDetails(),
+      ),
+      payload: payload,
     );
-    const iosDetails = DarwinNotificationDetails();
-    const details    = NotificationDetails(android: androidDetails, iOS: iosDetails);
-    await _plugin.show(id, baslik, icerik, details);
   }
-
-  static Future<void> tumBildirimleriTemizle() async => _plugin.cancelAll();
+  static Future<void> iptal(int id) => _plugin.cancel(id);
+  static Future<void> hepsiniIptal() => _plugin.cancelAll();
 }
