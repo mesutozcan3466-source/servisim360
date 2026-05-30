@@ -62,9 +62,8 @@ import 'screens/web_layout.dart';
 import 'screens/web_veli_takip.dart';
 import 'screens/web_sofor_panel.dart';
 import 'screens/web_veli_panel.dart';
-// Web'e özel yeni ekranlar
-import 'screens/web_giris_yonlendirici.dart';
 import 'screens/web_admin_panel.dart';
+import 'screens/web_giris_yonlendirici.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,7 +98,8 @@ void main() async {
   HataRaporlama.kur();
 
   if (!kIsWeb) {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setPreferredOrientations(
+        [DeviceOrientation.portraitUp]);
   }
 
   SystemChrome.setSystemUIOverlayStyle(
@@ -187,15 +187,13 @@ class ServisimApp extends StatelessWidget {
           elevation: 2,
           shadowColor: Color(0x14000000),
           shape: RoundedRectangleBorder(
-              borderRadius:
-              BorderRadius.all(Radius.circular(16))),
+              borderRadius: BorderRadius.all(Radius.circular(16))),
           color: Colors.white,
         ),
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-              borderRadius:
-              BorderRadius.all(Radius.circular(10))),
+              borderRadius: BorderRadius.all(Radius.circular(10))),
         ),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateProperty.all(Colors.white),
@@ -210,131 +208,136 @@ class ServisimApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 4,
           shape: RoundedRectangleBorder(
-              borderRadius:
-              BorderRadius.all(Radius.circular(16))),
+              borderRadius: BorderRadius.all(Radius.circular(16))),
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
         dividerTheme: const DividerThemeData(
             color: Color(0xFFEEEEEE), thickness: 0.5),
       ),
 
-      // ── BAŞLANGIÇ EKRANI ──────────────────────────────────────
-      // Web: direkt web giriş yönlendirici
-      // Mobil: splash ekranı
+      // Web: WebGirisYonlendirici (rol kontrolu yapar)
+      // Mobil: SplashScreen
       home: kIsWeb
           ? const WebGirisYonlendirici()
           : const SplashScreen(),
 
       routes: {
-        // ── Ortak rotalar ──────────────────────────────────────
-        '/onboarding':    (_) => const OnboardingScreen(),
-        '/login':         (_) => kIsWeb
+        // Ortak
+        '/onboarding':     (_) => const OnboardingScreen(),
+        '/login':          (_) => kIsWeb
             ? const WebGirisYonlendirici()
             : const LoginScreen(),
-        '/company_login': (_) => const CompanyLoginScreen(),
-        '/kayit':         (_) => const KayitScreen(),
-        '/onay_bekleme':  (_) => const OnayBeklemeScreen(),
-        '/rol':           (_) => const RolYonlendirici(),
+        '/company_login':  (_) => const CompanyLoginScreen(),
+        '/kayit':          (_) => const KayitScreen(),
+        '/onay_bekleme':   (_) => const OnayBeklemeScreen(),
+        '/rol':            (_) => const RolYonlendirici(),
 
-        // ── Admin rotalar ──────────────────────────────────────
-        '/super_admin':   (_) => kIsWeb
-            ? const WebSuperAdmin()
+        // Admin — web'de WebGirisYonlendirici rol bazli yonlendirir
+        '/super_admin':    (_) => kIsWeb
+            ? const WebGirisYonlendirici()
             : const SuperAdminShell(),
-        '/firma_admin':   (_) => kIsWeb
+        '/firma_admin':    (_) => kIsWeb
             ? const WebAdminPanel()
             : const DashboardScreen(),
-        '/dashboard':     (_) => kIsWeb
+        '/dashboard':      (_) => kIsWeb
             ? const WebAdminPanel()
             : const DashboardScreen(),
-        '/web_panel':     (_) => const WebLayout(),
-        '/web_admin':     (_) => const WebAdminPanel(),
+        '/web_panel':      (_) => const WebLayout(),
+        '/web_admin':      (_) => const WebAdminPanel(),
 
-        // ── Web'e özel ─────────────────────────────────────────
-        '/web_veli':      (_) => const WebVeliTakip(),
-        '/web_sofor':     (_) => const WebSoforPanel(),
-        '/web_veli_panel':(_) => const WebVeliPanel(),
+        // Web ozel
+        '/web_veli':       (_) => const WebVeliTakip(),
+        '/web_sofor':      (_) => const WebSoforPanel(),
+        '/web_veli_panel': (_) => const WebVeliPanel(),
 
-        // ── Proje & Öğrenci ────────────────────────────────────
-        '/proje_sec':     (_) => const ProjeSecScreen(),
-        '/projeler':      (_) => const ProjelerScreen(),
-        '/ogrenci':       (_) => const OgrencilerScreen(),
-        '/ogrenci_paneli':(_) => const OgrenciPaneliScreen(),
-        '/suruculer':     (_) => const SurucularScreen(),
+        // Proje & Ogrenci
+        '/proje_sec':      (_) => const ProjeSecScreen(),
+        '/projeler':       (_) => const ProjelerScreen(),
+        '/ogrenci':        (_) => const OgrencilerScreen(),
+        '/ogrenci_paneli': (_) => const OgrenciPaneliScreen(),
+        '/suruculer':      (_) => const SurucularScreen(),
 
-        // ── Harita & Rota ──────────────────────────────────────
-        '/gruplama':      (_) => const GruplamaScreen(),
-        '/bolge_atama':   (_) => const BolgeAtamaScreen(),
-        '/servis_bolme':  (_) => const ServisBolmeScreen(),
-        '/harita':        (_) => const HaritaScreen(),
-        '/durak_takip':   (_) => const HaritaScreen(),
-        '/rotalar':       (_) => const RotalarScreen(),
-        '/akilli_rota':   (_) => const GruplamaScreen(),
-        '/admin_takip':   (_) => const AdminAracTakipScreen(),
-        '/canli_rota':    (_) => const CanliRotaScreen(),
-        '/canli_takip':   (_) => const CanliTakipScreen(),
-        '/guzergah_kayit':(_) => const GuzergahKayitScreen(),
-        '/guzergah_gecmis':(_) => const GuzergahGecmisScreen(),
+        // Harita & Rota
+        '/gruplama':        (_) => const GruplamaScreen(),
+        '/bolge_atama':     (_) => const BolgeAtamaScreen(),
+        '/servis_bolme':    (_) => const ServisBolmeScreen(),
+        '/harita':          (_) => const HaritaScreen(),
+        '/durak_takip':     (_) => const HaritaScreen(),
+        '/rotalar':         (_) => const RotalarScreen(),
+        '/akilli_rota':     (_) => const GruplamaScreen(),
+        '/admin_takip':     (_) => const AdminAracTakipScreen(),
+        '/canli_rota':      (_) => const CanliRotaScreen(),
+        '/canli_takip':     (_) => const CanliTakipScreen(),
+        '/guzergah_kayit':  (_) => const GuzergahKayitScreen(),
+        '/guzergah_gecmis': (_) => const GuzergahGecmisScreen(),
 
-        // ── Finans & Sözleşme ──────────────────────────────────
-        '/fiyat_yonetim': (_) => const FiyatYonetimScreen(),
-        '/sozlesme':      (_) => const SozlesmeScreen(),
+        // Finans
+        '/fiyat_yonetim':  (_) => const FiyatYonetimScreen(),
+        '/sozlesme':        (_) => const SozlesmeScreen(),
 
-        // ── Ayarlar & Bildirim ────────────────────────────────
-        '/ayarlar':       (_) => const AyarlarScreen(),
-        '/bildirimler':   (_) => const BildirimlerScreen(),
-        '/servis_saati':  (_) => const ServisSaatiScreen(),
-        '/hazir_mesajlar':(_) => const HazirMesajlarScreen(),
-        '/toplu_mesaj':   (_) => const TopluMesajScreen(),
-        '/toplu_whatsapp':(_) => const TopluWhatsappScreen(),
+        // Ayarlar & Bildirim
+        '/ayarlar':         (_) => const AyarlarScreen(),
+        '/bildirimler':     (_) => const BildirimlerScreen(),
+        '/servis_saati':    (_) => const ServisSaatiScreen(),
+        '/hazir_mesajlar':  (_) => const HazirMesajlarScreen(),
+        '/toplu_mesaj':     (_) => const TopluMesajScreen(),
+        '/toplu_whatsapp':  (_) => const TopluWhatsappScreen(),
 
-        // ── QR & Kayıt ────────────────────────────────────────
-        '/qr_afis':       (_) => const QrAfisScreen(),
-        '/yuz_yuze_kayit':(_) => const VeliKayitYuzYuzeScreen(),
-        '/toplu_yukle':   (_) => const TopluYukleScreen(),
-        '/veli_kayit_link':(_) => const VeliKayitLinkiScreen(),
+        // QR & Kayit
+        '/qr_afis':         (_) => const QrAfisScreen(),
+        '/yuz_yuze_kayit':  (_) => const VeliKayitYuzYuzeScreen(),
+        '/toplu_yukle':     (_) => const TopluYukleScreen(),
+        '/veli_kayit_link': (_) => const VeliKayitLinkiScreen(),
 
-        // ── Rol panelleri ─────────────────────────────────────
-        '/sofor_panel':           (_) => const SoforPanelScreen(),
-        '/bireysel_sofor_panel':  (_) => const BireyselSoforScreen(),
-        '/bireysel_sofor_basvuru':(_) => const BireyselSoforScreen(),
-        '/veli_panel':            (_) => const VeliPanelScreen(),
-        '/personel_panel':        (_) => const PersonelPanelScreen(),
+        // Rol panelleri
+        '/sofor_panel':            (_) => const SoforPanelScreen(),
+        '/bireysel_sofor_panel':   (_) => const BireyselSoforScreen(),
+        '/bireysel_sofor_basvuru': (_) => const BireyselSoforScreen(),
+        '/veli_panel':             (_) => const VeliPanelScreen(),
+        '/personel_panel':         (_) => const PersonelPanelScreen(),
 
-        // ── Diğer ─────────────────────────────────────────────
-        '/yoklama':       (_) => const YoklamaScreen(),
-        '/kayit_link':    (_) => const KayitLinkScreen(),
-        '/analiz':        (_) => const AnalizScreen(),
-        '/ai_asistan':    (_) => const AiAsistanScreen(),
-        '/sifre_degistir':(_) => const SifreDegistirScreen(),
-        '/veli_sozlesme': (_) => const VeliSozlesmeScreen(dolduran: 'admin'),
-        '/sekreter':      (_) => const DashboardScreen(),
+        // Diger
+        '/yoklama':        (_) => const YoklamaScreen(),
+        '/kayit_link':     (_) => const KayitLinkScreen(),
+        '/analiz':         (_) => const AnalizScreen(),
+        '/ai_asistan':     (_) => const AiAsistanScreen(),
+        '/sifre_degistir': (_) => const SifreDegistirScreen(),
+        '/veli_sozlesme':  (_) => const VeliSozlesmeScreen(
+            dolduran: 'admin'),
+        '/sekreter':       (_) => const DashboardScreen(),
       },
 
       onGenerateRoute: (settings) {
         if (settings.name == '/veli_basvuru') {
-          final args = settings.arguments as Map<String, String?>?;
+          final args =
+          settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
               builder: (_) => VeliBasvuruFormScreen(
-                  linkId: args?['linkId'], linkKod: args?['kod']));
+                  linkId: args?['linkId'],
+                  linkKod: args?['kod']));
         }
         if (settings.name == '/sofor_rota') {
-          final args = settings.arguments as Map<String, String?>?;
+          final args =
+          settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
               builder: (_) => SoforRotaScreen(
                   surucuId: args?['surucuId'] ?? '',
                   surucuAd: args?['surucuAd'] ?? 'Sofor'));
         }
         if (settings.name == '/firma_transfer') {
-          final args = settings.arguments as Map<String, String>?;
+          final args =
+          settings.arguments as Map<String, String>?;
           return MaterialPageRoute(
               builder: (_) => KullaniciFirmaTransferScreen(
                   kullaniciId: args?['kullaniciId'] ?? '',
                   kullaniciAd: args?['kullaniciAd'] ?? '',
-                  koleksiyon: args?['koleksiyon'] ?? 'drivers',
+                  koleksiyon:
+                  args?['koleksiyon'] ?? 'drivers',
                   mevcutFirmaId: args?['firmaId'] ?? ''));
         }
         if (settings.name == '/veli_sozlesme_link') {
-          final args = settings.arguments as Map<String, String?>?;
+          final args =
+          settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
               builder: (_) => VeliSozlesmeScreen(
                   dolduran: 'veli',

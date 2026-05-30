@@ -3,21 +3,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 import 'web_super_admin.dart';
-import 'web_admin_panel.dart'; // firma admin için
+import 'web_admin_panel.dart';
 
 class WebGirisYonlendirici extends StatefulWidget {
   const WebGirisYonlendirici({super.key});
-
   @override
-  State<WebGirisYonlendirici> createState() => _WebGirisYonlendiriciState();
+  State<WebGirisYonlendirici> createState() =>
+      _WebGirisYonlendiriciState();
 }
 
 class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
-
   bool    _yukleniyor = true;
-  String? _hata;
+  String? _hataMesaj;
 
   @override
   void initState() {
@@ -31,67 +30,53 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
       setState(() => _yukleniyor = false);
       return;
     }
-
     try {
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(user.uid).get();
       final rol = doc.data()?['rol'] as String? ?? '';
-
       if (!mounted) return;
-
       if (rol == 'superAdmin') {
         Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const WebSuperAdmin()));
-      } else if (rol == 'admin' || rol == 'firmaAdmin' || rol == 'kolejAdmin') {
+            MaterialPageRoute(
+                builder: (_) => const WebSuperAdminSayfasi()));
+      } else if (rol == 'admin' ||
+          rol == 'firmaAdmin' ||
+          rol == 'kolejAdmin') {
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (_) => const WebAdminPanel()));
       } else {
-        // Şoför veya veli web'e girmeye çalışıyor
-        setState(() {
-          _yukleniyor = false;
-          _hata = rol;
-        });
+        setState(() { _yukleniyor = false; _hataMesaj = rol; });
       }
     } catch (e) {
-      setState(() { _yukleniyor = false; _hata = 'error'; });
+      setState(() { _yukleniyor = false; _hataMesaj = 'error'; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     if (_yukleniyor) {
       return const Scaffold(
         backgroundColor: _navy,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: _turuncu),
-              SizedBox(height: 20),
-              Text('Servisim360 yukleniyor...',
-                  style: TextStyle(color: Colors.white70, fontSize: 16)),
-            ],
-          ),
-        ),
+        body: Center(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: _turuncu),
+            SizedBox(height: 20),
+            Text('Servisim360 yukleniyor...',
+                style: TextStyle(color: Colors.white70, fontSize: 16)),
+          ],
+        )),
       );
     }
-
-    // Giriş yapılmamış
-    if (user == null) {
-      return const _WebLoginEkrani();
-    }
-
-    // Yanlış rol (şoför/veli)
-    return _YanlisRolEkrani(rol: _hata ?? '');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const _WebLoginEkrani();
+    return _YanlisRolEkrani(rol: _hataMesaj ?? '');
   }
 }
 
-// ── Web Login ─────────────────────────────────────────────────────
+// ── Web Login ──────────────────────────────────────────────────────
 class _WebLoginEkrani extends StatefulWidget {
   const _WebLoginEkrani();
-
   @override
   State<_WebLoginEkrani> createState() => _WebLoginEkraniState();
 }
@@ -102,29 +87,36 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
 
   final _emailCtrl = TextEditingController();
   final _sifreCtrl = TextEditingController();
-  bool  _yukleniyor = false;
+  bool    _yukleniyor = false;
   String? _hata;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _sifreCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _girisYap() async {
     setState(() { _yukleniyor = true; _hata = null; });
     try {
-      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
         email: _emailCtrl.text.trim(),
         password: _sifreCtrl.text.trim(),
       );
-
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(cred.user!.uid).get();
       final rol = doc.data()?['rol'] as String? ?? '';
-
       await SessionService.instance.firmaldAl();
-
       if (!mounted) return;
-
       if (rol == 'superAdmin') {
         Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (_) => const WebSuperAdmin()));
-      } else if (rol == 'admin' || rol == 'firmaAdmin' || rol == 'kolejAdmin') {
+            MaterialPageRoute(
+                builder: (_) => const WebSuperAdminSayfasi()));
+      } else if (rol == 'admin' ||
+          rol == 'firmaAdmin' ||
+          rol == 'kolejAdmin') {
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (_) => const WebAdminPanel()));
       } else {
@@ -159,43 +151,30 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
+            boxShadow: [BoxShadow(
                 color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 40,
-                offset: const Offset(0, 20),
-              ),
-            ],
+                offset: const Offset(0, 20))],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo
               Container(
                 width: 70, height: 70,
                 decoration: BoxDecoration(
-                  color: _navy,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Center(
-                  child: Text('S',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold)),
-                ),
+                    color: _navy,
+                    borderRadius: BorderRadius.circular(18)),
+                child: const Center(child: Text('S',
+                    style: TextStyle(color: Colors.white,
+                        fontSize: 36, fontWeight: FontWeight.bold))),
               ),
               const SizedBox(height: 16),
               const Text('Servisim360',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: _navy)),
+                  style: TextStyle(fontSize: 24,
+                      fontWeight: FontWeight.bold, color: _navy)),
               const Text('Yonetim Paneli',
                   style: TextStyle(color: Colors.grey, fontSize: 14)),
               const SizedBox(height: 32),
-
-              // Email
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
@@ -207,8 +186,6 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Şifre
               TextField(
                 controller: _sifreCtrl,
                 obscureText: true,
@@ -221,14 +198,12 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                 ),
               ),
               const SizedBox(height: 12),
-
               if (_hata != null)
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10)),
                   child: Row(children: [
                     const Icon(Icons.error_outline,
                         color: Colors.red, size: 18),
@@ -238,12 +213,9 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                             color: Colors.red, fontSize: 13))),
                   ]),
                 ),
-
               const SizedBox(height: 20),
-
               SizedBox(
-                width: double.infinity,
-                height: 52,
+                width: double.infinity, height: 52,
                 child: ElevatedButton(
                   onPressed: _yukleniyor ? null : _girisYap,
                   style: ElevatedButton.styleFrom(
@@ -253,17 +225,14 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _yukleniyor
-                      ? const SizedBox(
-                      width: 22, height: 22,
+                      ? const SizedBox(width: 22, height: 22,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
                       : const Text('Giris Yap',
-                      style: TextStyle(
-                          fontSize: 16,
+                      style: TextStyle(fontSize: 16,
                           fontWeight: FontWeight.bold)),
                 ),
               ),
-
               const SizedBox(height: 20),
               Text(
                 'Sadece Admin ve Super Admin girebilir.\n'
@@ -279,7 +248,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
   }
 }
 
-// ── Yanlış Rol Uyarısı ────────────────────────────────────────────
+// ── Yanlis Rol Uyarisi ─────────────────────────────────────────────
 class _YanlisRolEkrani extends StatelessWidget {
   final String rol;
   static const _navy    = Color(0xFF1a3a6b);
@@ -299,47 +268,36 @@ class _YanlisRolEkrani extends StatelessWidget {
       backgroundColor: _navy,
       body: Center(
         child: Container(
-          width: 380,
-          padding: const EdgeInsets.all(40),
+          width: 380, padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.phone_android, size: 64, color: _turuncu),
-              const SizedBox(height: 20),
-              const Text('Mobil Uygulama Gerekli',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _navy)),
-              const SizedBox(height: 12),
-              Text(mesaj,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Colors.grey[600], fontSize: 14)),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                            const WebGirisYonlendirici()));
-                  }
-                },
-                icon: const Icon(Icons.logout_outlined),
-                label: const Text('Cikis Yap'),
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: _navy,
-                    side: const BorderSide(color: _navy)),
-              ),
-            ],
-          ),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.phone_android, size: 64, color: _turuncu),
+            const SizedBox(height: 20),
+            const Text('Mobil Uygulama Gerekli',
+                style: TextStyle(fontSize: 20,
+                    fontWeight: FontWeight.bold, color: _navy)),
+            const SizedBox(height: 12),
+            Text(mesaj, textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(
+                          builder: (_) => const WebGirisYonlendirici()));
+                }
+              },
+              icon: const Icon(Icons.logout_outlined),
+              label: const Text('Cikis Yap'),
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: _navy,
+                  side: const BorderSide(color: _navy)),
+            ),
+          ]),
         ),
       ),
     );
