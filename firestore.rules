@@ -2,292 +2,279 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── YARDIMCI FONKSİYONLAR ──────────────────────────────────────
+    // ── Yardimci Fonksiyonlar ──────────────────────────────────────────
     function girisYapilmis() {
       return request.auth != null;
     }
 
-    function kullaniciFirmaId() {
-      return get(/databases/$(database)/documents/kullanicilar/$(request.auth.uid)).data.firmaId;
+    function kullaniciBelgesi() {
+      return get(/databases/$(database)/documents/kullanicilar/$(request.auth.uid)).data;
     }
 
-    function kullaniciRol() {
-      return get(/databases/$(database)/documents/kullanicilar/$(request.auth.uid)).data.rol;
+    function rol() {
+      return kullaniciBelgesi().rol;
+    }
+
+    function firmaId() {
+      return kullaniciBelgesi().firmaId;
     }
 
     function superAdminMi() {
+      return girisYapilmis() && rol() == 'superAdmin';
+    }
+
+    function adminMi() {
       return girisYapilmis() &&
-        get(/databases/$(database)/documents/kullanicilar/$(request.auth.uid)).data.rol == 'superAdmin';
+        (rol() == 'admin' || rol() == 'firmaAdmin' || rol() == 'kolejAdmin');
     }
 
-    function firmaAdminMi(firmaId) {
+    function soforMu() {
       return girisYapilmis() &&
-        kullaniciRol() == 'firmaAdmin' &&
-        kullaniciFirmaId() == firmaId;
+        (rol() == 'sofor' || rol() == 'bireyselSofor');
     }
 
-    function soforMu(firmaId) {
-      return girisYapilmis() &&
-        kullaniciRol() == 'sofor' &&
-        kullaniciFirmaId() == firmaId;
+    function veliMi() {
+      return girisYapilmis() && rol() == 'veli';
     }
 
-    function veliMi(firmaId) {
-      return girisYapilmis() &&
-        kullaniciRol() == 'veli' &&
-        kullaniciFirmaId() == firmaId;
+    function personelMi() {
+      return girisYapilmis() && rol() == 'personel';
     }
 
-    function personelMi(firmaId) {
-      return girisYapilmis() &&
-        (kullaniciRol() == 'sekreter' || kullaniciRol() == 'personel') &&
-        kullaniciFirmaId() == firmaId;
+    function kendi(uid) {
+      return girisYapilmis() && request.auth.uid == uid;
     }
 
-    function firmaErisimi(firmaId) {
-      return superAdminMi() ||
-        firmaAdminMi(firmaId) ||
-        soforMu(firmaId) ||
-        personelMi(firmaId);
+    function ayniFirma(kayitFirmaId) {
+      return girisYapilmis() && firmaId() == kayitFirmaId;
     }
 
-    // ── KULLANICILAR ────────────────────────────────────────────────
+    // ── kullanicilar ───────────────────────────────────────────────────
     match /kullanicilar/{uid} {
-      allow read: if girisYapilmis() && (
-        request.auth.uid == uid || superAdminMi()
-      );
-      allow write: if girisYapilmis() && (
-        request.auth.uid == uid || superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId)
-      );
-      allow create: if girisYapilmis();
+      allow read: if kendi(uid) || adminMi() || superAdminMi();
+      allow create: if girisYapilmis() && kendi(uid);
+      allow update: if kendi(uid) || adminMi() || superAdminMi();
+      allow delete: if superAdminMi();
     }
 
-    // ── FİRMALAR ────────────────────────────────────────────────────
-    match /firms/{firmaId} {
+    // ── firms ──────────────────────────────────────────────────────────
+    match /firms/{fId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() || kullaniciFirmaId() == firmaId
+        superAdminMi() || ayniFirma(fId) || adminMi()
       );
-      allow write: if superAdminMi() || firmaAdminMi(firmaId);
-      allow create: if girisYapilmis();
-
-      // Alt koleksiyonlar
-      match /ayarlar/{doc} {
-        allow read: if girisYapilmis() && kullaniciFirmaId() == firmaId;
-        allow write: if firmaAdminMi(firmaId) || superAdminMi();
-      }
+      allow create: if superAdminMi() || adminMi();
+      allow update: if superAdminMi() || (adminMi() && ayniFirma(fId));
+      allow delete: if superAdminMi();
     }
 
-    // ── PROJELERr ────────────────────────────────────────────────────
+    // ── drivers ────────────────────────────────────────────────────────
+    match /drivers/{driverId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() || personelMi() ||
+        (soforMu() && (
+          resource.data.uid == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        ))
+      );
+      allow create: if adminMi() || superAdminMi();
+      allow update: if adminMi() || superAdminMi() || (
+        soforMu() && (
+          resource.data.uid == request.auth.uid ||
+          resource.data.email == request.auth.token.email
+        ) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['konum', 'hiz', 'konumGuncelleme',
+                    'servisAktif', 'servisBaslangic', 'servisBitis', 'uid'])
+      );
+      allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── students ───────────────────────────────────────────────────────
+    match /students/{ogrId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() || personelMi() || soforMu() ||
+        (veliMi() && (
+          resource.data.veliId == request.auth.uid ||
+          resource.data.veliEmail == request.auth.token.email
+        ))
+      );
+      allow create: if adminMi() || superAdminMi() || personelMi();
+      allow update: if adminMi() || superAdminMi() || personelMi() || (
+        soforMu() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['bindi', 'bindiZaman'])
+      );
+      allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── parents ────────────────────────────────────────────────────────
+    match /parents/{parentId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() || personelMi() ||
+        kendi(resource.data.uid)
+      );
+      allow create: if girisYapilmis();
+      allow update: if adminMi() || superAdminMi() || kendi(resource.data.uid);
+      allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── routes ─────────────────────────────────────────────────────────
+    // DÜZELTİLDİ: firma izolasyonu eklendi
+    match /routes/{rotaId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() ||
+        (adminMi() && ayniFirma(resource.data.firmaId)) ||
+        (soforMu() && ayniFirma(resource.data.firmaId)) ||
+        personelMi()
+      );
+      allow write: if adminMi() || superAdminMi() || personelMi();
+    }
+
+    // ── vehicles ───────────────────────────────────────────────────────
+    // DÜZELTİLDİ: firma izolasyonu eklendi
+    match /vehicles/{aracId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() ||
+        (adminMi() && ayniFirma(resource.data.firmaId)) ||
+        (soforMu() && ayniFirma(resource.data.firmaId)) ||
+        personelMi()
+      );
+      allow write: if adminMi() || superAdminMi();
+    }
+
+    // ── absence_requests ───────────────────────────────────────────────
+    match /absence_requests/{reqId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() || soforMu() || personelMi() ||
+        (veliMi() && resource.data.veliId == request.auth.uid)
+      );
+      allow create: if girisYapilmis();
+      allow update: if adminMi() || superAdminMi() || soforMu() || personelMi();
+      allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── licenses ───────────────────────────────────────────────────────
+    match /licenses/{lisansId} {
+      allow read: if girisYapilmis() && (superAdminMi() || adminMi());
+      allow write: if superAdminMi();
+    }
+
+    // ── staff_members ──────────────────────────────────────────────────
+    match /staff_members/{staffId} {
+      allow read: if girisYapilmis() && (
+        superAdminMi() || adminMi() || kendi(resource.data.uid)
+      );
+      allow create: if adminMi() || superAdminMi();
+      allow update: if adminMi() || superAdminMi() || kendi(resource.data.uid);
+      allow delete: if adminMi() || superAdminMi();
+    }
+
+    // ── projects ───────────────────────────────────────────────────────
     match /projects/{projeId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
+        superAdminMi() || adminMi() || personelMi()
       );
-      allow write: if superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId);
-      allow create: if firmaAdminMi(request.resource.data.firmaId) || superAdminMi();
+      allow write: if adminMi() || superAdminMi();
     }
 
-    // ── ÖĞRENCİLER ──────────────────────────────────────────────────
-    match /students/{ogrenciId} {
-      allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaErisimi(resource.data.firmaId) ||
-        // Veli sadece kendi çocuğunu görebilir
-        (veliMi(resource.data.firmaId) &&
-          (resource.data.veliId == request.auth.uid ||
-           resource.data.veliEmail == request.auth.token.email))
-      );
-      allow write: if superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        soforMu(resource.data.firmaId) ||
-        personelMi(resource.data.firmaId);
-      allow create: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(request.resource.data.firmaId) ||
-        personelMi(request.resource.data.firmaId)
-      );
-      allow update: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        soforMu(resource.data.firmaId) ||
-        // Veli sadece bindi alanını güncelleyemez
-        (veliMi(resource.data.firmaId) && false)
-      );
-    }
-
-    // ── ŞOFÖRLER / SÜRÜCÜLER ────────────────────────────────────────
-    match /drivers/{surucuId} {
-      allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
-      );
-      allow write: if superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId);
-      allow create: if firmaAdminMi(request.resource.data.firmaId) || superAdminMi();
-      // Şoför kendi dokümanını güncelleyebilir (konum, servisAktif)
-      allow update: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        (soforMu(resource.data.firmaId) &&
-          request.auth.uid == resource.data.uid)
-      );
-    }
-
-    // ── VELİLER ─────────────────────────────────────────────────────
-    match /parents/{veliId} {
-      allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        personelMi(resource.data.firmaId) ||
-        request.auth.uid == resource.data.uid
-      );
-      allow write: if superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        personelMi(resource.data.firmaId);
-      allow create: if girisYapilmis();
-      allow update: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        request.auth.uid == resource.data.uid
-      );
-    }
-
-    // ── BİLDİRİMLER ─────────────────────────────────────────────────
+    // ── notifications ──────────────────────────────────────────────────
     match /notifications/{notifId} {
       allow read: if girisYapilmis() && (
         superAdminMi() ||
         resource.data.aliciId == request.auth.uid ||
-        firmaAdminMi(resource.data.firmaId)
+        adminMi()
       );
       allow create: if girisYapilmis();
-      allow update: if girisYapilmis() && (
-        resource.data.aliciId == request.auth.uid ||
-        firmaAdminMi(resource.data.firmaId)
-      );
-      allow delete: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
+      allow update: if kendi(resource.data.aliciId) || adminMi();
+      allow delete: if adminMi() || superAdminMi();
     }
 
-    // ── DEVAMSIZLIK İSTEKLERİ ────────────────────────────────────────
-    match /absence_requests/{istekId} {
+    // ── kayit_linkleri ─────────────────────────────────────────────────
+    // DÜZELTİLDİ: artık doğru konumda (parantez içinde)
+    match /kayit_linkleri/{linkId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── acil_durumlar ──────────────────────────────────────────────────
+    match /acil_durumlar/{acilId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaErisimi(resource.data.firmaId) ||
-        resource.data.veliId == request.auth.uid
+        superAdminMi() || adminMi() || soforMu() || personelMi()
       );
       allow create: if girisYapilmis();
-      allow update: if superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        soforMu(resource.data.firmaId);
-      allow delete: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
+      allow update: if adminMi() || superAdminMi();
+      allow delete: if adminMi() || superAdminMi();
     }
 
-    // ── FİYATLAR ─────────────────────────────────────────────────────
-    match /fiyatlar/{fiyatId} {
-      allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
-      );
-      allow write: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
-      allow create: if firmaAdminMi(request.resource.data.firmaId) || superAdminMi();
-    }
-
-    // ── HAZIR MESAJLAR ───────────────────────────────────────────────
+    // ── hazir_mesajlar ─────────────────────────────────────────────────
     match /hazir_mesajlar/{mesajId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
+        superAdminMi() || adminMi() || soforMu()
       );
-      allow write: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
+      allow write: if adminMi() || superAdminMi();
     }
 
-    // ── KAYIT LİNKLERİ ───────────────────────────────────────────────
-    match /kayit_linkleri/{linkId} {
-      allow read: if true; // Anonim kullanıcılar da okuyabilir (kayıt için)
-      allow write: if girisYapilmis() && (
-        superAdminMi() || firmaAdminMi(resource.data.firmaId)
-      );
-      allow create: if girisYapilmis() && (
-        superAdminMi() || firmaAdminMi(request.resource.data.firmaId)
-      );
-    }
-
-    // ── GÜZERGAH KAYITLARI ───────────────────────────────────────────
-    match /guzergah_kayitlar/{kayitId} {
+    // ── konusmalar ─────────────────────────────────────────────────────
+    match /konusmalar/{konusmaId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        (soforMu(resource.data.firmaId) &&
-          resource.data.surucuId == request.auth.uid)
-      );
-      allow create: if girisYapilmis() && soforMu(request.resource.data.firmaId);
-      allow delete: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
-    }
-
-    // ── ARAÇLAR ──────────────────────────────────────────────────────
-    match /vehicles/{aracId} {
-      allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
-      );
-      allow write: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
-    }
-
-    // ── SÖZLEŞMELER ──────────────────────────────────────────────────
-    match /sozlesmeler/{sozlesmeId} {
-      allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
+        superAdminMi() || adminMi() ||
+        resource.data.surucuId == request.auth.uid ||
         resource.data.veliId == request.auth.uid
       );
       allow create: if girisYapilmis();
       allow update: if girisYapilmis() && (
-        superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        resource.data.veliId == request.auth.uid
+        resource.data.surucuId == request.auth.uid ||
+        resource.data.veliId == request.auth.uid ||
+        adminMi()
       );
+      allow delete: if adminMi() || superAdminMi();
     }
 
-    // ── LİSANSLAR ────────────────────────────────────────────────────
-    match /licenses/{lisansId} {
+    // ── guzergah_kayitlar ──────────────────────────────────────────────
+    match /guzergah_kayitlar/{kayitId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
+        superAdminMi() || adminMi() || soforMu()
       );
-      allow write: if superAdminMi();
+      allow create: if soforMu() || adminMi() || superAdminMi();
+      allow update, delete: if adminMi() || superAdminMi();
     }
 
-    // ── PERSONEL ─────────────────────────────────────────────────────
-    match /staff_members/{personelId} {
+    // ── bildirimler ────────────────────────────────────────────────────
+    match /bildirimler/{bildirimId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
+        superAdminMi() || adminMi() ||
+        resource.data.aliciId == request.auth.uid
       );
-      allow write: if superAdminMi() || firmaAdminMi(resource.data.firmaId);
+      allow create: if girisYapilmis();
+      allow update: if kendi(resource.data.aliciId) || adminMi();
+      allow delete: if adminMi() || superAdminMi();
     }
 
-    // ── ROTALAR ──────────────────────────────────────────────────────
-    match /routes/{rotaId} {
+    // ── fiyatlar ───────────────────────────────────────────────────────
+    match /fiyatlar/{fiyatId} {
+      allow read: if girisYapilmis();
+      allow write: if adminMi() || superAdminMi();
+    }
+
+    // ── qr_logs ────────────────────────────────────────────────────────
+    match /qr_logs/{logId} {
       allow read: if girisYapilmis() && (
-        superAdminMi() ||
-        kullaniciFirmaId() == resource.data.firmaId
+        superAdminMi() || adminMi() || soforMu()
       );
-      allow write: if superAdminMi() ||
-        firmaAdminMi(resource.data.firmaId) ||
-        soforMu(resource.data.firmaId);
+      allow create: if girisYapilmis();
+      allow update, delete: if adminMi() || superAdminMi();
     }
 
-    // ── SUPER ADMIN: DESTEK LOGLARI ──────────────────────────────────
+    // ── supportLogs ────────────────────────────────────────────────────
     match /supportLogs/{logId} {
       allow read: if superAdminMi();
-      allow create: if girisYapilmis();
+      allow create: if superAdminMi() || adminMi();
+      allow update, delete: if superAdminMi();
     }
 
-    // ── SUPER ADMIN: TÜM FİRMALAR (eski koleksiyon) ─────────────────
-    match /firmalar/{firmaId} {
-      allow read: if superAdminMi() || kullaniciFirmaId() == firmaId;
-      allow write: if superAdminMi();
+    // ── Varsayilan: sadece superAdmin ───────────────────────────────────
+    match /{document=**} {
+      allow read, write: if superAdminMi();
     }
 
   }

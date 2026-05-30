@@ -1,12 +1,11 @@
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:open_file/open_file.dart';
+import 'package:printing/printing.dart';
 
-/// Sözleşme ve fatura PDF oluşturma servisi
+/// Sozlesme ve fatura PDF olusturma servisi (Web + Mobil)
 class SozlesmeService {
-  // ── Sözleşme PDF Oluştur ────────────────────────────────────────────────────
+
   static Future<String?> sozlesmeOlustur({
     required String veliAd,
     required String veliTelefon,
@@ -21,7 +20,6 @@ class SozlesmeService {
   }) async {
     try {
       final pdf = pw.Document();
-
       pdf.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
@@ -29,9 +27,8 @@ class SozlesmeService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Başlık
               pw.Center(child: pw.Column(children: [
-                pw.Text('SERVİS HİZMET SÖZLEŞMESİ',
+                pw.Text('SERVIS HIZMET SOZLESMESI',
                     style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 4),
                 pw.Text(firmaAdi,
@@ -40,50 +37,39 @@ class SozlesmeService {
                 pw.Divider(),
               ])),
               pw.SizedBox(height: 16),
-
-              _satirEkle('Sözleşme Tarihi',   baslangicTarihi),
+              _satirEkle('Sozlesme Tarihi', baslangicTarihi),
               pw.SizedBox(height: 20),
-
-              // Veli Bilgileri
-              _baslikEkle('VELİ BİLGİLERİ'),
-              _satirEkle('Veli Adı Soyadı',   veliAd),
-              _satirEkle('Telefon',            veliTelefon),
+              _baslikEkle('VELI BILGILERI'),
+              _satirEkle('Veli Adi Soyadi', veliAd),
+              _satirEkle('Telefon', veliTelefon),
               pw.SizedBox(height: 12),
-
-              // Öğrenci Bilgileri
-              _baslikEkle('ÖĞRENCİ BİLGİLERİ'),
-              _satirEkle('Öğrenci Adı',        ogrenciAd),
-              _satirEkle('Okul',               okulAd),
-              _satirEkle('Adres',              adres),
+              _baslikEkle('OGRENCI BILGILERI'),
+              _satirEkle('Ogrenci Adi', ogrenciAd),
+              _satirEkle('Okul', okulAd),
+              _satirEkle('Adres', adres),
               pw.SizedBox(height: 12),
-
-              // Servis Bilgileri
-              _baslikEkle('SERVİS BİLGİLERİ'),
-              _satirEkle('Şoför',              surucuAdi),
-              _satirEkle('Araç Plakası',       plaka),
-              _satirEkle('Aylık Ücret',        '${aylikUcret.toStringAsFixed(2)} TL'),
+              _baslikEkle('SERVIS BILGILERI'),
+              _satirEkle('Sofor', surucuAdi),
+              _satirEkle('Arac Plakasi', plaka),
+              _satirEkle('Aylik Ucret', '${aylikUcret.toStringAsFixed(2)} TL'),
               pw.SizedBox(height: 20),
-
-              // Maddeler
-              _baslikEkle('SÖZLEŞME KOŞULLARI'),
-              _maddeEkle('1. Servis hizmeti okul günlerinde sağlanacaktır.'),
-              _maddeEkle('2. Aylık ücret her ayın ilk 5 iş günü içinde ödenecektir.'),
-              _maddeEkle('3. Devamsızlık durumunda en az 1 gün önceden bildirim yapılacaktır.'),
-              _maddeEkle('4. Güzergah değişikliklerinde taraflar karşılıklı anlaşacaktır.'),
-              _maddeEkle('5. Sözleşme iki tarafın onayı olmadan feshedilemez.'),
+              _baslikEkle('SOZLESME KOSULLARI'),
+              _maddeEkle('1. Servis hizmeti okul gunlerinde saglanacaktir.'),
+              _maddeEkle('2. Aylik ucret her ayin ilk 5 is gunu icinde odenecektir.'),
+              _maddeEkle('3. Devamsizlik durumunda en az 1 gun onceden bildirim yapilacaktir.'),
+              _maddeEkle('4. Guzergah degisikliklerinde taraflar karssilikli anlasacaktir.'),
+              _maddeEkle('5. Sozlesme iki tarafin onayi olmadan feshedilemez.'),
               pw.SizedBox(height: 30),
-
-              // İmzalar
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                    pw.Text('VELİ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('VELI', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 40),
                     pw.Text(veliAd),
                   ]),
                   pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
-                    pw.Text('FİRMA', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('FIRMA', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 40),
                     pw.Text(firmaAdi),
                   ]),
@@ -93,14 +79,13 @@ class SozlesmeService {
           );
         },
       ));
-
-      return await _kaydetVeAc(pdf, 'sozlesme_${veliAd.replaceAll(' ', '_')}_$baslangicTarihi.pdf');
+      final dosyaAdi = 'sozlesme_${veliAd.replaceAll(' ', '_')}_$baslangicTarihi.pdf';
+      return await _kaydetVeAc(pdf, dosyaAdi);
     } catch (e) {
       return null;
     }
   }
 
-  // ── Fatura PDF Oluştur ──────────────────────────────────────────────────────
   static Future<String?> faturaOlustur({
     required String veliAd,
     required String ogrenciAd,
@@ -111,7 +96,6 @@ class SozlesmeService {
   }) async {
     try {
       final pdf = pw.Document();
-
       pdf.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
@@ -129,18 +113,15 @@ class SozlesmeService {
                 pw.Divider(),
               ])),
               pw.SizedBox(height: 16),
-
-              _satirEkle('Fatura No',    'FAT-${faturaSayisi.toString().padLeft(4, '0')}'),
-              _satirEkle('Dönem',        ay),
-              _satirEkle('Tarih',        _bugunStr()),
+              _satirEkle('Fatura No', 'FAT-${faturaSayisi.toString().padLeft(4, '0')}'),
+              _satirEkle('Donem', ay),
+              _satirEkle('Tarih', _bugunStr()),
               pw.SizedBox(height: 16),
-
-              _baslikEkle('ALICI BİLGİLERİ'),
-              _satirEkle('Veli Adı',     veliAd),
-              _satirEkle('Öğrenci',      ogrenciAd),
+              _baslikEkle('ALICI BILGILERI'),
+              _satirEkle('Veli Adi', veliAd),
+              _satirEkle('Ogrenci', ogrenciAd),
               pw.SizedBox(height: 16),
-
-              _baslikEkle('ÖDEME DETAYI'),
+              _baslikEkle('ODEME DETAYI'),
               pw.Container(
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
@@ -150,7 +131,7 @@ class SozlesmeService {
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('$ay Dönemi Servis Ücreti'),
+                    pw.Text('$ay Donemi Servis Ucreti'),
                     pw.Text('${tutar.toStringAsFixed(2)} TL',
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
                   ],
@@ -163,20 +144,29 @@ class SozlesmeService {
                     style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
               ),
               pw.SizedBox(height: 40),
-              pw.Center(child: pw.Text('Teşekkür ederiz.',
+              pw.Center(child: pw.Text('Tesekkur ederiz.',
                   style: const pw.TextStyle(color: PdfColors.grey600))),
             ],
           );
         },
       ));
-
-      return await _kaydetVeAc(pdf, 'fatura_${veliAd.replaceAll(' ', '_')}_$ay.pdf');
+      final dosyaAdi = 'fatura_${veliAd.replaceAll(' ', '_')}_$ay.pdf';
+      return await _kaydetVeAc(pdf, dosyaAdi);
     } catch (e) {
       return null;
     }
   }
 
-  // ── Yardımcı ────────────────────────────────────────────────────────────────
+  // Web + Mobil PDF ac
+  static Future<String?> _kaydetVeAc(pw.Document pdf, String dosyaAdi) async {
+    final bytes = await pdf.save();
+    await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: dosyaAdi,
+    );
+    return dosyaAdi;
+  }
+
   static pw.Widget _baslikEkle(String baslik) => pw.Padding(
     padding: const pw.EdgeInsets.only(bottom: 6),
     child: pw.Text(baslik,
@@ -203,13 +193,5 @@ class SozlesmeService {
   static String _bugunStr() {
     final d = DateTime.now();
     return '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
-  }
-
-  static Future<String?> _kaydetVeAc(pw.Document pdf, String dosyaAdi) async {
-    final dir  = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/$dosyaAdi');
-    await file.writeAsBytes(await pdf.save());
-    await OpenFile.open(file.path);
-    return file.path;
   }
 }

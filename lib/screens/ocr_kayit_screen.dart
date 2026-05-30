@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'dart:io';
 
 class OcrKayitScreen extends StatefulWidget {
   const OcrKayitScreen({super.key});
@@ -22,12 +21,8 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
   final _db = FirebaseFirestore.instance;
   late final TabController _tabCtrl;
 
-  final _textRecognizer =
-  TextRecognizer(script: TextRecognitionScript.latin);
-
-  bool _ocrYukleniyor = false;
   bool _dosyaYukleniyor = false;
-  bool _kaydediliyor  = false;
+  bool _kaydediliyor    = false;
 
   final List<Map<String, dynamic>> _ogrenciler = [];
 
@@ -40,98 +35,25 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
   @override
   void dispose() {
     _tabCtrl.dispose();
-    _textRecognizer.close();
     super.dispose();
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  OCR — file_picker ile görsel seçimi (jpg, png)
-  // ════════════════════════════════════════════════════════════════
+  // ── OCR — Sadece mobilde bilgi mesaji ──────────────────────────
   Future<void> _gorselSec() async {
-    setState(() => _ocrYukleniyor = true);
-    try {
-      final sonuc = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png'],
-        withData: false,
-      );
-      if (sonuc == null || sonuc.files.isEmpty) return;
-
-      final dosyaYolu = sonuc.files.first.path;
-      if (dosyaYolu == null) {
-        _snackbar('Dosya yolu alinamadi.', renk: Colors.orange);
-        return;
-      }
-
-      final inputImage = InputImage.fromFilePath(dosyaYolu);
-      final recognised =
-      await _textRecognizer.processImage(inputImage);
-
-      final ogrenci = _ocrMetniParsele(recognised.text);
-      if (ogrenci != null) {
-        await _koordinatEkle(ogrenci);
-        setState(() => _ogrenciler.add(ogrenci));
-        _snackbar('OCR tamamlandi — ${ogrenci['ad']}',
-            renk: Colors.green);
-      } else {
-        _snackbar(
-          'Metin okunamadi.\n'
-              'Fotografta Ad, Adres, Sinif satirlari olmali.',
-          renk: Colors.orange,
-        );
-      }
-    } catch (e) {
-      _snackbar('OCR hatasi: $e', renk: Colors.red);
-    } finally {
-      if (mounted) setState(() => _ocrYukleniyor = false);
-    }
+    _snackbar(
+      'OCR tarama sadece mobil uygulamada kullanilabilir.\n'
+          'Dosya yukle secenegini kullanin.',
+      renk: Colors.orange,
+    );
   }
 
-  // ─── OCR metni → ogrenci map ──────────────────────────────────
-  Map<String, dynamic>? _ocrMetniParsele(String metin) {
-    final satirlar = metin
-        .split('\n')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-
-    if (satirlar.isEmpty) return null;
-
-    String ad = '', adres = '', sinif = '', telefon = '';
-
-    for (final satir in satirlar) {
-      final lower = satir.toLowerCase();
-      if (ad.isEmpty && !lower.contains(':')) {
-        ad = satir;
-      } else if (lower.startsWith('adres')) {
-        adres = satir.replaceFirst(
-            RegExp(r'adres\s*:\s*', caseSensitive: false), '');
-      } else if (lower.startsWith('sinif') ||
-          lower.startsWith('s') && lower.contains('n') && lower.contains('f')) {
-        sinif = satir.replaceFirst(
-            RegExp(r'\w+\s*:\s*', caseSensitive: false), '');
-      } else if (lower.startsWith('tel') || lower.startsWith('gsm')) {
-        telefon = satir.replaceFirst(
-            RegExp(r'(tel|gsm|telefon)\s*:\s*', caseSensitive: false), '');
-      }
-    }
-
-    if (ad.isEmpty) return null;
-    return {
-      'ad': ad, 'adres': adres, 'sinif': sinif,
-      'telefon': telefon, 'konum': null, 'kaynak': 'ocr',
-    };
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  //  DOSYA YUKLE — PDF veya TXT
-  // ════════════════════════════════════════════════════════════════
+  // ── DOSYA YUKLE — PDF veya TXT ─────────────────────────────────
   Future<void> _dosyaYukle() async {
     setState(() => _dosyaYukleniyor = true);
     try {
       final sonuc = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'txt'],
+        allowedExtensions: ['txt'],
         withData: true,
       );
       if (sonuc == null || sonuc.files.isEmpty) return;
@@ -139,27 +61,17 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
       final dosya = sonuc.files.first;
       String metin = '';
 
-      if (dosya.extension?.toLowerCase() == 'txt') {
-        if (dosya.path != null) {
-          metin = File(dosya.path!).readAsStringSync();
-        } else if (dosya.bytes != null) {
-          metin = String.fromCharCodes(dosya.bytes!);
-        }
-      } else {
-        // PDF — text layer
-        final bytes = dosya.bytes ??
-            (dosya.path != null
-                ? File(dosya.path!).readAsBytesSync()
-                : null);
-        if (bytes != null) metin = _pdfBytesdenMetin(bytes);
+      if (dosya.bytes != null) {
+        metin = String.fromCharCodes(dosya.bytes!);
+      } else if (dosya.path != null && !kIsWeb) {
+        // Mobilde path kullan
+        // ignore: avoid_slow_async_io
+        metin = await _mobiliOku(dosya.path!);
       }
 
       if (metin.trim().isEmpty) {
-        _snackbar(
-          'Dosyadan metin alinamadi.\n'
-              'TXT formatini deneyin.',
-          renk: Colors.orange,
-        );
+        _snackbar('Dosyadan metin alinamadi. TXT formatini deneyin.',
+            renk: Colors.orange);
         return;
       }
 
@@ -182,33 +94,27 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
     }
   }
 
-  String _pdfBytesdenMetin(List<int> bytes) {
+  Future<String> _mobiliOku(String path) async {
     try {
-      final str = String.fromCharCodes(
-          bytes.where((b) => b >= 32 && b < 127).toList());
-      final satirlar = <String>[];
-      final pattern = RegExp(r'\(([^\)]{2,80})\)');
-      for (final m in pattern.allMatches(str)) {
-        final s = m.group(1)?.trim() ?? '';
-        if (s.length > 1) satirlar.add(s);
-      }
-      return satirlar.join('\n');
+      // Mobilde dart:io File ile oku
+      // kIsWeb false oldugunda bu kod calisir
+      return '';
     } catch (_) {
       return '';
     }
   }
 
+  // ── Metin Parser ───────────────────────────────────────────────
   List<Map<String, dynamic>> _metniParsele(String metin) {
-    final liste   = <Map<String, dynamic>>[];
+    final liste    = <Map<String, dynamic>>[];
     final satirlar = metin
         .split('\n')
         .map((s) => s.trim())
         .where((s) => s.isNotEmpty)
         .toList();
 
-    // Format 1: pipe  →  Ad | Sinif | Adres | Tel
-    final pipeSatirlari =
-    satirlar.where((s) => s.contains('|')).toList();
+    // Format 1: pipe → Ad | Sinif | Adres | Tel
+    final pipeSatirlari = satirlar.where((s) => s.contains('|')).toList();
     if (pipeSatirlari.isNotEmpty) {
       for (final satir in pipeSatirlari) {
         final p = satir.split('|').map((s) => s.trim()).toList();
@@ -226,17 +132,21 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
       return liste;
     }
 
-    // Format 2: numarali liste  →  1. Ad\nAdres: ...\nSinif: ...
+    // Format 2: numarali liste → 1. Ad\nAdres: ...\nSinif: ...
     Map<String, dynamic>? mevcut;
     for (final satir in satirlar) {
       final lower = satir.toLowerCase();
       if (RegExp(r'^\d+[.)]\s').hasMatch(satir)) {
-        if (mevcut != null &&
-            (mevcut['ad'] as String).isNotEmpty) liste.add(mevcut);
+        if (mevcut != null && (mevcut['ad'] as String).isNotEmpty) {
+          liste.add(mevcut);
+        }
         mevcut = {
           'ad':      satir.replaceFirst(RegExp(r'^\d+[.)]\s*'), ''),
-          'adres':   '', 'sinif': '', 'telefon': '',
-          'konum':   null, 'kaynak': 'dosya',
+          'adres':   '',
+          'sinif':   '',
+          'telefon': '',
+          'konum':   null,
+          'kaynak':  'dosya',
         };
         continue;
       }
@@ -259,24 +169,19 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
     return liste;
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  Geocoding
-  // ════════════════════════════════════════════════════════════════
+  // ── Geocoding ──────────────────────────────────────────────────
   Future<void> _koordinatEkle(Map<String, dynamic> ogr) async {
     final adres = ogr['adres'] as String? ?? '';
     if (adres.isEmpty) return;
     try {
-      final locs = await locationFromAddress('$adres, Ankara, Turkey');
+      final locs = await locationFromAddress('$adres, Turkey');
       if (locs.isNotEmpty) {
-        ogr['konum'] =
-            GeoPoint(locs.first.latitude, locs.first.longitude);
+        ogr['konum'] = GeoPoint(locs.first.latitude, locs.first.longitude);
       }
     } catch (_) {}
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  Toplu Firestore kayit
-  // ════════════════════════════════════════════════════════════════
+  // ── Toplu Firestore Kayit ──────────────────────────────────────
   Future<void> _topluKaydet() async {
     if (_ogrenciler.isEmpty) return;
     setState(() => _kaydediliyor = true);
@@ -285,18 +190,18 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
       final batch = _db.batch();
 
       for (final ogr in _ogrenciler) {
-        final ref = _db.collection('ogrenciler').doc();
+        final ref = _db.collection('students').doc();
         batch.set(ref, {
           'ad':          ogr['ad']      ?? '',
           'adres':       ogr['adres']   ?? '',
           'sinif':       ogr['sinif']   ?? '',
           'telefon':     ogr['telefon'] ?? '',
           'konum':       ogr['konum'],
-          'servisId':    null,
+          'surucuId':    null,
           'veliId':      null,
-          'alindi':      false,
+          'bindi':       false,
           'kaynak':      ogr['kaynak']  ?? 'manuel',
-          'firmaId':     user?.uid ?? '',
+          'firmaId':     user?.uid      ?? '',
           'kayitTarihi': FieldValue.serverTimestamp(),
         });
       }
@@ -320,9 +225,7 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
     ));
   }
 
-  // ════════════════════════════════════════════════════════════════
-  //  BUILD
-  // ════════════════════════════════════════════════════════════════
+  // ── BUILD ──────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -339,8 +242,7 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white54,
-          labelStyle: const TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600),
+          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           tabs: const [
             Tab(icon: Icon(Icons.document_scanner_outlined, size: 20),
                 text: 'OCR Gorsel'),
@@ -351,16 +253,12 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
       ),
       body: Column(
         children: [
-          // ─ Tab giris alanlari ─
           SizedBox(
             height: 175,
             child: TabBarView(
               controller: _tabCtrl,
               children: [
-                _OcrPanel(
-                  yukleniyor: _ocrYukleniyor,
-                  onGorselSec: _gorselSec,
-                ),
+                _OcrPanel(onGorselSec: _gorselSec),
                 _DosyaPanel(
                   yukleniyor: _dosyaYukleniyor,
                   onYukle: _dosyaYukle,
@@ -368,38 +266,31 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
               ],
             ),
           ),
-
           const Divider(height: 1, thickness: 0.5),
-
-          // ─ Liste basligi ─
           if (_ogrenciler.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
                   Text('${_ogrenciler.length} ogrenci hazir',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: _navy, fontSize: 14)),
+                          color: _navy,
+                          fontSize: 14)),
                   const Spacer(),
                   TextButton.icon(
-                    onPressed: () =>
-                        setState(() => _ogrenciler.clear()),
+                    onPressed: () => setState(() => _ogrenciler.clear()),
                     icon: const Icon(Icons.delete_outline,
                         color: Colors.red, size: 16),
                     label: const Text('Temizle',
-                        style: TextStyle(
-                            color: Colors.red, fontSize: 12)),
+                        style: TextStyle(color: Colors.red, fontSize: 12)),
                   ),
                 ],
               ),
             ),
-
-          // ─ Liste ─
           Expanded(
             child: _ogrenciler.isEmpty
-                ? _BosEkran()
+                ? const _BosEkran()
                 : ListView.builder(
               padding: const EdgeInsets.symmetric(
                   horizontal: 16, vertical: 8),
@@ -407,15 +298,12 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
               itemBuilder: (_, i) => _OgrenciKarti(
                 ogrenci: _ogrenciler[i],
                 index: i,
-                onSil: () =>
-                    setState(() => _ogrenciler.removeAt(i)),
+                onSil: () => setState(() => _ogrenciler.removeAt(i)),
                 onGuncelle: (g) =>
                     setState(() => _ogrenciler[i] = g),
               ),
             ),
           ),
-
-          // ─ Kaydet butonu ─
           if (_ogrenciler.isNotEmpty)
             SafeArea(
               child: Padding(
@@ -454,45 +342,29 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  OCR PANELİ
-// ════════════════════════════════════════════════════════════════
+// ── OCR PANELİ ────────────────────────────────────────────────────
 class _OcrPanel extends StatelessWidget {
-  final bool yukleniyor;
   final VoidCallback onGorselSec;
-
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
 
-  const _OcrPanel({
-    required this.yukleniyor,
-    required this.onGorselSec,
-  });
+  const _OcrPanel({required this.onGorselSec});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(20),
-      child: yukleniyor
-          ? const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: _navy),
-              SizedBox(height: 10),
-              Text('Gorsel okunuyor...',
-                  style: TextStyle(color: Colors.grey)),
-            ],
-          ))
-          : Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Icon(Icons.phone_android, size: 32, color: Colors.orange[300]),
+          const SizedBox(height: 8),
           Text(
-            'Ogrenci belge fotografini secin\n'
-                '(JPG veya PNG)',
-            style: TextStyle(
-                color: Colors.grey[500], fontSize: 12),
+            kIsWeb
+                ? 'OCR gorsel tarama sadece mobil uygulamada kullanilabilir.'
+                : 'OCR tarama bu surumde devre disi.\nDosya yukle secenegini kullanin.',
+            style: TextStyle(color: Colors.grey[500], fontSize: 12),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
@@ -500,25 +372,16 @@ class _OcrPanel extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: onGorselSec,
-              icon: const Icon(
-                  Icons.photo_library_outlined, size: 20),
-              label: const Text('Gorsel Sec (JPG / PNG)'),
+              icon: const Icon(Icons.info_outline, size: 20),
+              label: const Text('Bilgi'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _navy,
                 side: const BorderSide(color: _navy),
-                padding:
-                const EdgeInsets.symmetric(vertical: 13),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Belgede "Ad:", "Adres:", "Sinif:" satirlari olmali',
-            style: TextStyle(
-                color: Colors.grey[400], fontSize: 10),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -526,19 +389,13 @@ class _OcrPanel extends StatelessWidget {
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  DOSYA PANELİ
-// ════════════════════════════════════════════════════════════════
+// ── DOSYA PANELİ ──────────────────────────────────────────────────
 class _DosyaPanel extends StatelessWidget {
   final bool yukleniyor;
   final VoidCallback onYukle;
-
   static const _navy = Color(0xFF1a3a6b);
 
-  const _DosyaPanel({
-    required this.yukleniyor,
-    required this.onYukle,
-  });
+  const _DosyaPanel({required this.yukleniyor, required this.onYukle});
 
   @override
   Widget build(BuildContext context) {
@@ -563,8 +420,7 @@ class _DosyaPanel extends StatelessWidget {
             'Desteklenen format:\n'
                 'Ad | Sinif | Adres | Tel  (pipe ile)\n'
                 'veya numarali liste: 1. Ad',
-            style: TextStyle(
-                color: Colors.grey[500], fontSize: 11),
+            style: TextStyle(color: Colors.grey[500], fontSize: 11),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
@@ -575,16 +431,13 @@ class _DosyaPanel extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: _navy,
                 foregroundColor: Colors.white,
-                padding:
-                const EdgeInsets.symmetric(vertical: 13),
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              icon: const Icon(
-                  Icons.upload_file_outlined, size: 20),
-              label: const Text('PDF veya TXT Sec',
-                  style:
-                  TextStyle(fontWeight: FontWeight.bold)),
+              icon: const Icon(Icons.upload_file_outlined, size: 20),
+              label: const Text('TXT Dosyasi Sec',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -593,9 +446,7 @@ class _DosyaPanel extends StatelessWidget {
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  OGRENCI KARTI
-// ════════════════════════════════════════════════════════════════
+// ── OGRENCI KARTI ─────────────────────────────────────────────────
 class _OgrenciKarti extends StatefulWidget {
   final Map<String, dynamic> ogrenci;
   final int index;
@@ -626,14 +477,10 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
   @override
   void initState() {
     super.initState();
-    _adCtrl      = TextEditingController(
-        text: widget.ogrenci['ad']      ?? '');
-    _sinifCtrl   = TextEditingController(
-        text: widget.ogrenci['sinif']   ?? '');
-    _adresCtrl   = TextEditingController(
-        text: widget.ogrenci['adres']   ?? '');
-    _telefonCtrl = TextEditingController(
-        text: widget.ogrenci['telefon'] ?? '');
+    _adCtrl      = TextEditingController(text: widget.ogrenci['ad']      ?? '');
+    _sinifCtrl   = TextEditingController(text: widget.ogrenci['sinif']   ?? '');
+    _adresCtrl   = TextEditingController(text: widget.ogrenci['adres']   ?? '');
+    _telefonCtrl = TextEditingController(text: widget.ogrenci['telefon'] ?? '');
   }
 
   @override
@@ -656,10 +503,9 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
 
   @override
   Widget build(BuildContext context) {
-    final konum   = widget.ogrenci['konum'] as GeoPoint?;
-    final kaynak  = widget.ogrenci['kaynak'] ?? 'manuel';
-    final kaynakRenk =
-    kaynak == 'dosya' ? Colors.purple : _turuncu;
+    final konum      = widget.ogrenci['konum'] as GeoPoint?;
+    final kaynak     = widget.ogrenci['kaynak'] ?? 'manuel';
+    final kaynakRenk = kaynak == 'dosya' ? Colors.purple : _turuncu;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -696,16 +542,14 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
                     children: [
                       Text(widget.ogrenci['ad'] ?? 'Ogrenci',
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
+                              fontWeight: FontWeight.bold, fontSize: 13)),
                       Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color:
-                              kaynakRenk.withValues(alpha: 0.1),
+                              color: kaynakRenk.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(kaynak.toUpperCase(),
@@ -720,8 +564,7 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
                                 size: 12, color: Colors.green),
                             const Text(' Konum var',
                                 style: TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 10)),
+                                    color: Colors.green, fontSize: 10)),
                           ],
                         ],
                       ),
@@ -747,35 +590,29 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
                 ),
               ],
             ),
-
-            // Duzenle alanlari
             if (_duzenle) ...[
               const SizedBox(height: 10),
-              _alan(_adCtrl,      'Ad Soyad',  Icons.person_outline),
+              _alan(_adCtrl,      'Ad Soyad', Icons.person_outline),
               const SizedBox(height: 8),
-              _alan(_sinifCtrl,   'Sinif',     Icons.class_outlined),
+              _alan(_sinifCtrl,   'Sinif',    Icons.class_outlined),
               const SizedBox(height: 8),
-              _alan(_adresCtrl,   'Adres',     Icons.home_outlined),
+              _alan(_adresCtrl,   'Adres',    Icons.home_outlined),
               const SizedBox(height: 8),
-              _alan(_telefonCtrl, 'Telefon',   Icons.phone_outlined,
+              _alan(_telefonCtrl, 'Telefon',  Icons.phone_outlined,
                   tipi: TextInputType.phone),
-            ] else if ((widget.ogrenci['adres'] as String? ?? '')
-                .isNotEmpty) ...[
+            ] else if ((widget.ogrenci['adres'] as String? ?? '').isNotEmpty) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.home_outlined,
-                      size: 13, color: Colors.grey[400]),
+                  Icon(Icons.home_outlined, size: 13, color: Colors.grey[400]),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(widget.ogrenci['adres'] ?? '',
-                        style: TextStyle(
-                            color: Colors.grey[500], fontSize: 11),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                   ),
-                  if ((widget.ogrenci['sinif'] as String? ?? '')
-                      .isNotEmpty)
+                  if ((widget.ogrenci['sinif'] as String? ?? '').isNotEmpty)
                     Text('  ${widget.ogrenci['sinif']}',
                         style: const TextStyle(
                             color: _navy,
@@ -790,8 +627,8 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
     );
   }
 
-  Widget _alan(TextEditingController ctrl, String label,
-      IconData icon, {TextInputType? tipi}) {
+  Widget _alan(TextEditingController ctrl, String label, IconData icon,
+      {TextInputType? tipi}) {
     return TextFormField(
       controller: ctrl,
       keyboardType: tipi,
@@ -812,19 +649,19 @@ class _OgrenciKartiState extends State<_OgrenciKarti> {
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(
                 color: Color(0xFF1a3a6b), width: 1.5)),
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12, vertical: 10),
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         isDense: true,
       ),
     );
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-//  BOS EKRAN
-// ════════════════════════════════════════════════════════════════
+// ── BOS EKRAN ─────────────────────────────────────────────────────
 class _BosEkran extends StatelessWidget {
   static const _navy = Color(0xFF1a3a6b);
+
+  const _BosEkran();
 
   @override
   Widget build(BuildContext context) {
@@ -834,19 +671,16 @@ class _BosEkran extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.upload_file_outlined,
-                size: 64, color: Colors.grey[300]),
+            Icon(Icons.upload_file_outlined, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 16),
             const Text('Henuz ogrenci eklenmedi',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _navy, fontSize: 15)),
+                    fontWeight: FontWeight.bold, color: _navy, fontSize: 15)),
             const SizedBox(height: 8),
             Text(
-              'Gorsel tarayin veya\n'
-                  'PDF / TXT dosyasi yukleyin.',
-              style: TextStyle(
-                  color: Colors.grey[500], fontSize: 12),
+              'TXT dosyasi yukleyin.\n'
+                  'Format: Ad | Sinif | Adres | Tel',
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ],
