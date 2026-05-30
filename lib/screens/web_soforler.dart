@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 
 class WebSoforler extends StatefulWidget {
-  const WebSoforler({super.key});
+  final String firmaId;
+  const WebSoforler({super.key, this.firmaId = ''});
   @override
   State<WebSoforler> createState() => _WebSoforlerState();
 }
@@ -24,23 +25,39 @@ class _WebSoforlerState extends State<WebSoforler> {
   void dispose() { _aramaCtrl.dispose(); super.dispose(); }
 
   Future<void> _yukle() async {
-    final firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    if (firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
+    setState(() => _yukleniyor = true);
+    final firmaId = widget.firmaId.isNotEmpty
+        ? widget.firmaId
+        : await SessionService.instance.firmaIdAl() ?? '';
+    if (firmaId.isEmpty) {
+      if (mounted) setState(() => _yukleniyor = false);
+      return;
+    }
     try {
-      final snap = await FirebaseFirestore.instance.collection('drivers')
-          .where('firmaId', isEqualTo: firmaId).orderBy('ad').get();
-      _soforler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final snap = await FirebaseFirestore.instance
+          .collection('drivers')
+          .where('firmaId', isEqualTo: firmaId)
+          .orderBy('ad')
+          .get();
+      _soforler = snap.docs
+          .map((d) => {'id': d.id, ...d.data()}).toList();
 
-      // Her şoföre öğrenci sayısını ekle
-      final projeId = SessionService.instance.aktifProjeld ?? '';
+      // Her sofore ogrenci sayisi ekle
       for (final s in _soforler) {
-        var q = FirebaseFirestore.instance.collection('students')
-            .where('surucuId', isEqualTo: s['id']);
-        if (projeId.isNotEmpty) q = q.where('projeId', isEqualTo: projeId);
-        final c = await q.count().get();
-        s['ogrenciSayi'] = c.count ?? 0;
+        try {
+          final c = await FirebaseFirestore.instance
+              .collection('students')
+              .where('surucuId', isEqualTo: s['id'])
+              .count()
+              .get();
+          s['ogrenciSayi'] = c.count ?? 0;
+        } catch (_) {
+          s['ogrenciSayi'] = 0;
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('WebSoforler yukle hata: $e');
+    }
     _filtrele();
     if (mounted) setState(() => _yukleniyor = false);
   }
@@ -61,7 +78,8 @@ class _WebSoforlerState extends State<WebSoforler> {
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      // Üst bar
+
+      // Ust bar
       Container(
         padding: const EdgeInsets.all(16),
         color: Colors.white,
@@ -70,179 +88,276 @@ class _WebSoforlerState extends State<WebSoforler> {
             controller: _aramaCtrl,
             decoration: InputDecoration(
               hintText: 'Sofor ara (isim, plaka, telefon...)',
-              prefixIcon: const Icon(Icons.search, color: _navy, size: 18),
-              filled: true, fillColor: const Color(0xFFF5F7FA),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+              prefixIcon: const Icon(Icons.search,
+                  color: _navy, size: 18),
+              filled: true,
+              fillColor: const Color(0xFFF5F7FA),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 10),
             ),
             onChanged: (_) => _filtrele(),
           )),
           const SizedBox(width: 12),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                backgroundColor: _navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8))),
             icon: const Icon(Icons.person_add_outlined, size: 16),
-            label: const Text('Sofor Ekle', style: TextStyle(fontSize: 12)),
-            onPressed: () => Navigator.pushNamed(context, '/suruculer'),
+            label: const Text('Sofor Ekle',
+                style: TextStyle(fontSize: 12)),
+            onPressed: () =>
+                Navigator.pushNamed(context, '/suruculer'),
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-                backgroundColor: _orange, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                backgroundColor: _orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8))),
             icon: const Icon(Icons.add_road_outlined, size: 16),
-            label: const Text('Rota Olustur', style: TextStyle(fontSize: 12)),
-            onPressed: () => Navigator.pushNamed(context, '/gruplama'),
+            label: const Text('Rota Olustur',
+                style: TextStyle(fontSize: 12)),
+            onPressed: () =>
+                Navigator.pushNamed(context, '/gruplama'),
           ),
         ]),
       ),
 
-      // Sayaç
+      // Sayac
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 20, vertical: 8),
         color: const Color(0xFFF5F7FA),
         child: Row(children: [
-          Text('${_filtreliSof.length} sofor', style: const TextStyle(
-              color: _navy, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text('${_filtreliSof.length} sofor',
+              style: const TextStyle(
+                  color: _navy,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13)),
           const SizedBox(width: 8),
           Text('/ ${_soforler.length} toplam',
-              style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+              style: TextStyle(
+                  color: Colors.grey[500], fontSize: 12)),
           const SizedBox(width: 16),
-          Container(width: 8, height: 8,
-              decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+          Container(
+              width: 8, height: 8,
+              decoration: const BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle)),
           const SizedBox(width: 5),
           Text(
             '${_soforler.where((s) => s['servisAktif'] == true).length} aktif',
-            style: const TextStyle(color: Colors.green, fontSize: 12),
+            style: const TextStyle(
+                color: Colors.green, fontSize: 12),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.refresh_outlined,
+                size: 18, color: _navy),
+            onPressed: _yukle,
+            tooltip: 'Yenile',
           ),
         ]),
       ),
 
-      // Kartlar grid
-      Expanded(child: _yukleniyor
-          ? const Center(child: CircularProgressIndicator(color: _navy))
-          : _filtreliSof.isEmpty
-          ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.directions_bus_outlined, size: 64, color: Colors.grey),
-        const SizedBox(height: 12),
-        Text('Sofor bulunamadi', style: TextStyle(color: Colors.grey[400])),
-      ]))
-          : GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 340, mainAxisExtent: 200,
-          crossAxisSpacing: 12, mainAxisSpacing: 12,
+      // Kartlar
+      Expanded(
+        child: _yukleniyor
+            ? const Center(
+            child: CircularProgressIndicator(color: _navy))
+            : _filtreliSof.isEmpty
+            ? Center(child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.directions_bus_outlined,
+                  size: 64, color: Colors.grey),
+              const SizedBox(height: 12),
+              Text('Sofor bulunamadi',
+                  style: TextStyle(color: Colors.grey[400])),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy),
+                icon: const Icon(Icons.person_add_outlined,
+                    color: Colors.white, size: 16),
+                label: const Text('Sofor Ekle',
+                    style: TextStyle(color: Colors.white)),
+                onPressed: () => Navigator.pushNamed(
+                    context, '/suruculer'),
+              ),
+            ]))
+            : GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate:
+          const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 340,
+            mainAxisExtent: 210,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: _filtreliSof.length,
+          itemBuilder: (_, i) => _SoforKarti(
+            sofor: _filtreliSof[i],
+            onDuzenle: () => Navigator.pushNamed(
+                context, '/suruculer'),
+            onRota: () => Navigator.pushNamed(
+                context, '/gruplama'),
+          ),
         ),
-        itemCount: _filtreliSof.length,
-        itemBuilder: (_, i) => _SoforKarti(
-          sofor: _filtreliSof[i],
-          onDuzenle: () => Navigator.pushNamed(context, '/suruculer'),
-          onRota: () => Navigator.pushNamed(context, '/gruplama'),
-        ),
-      )),
+      ),
     ]);
   }
 }
 
+// ── Sofor Karti ────────────────────────────────────────────────
 class _SoforKarti extends StatelessWidget {
   final Map<String, dynamic> sofor;
   final VoidCallback onDuzenle, onRota;
   static const _navy = Color(0xFF1a3a6b);
 
-  const _SoforKarti({required this.sofor, required this.onDuzenle, required this.onRota});
+  const _SoforKarti({
+    required this.sofor,
+    required this.onDuzenle,
+    required this.onRota,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final aktif      = sofor['servisAktif'] == true;
-    final ogrSayi    = sofor['ogrenciSayi'] as int? ?? 0;
-    final hiz        = (sofor['hiz'] as num? ?? 0).toStringAsFixed(0);
-    final ad         = sofor['ad'] as String? ?? 'Sofor';
-    final plaka      = sofor['aracPlaka'] as String? ?? '-';
-    final tel        = sofor['telefon'] as String? ?? '-';
+    final aktif   = sofor['servisAktif'] == true;
+    final ogrSayi = sofor['ogrenciSayi'] as int? ?? 0;
+    final hiz     = (sofor['hiz'] as num? ?? 0).toStringAsFixed(0);
+    final ad      = sofor['ad'] as String? ?? 'Sofor';
+    final plaka   = sofor['aracPlaka'] as String? ?? '-';
+    final tel     = sofor['telefon'] as String? ?? '-';
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(14),
-        border: aktif ? Border.all(color: Colors.green.withValues(alpha: 0.4), width: 1.5) : null,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: aktif
+            ? Border.all(
+            color: Colors.green.withValues(alpha: 0.4),
+            width: 1.5)
+            : null,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8)
+        ],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: aktif
-                ? Colors.green.withValues(alpha: 0.15)
-                : _navy.withValues(alpha: 0.1),
-            child: Text(ad[0].toUpperCase(),
-                style: TextStyle(color: aktif ? Colors.green : _navy,
-                    fontWeight: FontWeight.bold, fontSize: 16)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(ad, style: const TextStyle(fontWeight: FontWeight.bold,
-                fontSize: 14, color: _navy), overflow: TextOverflow.ellipsis),
-            Text(plaka, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-          ])),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-                color: (aktif ? Colors.green : Colors.grey).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8)),
-            child: Text(aktif ? 'Aktif' : 'Bosta',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
-                    color: aktif ? Colors.green : Colors.grey)),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
-          _MiniInfo(Icons.people_outline, '$ogrSayi ogr', Colors.blue),
-          const SizedBox(width: 12),
-          _MiniInfo(Icons.phone_outlined, tel, Colors.grey),
-          if (aktif) ...[
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: aktif
+                  ? Colors.green.withValues(alpha: 0.15)
+                  : _navy.withValues(alpha: 0.1),
+              child: Text(
+                  ad.isNotEmpty ? ad[0].toUpperCase() : 'S',
+                  style: TextStyle(
+                      color: aktif ? Colors.green : _navy,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ad,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: _navy),
+                    overflow: TextOverflow.ellipsis),
+                Text(plaka,
+                    style: TextStyle(
+                        color: Colors.grey[500], fontSize: 12)),
+              ],
+            )),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: (aktif ? Colors.green : Colors.grey)
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(aktif ? 'Aktif' : 'Bosta',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: aktif ? Colors.green : Colors.grey)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            _MiniInfo(Icons.people_outline,
+                '$ogrSayi ogr', Colors.blue),
             const SizedBox(width: 12),
-            _MiniInfo(Icons.speed_outlined, '$hiz km/s', Colors.green),
-          ],
-        ]),
-        const Spacer(),
-        Row(children: [
-          Expanded(child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-                foregroundColor: _navy,
-                side: const BorderSide(color: _navy),
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            icon: const Icon(Icons.edit_outlined, size: 14),
-            label: const Text('Duzenle', style: TextStyle(fontSize: 11)),
-            onPressed: onDuzenle,
-          )),
-          const SizedBox(width: 8),
-          Expanded(child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            icon: const Icon(Icons.route_outlined, size: 14),
-            label: const Text('Rota', style: TextStyle(fontSize: 11)),
-            onPressed: onRota,
-          )),
-        ]),
-      ]),
+            _MiniInfo(Icons.phone_outlined, tel, Colors.grey),
+            if (aktif) ...[
+              const SizedBox(width: 12),
+              _MiniInfo(Icons.speed_outlined,
+                  '$hiz km/s', Colors.green),
+            ],
+          ]),
+          const Spacer(),
+          Row(children: [
+            Expanded(child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: _navy,
+                  side: const BorderSide(color: _navy),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8))),
+              icon: const Icon(Icons.edit_outlined, size: 14),
+              label: const Text('Duzenle',
+                  style: TextStyle(fontSize: 11)),
+              onPressed: onDuzenle,
+            )),
+            const SizedBox(width: 8),
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8))),
+              icon: const Icon(Icons.route_outlined, size: 14),
+              label: const Text('Rota',
+                  style: TextStyle(fontSize: 11)),
+              onPressed: onRota,
+            )),
+          ]),
+        ],
+      ),
     );
   }
 }
 
 class _MiniInfo extends StatelessWidget {
-  final IconData ikon; final String metin; final Color renk;
+  final IconData ikon;
+  final String metin;
+  final Color renk;
   const _MiniInfo(this.ikon, this.metin, this.renk);
+
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Icon(ikon, size: 13, color: renk),
-    const SizedBox(width: 4),
-    Text(metin, style: TextStyle(fontSize: 11, color: renk)),
-  ]);
+  Widget build(BuildContext context) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(ikon, size: 13, color: renk),
+        const SizedBox(width: 4),
+        Text(metin, style: TextStyle(fontSize: 11, color: renk)),
+      ]);
 }
