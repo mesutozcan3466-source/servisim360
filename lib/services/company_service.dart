@@ -1,3 +1,7 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  DOSYA: lib/services/company_service.dart
+// ║  PROJE: servisim360
+// ╚══════════════════════════════════════════════════════════════╝
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ─── Model ─────────────────────────────────────────────────────
@@ -34,7 +38,7 @@ class CompanyService {
     final kodUpper = kod.toUpperCase().trim();
 
     var snap = await _db
-        .collection('firmalar')
+        .collection('firms')
         .where('firmaKodu', isEqualTo: kodUpper)
         .where('aktif', isEqualTo: true)
         .limit(1)
@@ -42,7 +46,7 @@ class CompanyService {
 
     if (snap.docs.isEmpty) {
       snap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .where('firmaKodu', isEqualTo: kod.trim())
           .where('aktif', isEqualTo: true)
           .limit(1)
@@ -56,7 +60,7 @@ class CompanyService {
   /// Tüm aktif firmaları listele
   Future<List<CompanyModel>> aktifFirmalar() async {
     final snap = await _db
-        .collection('firmalar')
+        .collection('firms')
         .where('aktif', isEqualTo: true)
         .orderBy('firmaAd')
         .get();
@@ -68,7 +72,7 @@ class CompanyService {
     required String firmaAd,
     required String firmaKodu,
   }) async {
-    final ref = await _db.collection('firmalar').add({
+    final ref = await _db.collection('firms').add({
       'firmaAd': firmaAd,
       'firmaKodu': firmaKodu.toUpperCase(),
       'aktif': true,

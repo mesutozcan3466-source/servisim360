@@ -20,10 +20,14 @@ class _VeliBasvuruFormScreenState
   static const Color orange = Color(0xFFFF8C00);
 
   final _formKey = GlobalKey<FormState>();
-  final _ogrenciAdiCtrl = TextEditingController();
-  final _veliAdiCtrl = TextEditingController();
-  final _telefonCtrl = TextEditingController();
-  final _adresCtrl = TextEditingController();
+  final _ogrenciAdiCtrl  = TextEditingController();
+  final _veliAdiCtrl     = TextEditingController();
+  final _telefonCtrl     = TextEditingController();
+  final _babaTelCtrl     = TextEditingController();
+  final _anneTelCtrl     = TextEditingController();
+  final _ogrenciTcCtrl   = TextEditingController();
+  final _sinifCtrl       = TextEditingController();
+  final _adresCtrl       = TextEditingController();
 
   int _adim = 0;
   bool _yukleniyor = false;
@@ -140,10 +144,14 @@ class _VeliBasvuruFormScreenState
         'projeId': _projeId,
         'projeAdi': _projeAdi,
         'linkId': widget.linkId,
-        'ogrenciAdi': _ogrenciAdiCtrl.text.trim(),
-        'veliAdi': _veliAdiCtrl.text.trim(),
-        'telefon': _telefonCtrl.text.trim(),
-        'adres': _adresCtrl.text.trim(),
+        'ogrenciAdi':  _ogrenciAdiCtrl.text.trim(),
+        'ogrenciTc':   _ogrenciTcCtrl.text.trim(),
+        'sinif':       _sinifCtrl.text.trim(),
+        'veliAdi':     _veliAdiCtrl.text.trim(),
+        'telefon':     _telefonCtrl.text.trim(),
+        'babaTel':     _babaTelCtrl.text.trim(),
+        'anneTel':     _anneTelCtrl.text.trim(),
+        'adres':       _adresCtrl.text.trim(),
         'konum': _konum != null
             ? GeoPoint(_konum!.latitude, _konum!.longitude)
             : null,
@@ -232,19 +240,34 @@ class _VeliBasvuruFormScreenState
             _baslikKart('Ogrenci ve Veli Bilgileri',
                 'Lutfen bilgileri eksiksiz doldurun'),
             const SizedBox(height: 20),
-            _etiket('Ogrenci Adi Soyadi'),
-            _alan(ctrl: _ogrenciAdiCtrl, hint: 'Ogrencinin adi', ikon: Icons.school,
+            _etiket('Ogrenci Adi Soyadi *'),
+            _alan(ctrl: _ogrenciAdiCtrl, hint: 'Ogrencinin tam adi', ikon: Icons.school,
                 validator: (v) => v == null || v.isEmpty ? 'Zorunlu alan' : null),
-            const SizedBox(height: 14),
-            _etiket('Veli Adi Soyadi'),
-            _alan(ctrl: _veliAdiCtrl, hint: 'Velinin adi', ikon: Icons.person,
+            const SizedBox(height: 12),
+            _etiket('Ogrenci TC Kimlik No'),
+            _alan(ctrl: _ogrenciTcCtrl, hint: '11 haneli TC', ikon: Icons.badge_outlined,
+                tip: TextInputType.number),
+            const SizedBox(height: 12),
+            _etiket('Sinif'),
+            _alan(ctrl: _sinifCtrl, hint: 'Ornek: 5-A', ikon: Icons.class_outlined),
+            const SizedBox(height: 12),
+            _etiket('Veli Adi Soyadi *'),
+            _alan(ctrl: _veliAdiCtrl, hint: 'Velinin tam adi', ikon: Icons.person,
                 validator: (v) => v == null || v.isEmpty ? 'Zorunlu alan' : null),
-            const SizedBox(height: 14),
-            _etiket('Telefon Numarasi'),
+            const SizedBox(height: 12),
+            _etiket('Ogrenci / Veli Telefon *'),
             _alan(ctrl: _telefonCtrl, hint: '05xx xxx xx xx', ikon: Icons.phone,
                 tip: TextInputType.phone,
                 validator: (v) => v == null || v.length < 10 ? 'Gecerli telefon girin' : null),
-            const SizedBox(height: 32),
+            const SizedBox(height: 12),
+            _etiket('Baba Telefon'),
+            _alan(ctrl: _babaTelCtrl, hint: '05xx xxx xx xx', ikon: Icons.phone_outlined,
+                tip: TextInputType.phone),
+            const SizedBox(height: 12),
+            _etiket('Anne Telefon'),
+            _alan(ctrl: _anneTelCtrl, hint: '05xx xxx xx xx', ikon: Icons.phone_outlined,
+                tip: TextInputType.phone),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -431,8 +454,16 @@ class _VeliBasvuruFormScreenState
           _baslikKart('Ozet ve Onay', 'Bilgilerinizi kontrol edin'),
           const SizedBox(height: 20),
           _ozetSatir('Ogrenci', _ogrenciAdiCtrl.text),
+          if (_ogrenciTcCtrl.text.isNotEmpty)
+            _ozetSatir('TC', _ogrenciTcCtrl.text),
+          if (_sinifCtrl.text.isNotEmpty)
+            _ozetSatir('Sinif', _sinifCtrl.text),
           _ozetSatir('Veli', _veliAdiCtrl.text),
           _ozetSatir('Telefon', _telefonCtrl.text),
+          if (_babaTelCtrl.text.isNotEmpty)
+            _ozetSatir('Baba Tel', _babaTelCtrl.text),
+          if (_anneTelCtrl.text.isNotEmpty)
+            _ozetSatir('Anne Tel', _anneTelCtrl.text),
           _ozetSatir('Adres', _adresCtrl.text),
           if (_hesaplananFiyat != null)
             _ozetSatir('Aylik Ucret',
@@ -664,8 +695,12 @@ class _VeliBasvuruFormScreenState
   @override
   void dispose() {
     _ogrenciAdiCtrl.dispose();
+    _ogrenciTcCtrl.dispose();
+    _sinifCtrl.dispose();
     _veliAdiCtrl.dispose();
     _telefonCtrl.dispose();
+    _babaTelCtrl.dispose();
+    _anneTelCtrl.dispose();
     _adresCtrl.dispose();
     super.dispose();
   }

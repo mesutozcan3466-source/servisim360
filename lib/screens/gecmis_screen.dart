@@ -73,7 +73,7 @@ class _GecmisScreenState extends State<GecmisScreen>
     try {
       // Toplam öğrenci
       final ogrSnap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('ogrenciler')
           .get();
@@ -87,7 +87,7 @@ class _GecmisScreenState extends State<GecmisScreen>
       // Bugün gelmeyenler
       final bugun = _bugunKey();
       final yokSnap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('yokluklar')
           .where('tarih', isEqualTo: bugun)
@@ -97,7 +97,7 @@ class _GecmisScreenState extends State<GecmisScreen>
 
       // Aktif şoförler
       final surucuSnap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('suruculer')
           .get();
@@ -107,7 +107,7 @@ class _GecmisScreenState extends State<GecmisScreen>
 
       // Bugün yapılan sefer sayısı (gecmis koleksiyonundan)
       final seferSnap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('gecmis')
           .where('tip', isEqualTo: 'sefer')
@@ -131,7 +131,7 @@ class _GecmisScreenState extends State<GecmisScreen>
       final haftaSonu = haftaBasi.add(const Duration(days: 6));
 
       final snap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('yokluklar')
           .where('tarih', isGreaterThanOrEqualTo: _tarihKey(haftaBasi))
@@ -349,7 +349,7 @@ class _GecmisScreenState extends State<GecmisScreen>
   Stream<QuerySnapshot>? get _gecmisStream {
     if (_firmaId == null || _firmaId!.isEmpty) return null;
     Query q = _db
-        .collection('firmalar')
+        .collection('firms')
         .doc(_firmaId)
         .collection('gecmis')
         .orderBy('tarih', descending: true)

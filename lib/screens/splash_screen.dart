@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/session_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
-
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -15,7 +13,6 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
-
   late AnimationController _animCtrl;
   late Animation<double>   _fadeAnim;
   late Animation<double>   _scaleAnim;
@@ -23,56 +20,40 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
-    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: _animCtrl,
-            curve: const Interval(0.0, 0.6, curve: Curves.easeIn)));
-    _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
-        CurvedAnimation(parent: _animCtrl,
-            curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)));
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _fadeAnim  = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.6, curve: Curves.easeIn)));
+    _scaleAnim = Tween<double>(begin: 0.7, end: 1.0).animate(CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)));
     _animCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 2000), _yonlendir);
+    Future.delayed(const Duration(milliseconds: 2500), _yonlendir);
   }
 
   @override
-  void dispose() {
-    _animCtrl.dispose();
-    super.dispose();
-  }
+  void dispose() { _animCtrl.dispose(); super.dispose(); }
 
   Future<void> _yonlendir() async {
     if (!mounted) return;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) Navigator.pushReplacementNamed(context, '/login');
-      return;
-    }
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('kullanicilar').doc(user.uid).get();
-      final rol = doc.data()?['rol'] as String? ?? 'veli';
-      if (!mounted) return;
-      switch (rol) {
-        case 'superAdmin':
-        case 'super_admin':
-        case 'superadmin':
-        case 'süper yönetici':
-          Navigator.pushReplacementNamed(context,
-              kIsWeb ? '/web_panel' : '/super_admin'); break;
-        case 'firmaAdmin':
-        case 'firma_admin':
-        case 'firmaadmin':
-        case 'firma yöneticisi':
-          Navigator.pushReplacementNamed(context,
-              kIsWeb ? '/web_panel' : '/firma_admin'); break;
-        case 'sofor':
-          Navigator.pushReplacementNamed(context, '/sofor_panel'); break;
-        default:
-          Navigator.pushReplacementNamed(context,
-              kIsWeb ? '/web_veli' : '/veli_panel');
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+        return;
       }
-    } catch (_) {
+      final doc = await FirebaseFirestore.instance
+          .collection('kullanicilar').doc(user.uid).get()
+          .timeout(const Duration(seconds: 8));
+      final rol = doc.data()?['rol'] as String? ?? '';
+      if (!mounted) return;
+      if (rol == 'superAdmin' || rol == 'super_admin') {
+        Navigator.pushReplacementNamed(context, kIsWeb ? '/web_panel' : '/super_admin');
+      } else if (rol == 'firmaAdmin' || rol == 'firma_admin' || rol == 'admin') {
+        Navigator.pushReplacementNamed(context, kIsWeb ? '/web_panel' : '/firma_admin');
+      } else if (rol == 'sofor') {
+        Navigator.pushReplacementNamed(context, '/sofor_panel');
+      } else {
+        Navigator.pushReplacementNamed(context, kIsWeb ? '/web_veli' : '/veli_panel');
+      }
+    } catch (e) {
+      debugPrint('Splash hata: $e');
       if (mounted) Navigator.pushReplacementNamed(context, '/login');
     }
   }
@@ -81,57 +62,35 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _navy,
-      body: Center(
-        child: AnimatedBuilder(
-          animation: _animCtrl,
-          builder: (_, __) => FadeTransition(
-            opacity: _fadeAnim,
-            child: ScaleTransition(
-              scale: _scaleAnim,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 110, height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(26),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.3),
-                        blurRadius: 20, offset: const Offset(0, 8),
-                      )],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(26),
-                      child: Image.asset('assets/logo_app.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Center(
-                          child: Text('S', style: TextStyle(
-                              color: _turuncu, fontSize: 60,
-                              fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('Servisim360', style: TextStyle(
-                      color: Colors.white, fontSize: 30,
-                      fontWeight: FontWeight.bold, letterSpacing: 2)),
-                  const SizedBox(height: 6),
-                  const Text('Akıllı Servis Yönetim Sistemi',
-                      style: TextStyle(
-                          color: Colors.white54, fontSize: 13,
-                          letterSpacing: 0.5)),
-                  const SizedBox(height: 48),
-                  const SizedBox(width: 28, height: 28,
-                      child: CircularProgressIndicator(
-                          color: _turuncu, strokeWidth: 2.5)),
-                ],
+      body: Center(child: AnimatedBuilder(
+        animation: _animCtrl,
+        builder: (_, __) => FadeTransition(
+          opacity: _fadeAnim,
+          child: ScaleTransition(
+            scale: _scaleAnim,
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 110, height: 110,
+                decoration: BoxDecoration(color: Colors.white,
+                    borderRadius: BorderRadius.circular(26),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8))]),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: Image.asset('assets/logo_app.png', fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(
+                          child: Text('S', style: TextStyle(color: _turuncu, fontSize: 60, fontWeight: FontWeight.bold)))),
+                ),
               ),
-            ),
+              const SizedBox(height: 24),
+              const Text('Servisim360', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              const SizedBox(height: 6),
+              const Text('Akilli Servis Yonetim Sistemi', style: TextStyle(color: Colors.white54, fontSize: 13)),
+              const SizedBox(height: 48),
+              const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(color: _turuncu, strokeWidth: 2.5)),
+            ]),
           ),
         ),
-      ),
+      )),
     );
   }
 }

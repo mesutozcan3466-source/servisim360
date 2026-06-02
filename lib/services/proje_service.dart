@@ -14,7 +14,7 @@ class ProjeService {
   }) async {
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    final ref = await _db.collection('projeler').add({
+    final ref = await _db.collection('projects').add({
       'ad': ad,
       'tur': tur,
       'aciklama': aciklama ?? '',
@@ -44,7 +44,7 @@ class ProjeService {
   /// Admin'e ait aktif projeleri stream olarak getir
   static Stream<QuerySnapshot> adminProjeleri(String adminUid) {
     return _db
-        .collection('projeler')
+        .collection('projects')
         .where('adminUid', isEqualTo: adminUid)
         .where('durum', isEqualTo: 'aktif')
         .orderBy('olusturmaTarihi', descending: true)
@@ -54,34 +54,34 @@ class ProjeService {
   /// Projeyi güncelle
   static Future<void> projeGuncelle(
       String projeId, Map<String, dynamic> data) async {
-    await _db.collection('projeler').doc(projeId).update(data);
+    await _db.collection('projects').doc(projeId).update(data);
   }
 
   /// Projeyi soft delete ile sil
   static Future<void> projeSil(String projeId) async {
     await _db
-        .collection('projeler')
+        .collection('projects')
         .doc(projeId)
         .update({'durum': 'silindi'});
   }
 
   /// Projeye şoför ekle
   static Future<void> soforEkle(String projeId, String surucuId) async {
-    await _db.collection('projeler').doc(projeId).update({
+    await _db.collection('projects').doc(projeId).update({
       'suruculer': FieldValue.arrayUnion([surucuId]),
     });
   }
 
   /// Projeden şoför çıkar
   static Future<void> soforCikar(String projeId, String surucuId) async {
-    await _db.collection('projeler').doc(projeId).update({
+    await _db.collection('projects').doc(projeId).update({
       'suruculer': FieldValue.arrayRemove([surucuId]),
     });
   }
 
   /// Proje istatistiklerini getir
   static Future<Map<String, int>> projeIstatistik(String projeId) async {
-    final projeRef = _db.collection('projeler').doc(projeId);
+    final projeRef = _db.collection('projects').doc(projeId);
 
     try {
       final results = await Future.wait([

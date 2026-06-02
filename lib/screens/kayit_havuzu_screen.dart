@@ -40,7 +40,7 @@ class _KayitHavuzuScreenState extends State<KayitHavuzuScreen> {
 
     // Ogrenciler koleksiyonuna ekle
     await _db
-        .collection('firmalar')
+        .collection('firms')
         .doc(_firmaId)
         .collection('ogrenciler')
         .add({
@@ -122,7 +122,7 @@ class _KayitHavuzuScreenState extends State<KayitHavuzuScreen> {
   Widget _basvuruListesi(String durum) {
     return StreamBuilder<QuerySnapshot>(
       stream: _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('basvurular')
           .where('durum', isEqualTo: durum)

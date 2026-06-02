@@ -41,7 +41,7 @@ class _QrOkutScreenState extends State<QrOkutScreen> {
     setState(() => _taraniyor = true);
 
     final doc = await _db
-        .collection('firmalar')
+        .collection('firms')
         .doc(_firmaId)
         .collection('ogrenciler')
         .doc(ogrenciId)
@@ -50,7 +50,7 @@ class _QrOkutScreenState extends State<QrOkutScreen> {
     if (doc.exists) {
       final d = doc.data()!;
       await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(_firmaId)
           .collection('ogrenciler')
           .doc(ogrenciId)

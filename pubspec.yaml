@@ -10,7 +10,7 @@ dependencies:
     flutter:
         sdk: flutter
 
-    # ── Firebase (tüm platformlar) ────────────────────────────────────────
+    # ── Firebase (tum platformlar) ────────────────────────────────────────
     firebase_core: ^3.6.0
     firebase_auth: ^5.3.1
     cloud_firestore: ^5.4.4
@@ -22,7 +22,7 @@ dependencies:
 
     # ── Harita & Konum (web + mobil destekli) ────────────────────────────
     google_maps_flutter: ^2.9.0
-    google_maps_flutter_web: ^0.5.10   # web için zorunlu
+    google_maps_flutter_web: ^0.5.10
     geolocator: ^13.0.0
     geocoding: ^3.0.0
 
@@ -42,38 +42,24 @@ dependencies:
     printing: ^5.14.3
     path_provider: ^2.1.0
     image_picker: ^1.1.2
-    # open_file: KALDIRILDI - web desteklemez, url_launcher ile yapılır
 
     # ── QR Kod ────────────────────────────────────────────────────────────
-    qr_flutter: ^4.1.0          # QR gösterme - web + mobil
-    # mobile_scanner: KALDIRILDI - sadece mobil kamera, web'de crash
-
-    # ── OCR ───────────────────────────────────────────────────────────────
-    # google_mlkit_text_recognition: KALDIRILDI - sadece mobil
-    # Web'de OCR gerekirse Cloud Vision API (http ile) kullanılacak
+    qr_flutter: ^4.1.0
 
     # ── Ses ───────────────────────────────────────────────────────────────
-    flutter_tts: ^4.0.2          # web'de tarayıcı TTS çalışır
-    speech_to_text: ^7.4.0       # web'de mikrofon API çalışır
-
-    # ── Bildirim ──────────────────────────────────────────────────────────
-    # web bildirimleri firebase_messaging ile yapılır (FCM web push)
-
-    # ── Arka Plan Servis ──────────────────────────────────────────────────
-    # flutter_background_service: KALDIRILDI - sadece mobil
-    # flutter_background_service_android: KALDIRILDI - sadece Android
-    # Web'de background çalışma Service Worker ile yapılır
+    flutter_tts: ^4.0.2
+    speech_to_text: ^7.4.0
 
     # ── Grafik & UI ───────────────────────────────────────────────────────
-    fl_chart: ^1.2.0             # web + mobil
-    excel: ^4.0.6                # web + mobil
+    fl_chart: ^1.2.0
+    excel: ^4.0.6
 
     # ── UI ────────────────────────────────────────────────────────────────
     cupertino_icons: ^1.0.8
     provider: ^6.1.5
     flutter_launcher_icons: ^0.14.4
     intl: ^0.20.2
-    flutter_local_notifications: 17.2.4
+    flutter_local_notifications: ^18.0.0
 
 dev_dependencies:
     flutter_test:
@@ -84,7 +70,7 @@ flutter_launcher_icons:
     android: true
     ios: true
     web:
-        generate: true              # web favicon oluştur
+        generate: true
         image_path: "assets/logo_app.png"
         background_color: "#1a3a6b"
         theme_color: "#1a3a6b"

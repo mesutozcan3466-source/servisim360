@@ -8,7 +8,7 @@
     "runtime": "nodejs20"
   },
   "hosting": {
-    "public": "build/web",
+    "public": "public",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -20,5 +20,27 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "servis360-15b4a",
+          "appId": "1:708576389273:android:850ea4f6400e954297f008",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "servis360-15b4a",
+          "configurations": {
+            "android": "1:708576389273:android:850ea4f6400e954297f008",
+            "ios": "1:708576389273:ios:c2129aa0709c172197f008",
+            "macos": "1:708576389273:ios:c2129aa0709c172197f008",
+            "web": "1:708576389273:web:15dce7b898db575097f008"
+          }
+        }
+      }
+    }
   }
 }

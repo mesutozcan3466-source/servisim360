@@ -1,0 +1,9 @@
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>servisim360</string>
+        </array>
+    </dict>
+</array>

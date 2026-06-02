@@ -34,7 +34,7 @@ class _QrOlusturScreenState extends State<QrOlusturScreen> {
     setState(() => _firmaId = firmaId);
     if (firmaId.isNotEmpty) {
       final snap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(firmaId)
           .collection('ogrenciler')
           .get();

@@ -14,10 +14,31 @@
   <title>Servisim360</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Google Maps Web için zorunlu -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyPvU0fP3lpqCqWuB29jl6ScVZXFFKOgU"></script>
+  <!-- Google Maps - async OLMADAN -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAyPvU0fP3lpqCqWuB29jl6ScVZXFFKOgU&libraries=geometry,places"></script>
 
-  <!-- Flutter web yüklenene kadar loading ekranı -->
+  <!-- Firebase SDK'lari (compat versiyonu - Flutter ile uyumlu) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-messaging-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-analytics-compat.js"></script>
+
+  <!-- Firebase Baslatma -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtuxahEVj78OTSIZKaa6z8Q69CNWymO78",
+      authDomain: "servis360-15b4a.firebaseapp.com",
+      projectId: "servis360-15b4a",
+      storageBucket: "servis360-15b4a.firebasestorage.app",
+      messagingSenderId: "708576389273",
+      appId: "1:708576389273:web:15dce7b898db575097f008",
+      measurementId: "G-FMH5TW36HL"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
   <style>
     body {
       margin: 0;
@@ -35,11 +56,6 @@
       align-items: center;
       gap: 20px;
     }
-    #loading img {
-      width: 80px;
-      height: 80px;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
     #loading p {
       color: #FF8C00;
       font-size: 16px;
@@ -56,22 +72,16 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(0.95); }
-    }
   </style>
 </head>
 <body>
 
-<!-- Uygulama yüklenene kadar gösterilen ekran -->
 <div id="loading">
   <div class="spinner"></div>
-  <p>Servisim360 yükleniyor...</p>
+  <p>Servisim360 yukleniyor...</p>
 </div>
 
 <script>
-  // Flutter yüklenince loading ekranını gizle
   window.addEventListener('flutter-first-frame', function () {
     var loading = document.getElementById('loading');
     if (loading) loading.style.display = 'none';

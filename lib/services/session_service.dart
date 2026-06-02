@@ -176,6 +176,11 @@ class SessionService {
   // YENİ: firmaIdAl - firmaldAl ile ayni, tutarlilik icin eklendi
   Future<String?> firmaIdAl() => firmaldAl();
 
+  // Web'de login sonrası firmaId'yi cache'e yaz
+  void cachedFirmaIdSet(String firmaId) {
+    _firmaId = firmaId;
+  }
+
   // YENİ: firmaAdiAl - firms koleksiyonundan firma adini getirir
   Future<String?> firmaAdiAl() async {
     final firmaId = await firmaldAl();
