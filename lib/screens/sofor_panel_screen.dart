@@ -1,3 +1,8 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  DOSYA: lib/screens/sofor_panel_screen.dart
+// ║  PROJE: servisim360
+// ║  GÜNCELLEME: Boşta şoför ekranı eklendi
+// ╚══════════════════════════════════════════════════════════════╝
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -296,6 +301,17 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     });
   }
 
+  Widget _bostaSatir(IconData icon, String text, bool tamam) =>
+      Row(children: [
+        Icon(icon,
+            color: tamam ? Colors.greenAccent : Colors.white38,
+            size: 18),
+        const SizedBox(width: 12),
+        Text(text, style: TextStyle(
+            color: tamam ? Colors.white : Colors.white54,
+            fontSize: 13)),
+      ]);
+
   Future<void> _servisBaslatDurdur() async {
     if (_surucuId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -430,6 +446,134 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
                     icon: const Icon(Icons.logout_outlined),
                     label: const Text('Cikis Yap')),
               ]))));
+    }
+
+    // ── BOŞTA ŞOFÖR EKRANI ──────────────────────────────────────
+    // Proje atanmamış şoför — sadece bekleme ekranı görür
+    final soforDurum = _soforData['durum'] as String? ?? 'bosta';
+    final projeSayisi = _projeler.length;
+    if (soforDurum == 'bosta' && projeSayisi == 0) {
+      final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
+      final firmaAd = _soforData['firmaAd'] ?? '';
+      return Scaffold(
+        backgroundColor: _navy,
+        body: SafeArea(child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(children: [
+            // Üst: Avatar + ad
+            Row(children: [
+              CircleAvatar(radius: 24,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'S',
+                      style: const TextStyle(color: Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 20))),
+              const SizedBox(width: 14),
+              Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(ad, style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold,
+                        fontSize: 16)),
+                    if (firmaAd.isNotEmpty)
+                      Text(firmaAd, style: const TextStyle(
+                          color: Colors.white54, fontSize: 12)),
+                  ])),
+              IconButton(
+                  icon: const Icon(Icons.logout_outlined,
+                      color: Colors.white54),
+                  onPressed: () async {
+                    await SessionService.instance.cikisYap();
+                    if (mounted) Navigator.pushReplacementNamed(
+                        context, '/login');
+                  }),
+            ]),
+
+            const Spacer(),
+
+            // Ana ikon
+            Container(
+                width: 100, height: 100,
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.pending_actions_outlined,
+                    color: Colors.white54, size: 56)),
+            const SizedBox(height: 24),
+
+            const Text('Servis Ataması Bekleniyor',
+                style: TextStyle(color: Colors.white,
+                    fontSize: 22, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            Text(
+              'Yöneticiniz size bir proje ve servis atadığında '
+                  'bu ekran otomatik olarak açılacak.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14, height: 1.6),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 32),
+
+            // Durum kartları
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12))),
+              child: Column(children: [
+                _bostaSatir(Icons.check_circle_outline,
+                    'Sisteme kayıt edildiniz', true),
+                const SizedBox(height: 12),
+                _bostaSatir(Icons.radio_button_unchecked,
+                    'Proje ataması bekleniyor', false),
+                const SizedBox(height: 12),
+                _bostaSatir(Icons.radio_button_unchecked,
+                    'Öğrenci/personel listesi bekleniyor', false),
+                const SizedBox(height: 12),
+                _bostaSatir(Icons.radio_button_unchecked,
+                    'Güzergah bağlantısı bekleniyor', false),
+              ]),
+            ),
+
+            const Spacer(),
+
+            // Alt: Profil + Çıkış
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                onPressed: () => Navigator.pushNamed(context, '/sifre_degistir'),
+                icon: const Icon(Icons.key_outlined),
+                label: const Text('Şifre Değiştir'),
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  await SessionService.instance.cikisYap();
+                  if (mounted) Navigator.pushReplacementNamed(
+                      context, '/login');
+                },
+                icon: const Icon(Icons.logout_outlined),
+                label: const Text('Çıkış Yap'),
+              )),
+            ]),
+            const SizedBox(height: 16),
+          ]),
+        )),
+      );
     }
 
     final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
