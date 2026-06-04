@@ -4,6 +4,7 @@
 // ║  GÜNCELLEME: Boşta şoför ekranı eklendi
 // ╚══════════════════════════════════════════════════════════════╝
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -162,6 +163,101 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     } catch (e) {
       debugPrint('Ogrenci yukle hata: $e');
     }
+  }
+
+  // ── ÇOKLU GÖREV SEÇİM EKRANI ────────────────────────────────
+  Widget _cokluGorevSecimEkrani() {
+    final ad = _soforData['ad'] ?? _driverDoc['adSoyad'] ?? 'Şoför';
+    return Scaffold(
+      backgroundColor: _navy,
+      body: SafeArea(child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(children: [
+          // Üst bar
+          Row(children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
+                  style: const TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(ad,
+                style: const TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.bold, fontSize: 16))),
+            IconButton(
+              icon: const Icon(Icons.logout_outlined, color: Colors.white54),
+              onPressed: () async {
+                await SessionService.instance.cikisYap();
+                if (mounted) Navigator.pushReplacementNamed(context, '/login');
+              }),
+          ]),
+          const Spacer(),
+
+          // Başlık
+          const Icon(Icons.work_history_outlined, color: Colors.white54, size: 56),
+          const SizedBox(height: 20),
+          const Text('Servis Seçin', style: TextStyle(
+              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('Bugün ${_projeler.length} göreviniz var.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
+          const SizedBox(height: 32),
+
+          // Proje/servis kartları
+          ..._projeler.map((proje) {
+            final projeAd  = proje['ad'] as String? ?? proje['projeAd'] ?? 'Proje';
+            final tip      = proje['tip'] ?? proje['servisTuru'] ?? '';
+            final saat     = proje['saatBaslangic'] ?? '';
+            final saatBitis = proje['saatBitis'] ?? '';
+
+            Color tipRenk = Colors.white;
+            IconData tipIkon = Icons.directions_bus_rounded;
+            if (tip == 'sabah') { tipRenk = Colors.orange; tipIkon = Icons.wb_sunny_outlined; }
+            else if (tip == 'aksam') { tipRenk = Colors.indigo.shade200; tipIkon = Icons.nights_stay_outlined; }
+            else if (tip == 'ogle') { tipRenk = Colors.teal.shade200; tipIkon = Icons.wb_twilight_outlined; }
+
+            return GestureDetector(
+              onTap: () => _projeGec(proje),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2))),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: tipRenk.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Icon(tipIkon, color: tipRenk, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(projeAd, style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    if (saat.isNotEmpty)
+                      Text('$saat — $saatBitis',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                  ])),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      color: Colors.white.withValues(alpha: 0.5), size: 16),
+                ]),
+              ),
+            );
+          }),
+
+          const Spacer(),
+          Text('Göreve başlamak için servis seçin',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+        ]),
+      )),
+    );
   }
 
   Future<void> _projeGec(Map<String, dynamic> proje) async {
@@ -448,10 +544,15 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
               ]))));
     }
 
-    // ── BOŞTA ŞOFÖR EKRANI ──────────────────────────────────────
-    // Proje atanmamış şoför — sadece bekleme ekranı görür
-    final soforDurum = _soforData['durum'] as String? ?? 'bosta';
+    // ── ÇOKLU GÖREV / BEKLEME EKRANLARI ─────────────────────────
+    final soforDurum = (_driverDoc['soforDurum'] ?? _soforData['soforDurum'] ?? _soforData['durum']) as String? ?? 'bosta';
     final projeSayisi = _projeler.length;
+
+    // Birden fazla proje varsa ve aktif proje seçilmemişse → SEÇIM EKRANI
+    if (projeSayisi > 1 && (_aktifProjeId == null || _aktifProjeId!.isEmpty)) {
+      return _cokluGorevSecimEkrani();
+    }
+
     if (soforDurum == 'bosta' && projeSayisi == 0) {
       final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
       final firmaAd = _soforData['firmaAd'] ?? '';

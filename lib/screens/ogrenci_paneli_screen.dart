@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
@@ -148,6 +149,7 @@ class _OgrenciPaneliScreenState extends State<OgrenciPaneliScreen> {
               style: const TextStyle(fontSize: 11, color: Colors.white70)),
         ]),
         actions: [
+          YardimButonu(ekranAdi: 'Veli Paneli'),
           IconButton(icon: const Icon(Icons.refresh_outlined), onPressed: _yukle),
         ],
       ),

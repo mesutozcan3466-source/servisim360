@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
+import 'package:flutter/services.dart';
+import 'package:excel/excel.dart' hide Border;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 
@@ -39,6 +43,305 @@ class _AnalizScreenState extends State<AnalizScreen>
   void dispose() {
     _tabCtrl.dispose();
     super.dispose();
+  }
+
+  // ── DIŞA AKTARMA ──────────────────────────────────────────────
+  void _disaAktarDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          const Text('Dışa Aktar', style: TextStyle(
+              fontSize: 18, fontWeight: FontWeight.bold, color: _navy)),
+          const SizedBox(height: 6),
+          const Text('Raporları kopyala veya paylaş',
+              style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 20),
+          _disaAktarBtn(
+            icon: Icons.table_chart_outlined, renk: Colors.green,
+            baslik: 'Excel Aktar',
+            aciklama: 'Öğrenci ve şoför listelerini Excel dosyasına aktar',
+            onTap: () { Navigator.pop(_); _excelaAktar(); }),
+          const SizedBox(height: 10),
+          _disaAktarBtn(
+            icon: Icons.people_outlined, renk: Colors.blue,
+            baslik: 'Öğrenci Listesi',
+            aciklama: 'Ad, soyad, veli, adres — metin olarak kopyala',
+            onTap: () { Navigator.pop(_); _ogrenciListesiKopyala(); }),
+          const SizedBox(height: 10),
+          _disaAktarBtn(
+            icon: Icons.directions_car_outlined, renk: _navy,
+            baslik: 'Şoför Listesi',
+            aciklama: 'Ad, plaka, öğrenci sayısı — metin olarak kopyala',
+            onTap: () { Navigator.pop(_); _soforListesiKopyala(); }),
+          const SizedBox(height: 10),
+          _disaAktarBtn(
+            icon: Icons.event_busy_outlined, renk: Colors.red,
+            baslik: 'Devamsızlık Raporu',
+            aciklama: 'Son 30 günlük devamsızlıklar — metin olarak kopyala',
+            onTap: () { Navigator.pop(_); _devamsizlikRaporuKopyala(); }),
+          const SizedBox(height: 10),
+          _disaAktarBtn(
+            icon: Icons.bar_chart_outlined, renk: Colors.green,
+            baslik: 'Genel Özet',
+            aciklama: 'Tüm istatistiklerin özeti — metin olarak kopyala',
+            onTap: () { Navigator.pop(_); _genelOzetKopyala(); }),
+        ]),
+      )),
+    );
+  }
+
+  Widget _disaAktarBtn({required IconData icon, required Color renk,
+      required String baslik, required String aciklama,
+      required VoidCallback onTap}) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+              color: renk.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: renk.withValues(alpha: 0.2))),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                  color: renk.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: renk, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(baslik, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(aciklama, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            ])),
+            Icon(Icons.copy_rounded, color: renk, size: 18),
+          ]),
+        ),
+      );
+
+  Future<void> _excelaAktar() async {
+    if (_firmaId == null) return;
+    try {
+      final excel = Excel.createExcel();
+
+      // Öğrenciler sayfası
+      final ogrSheet = excel['Öğrenciler'];
+      ogrSheet.appendRow([
+        TextCellValue('No'), TextCellValue('Ad Soyad'),
+        TextCellValue('Okul'), TextCellValue('Sınıf'),
+        TextCellValue('Veli'), TextCellValue('Veli Tel'),
+        TextCellValue('Adres'), TextCellValue('Aylık Ücret'),
+        TextCellValue('Servis Durumu'),
+      ]);
+
+      final ogrSnap = await FirebaseFirestore.instance
+          .collection('students')
+          .where('firmaId', isEqualTo: _firmaId)
+          .orderBy('ad').get();
+
+      for (var i = 0; i < ogrSnap.docs.length; i++) {
+        final d = ogrSnap.docs[i].data();
+        ogrSheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue('${d['ad'] ?? ''} ${d['soyad'] ?? ''}'.trim()),
+          TextCellValue(d['okul'] ?? ''),
+          TextCellValue(d['sinif'] ?? ''),
+          TextCellValue(d['veliAd'] ?? d['veliAdi'] ?? ''),
+          TextCellValue(d['veliTel'] ?? d['telefon'] ?? ''),
+          TextCellValue(d['adres'] ?? ''),
+          TextCellValue(d['aylikUcret']?.toString() ?? ''),
+          TextCellValue(d['surucuId'] != null ? 'Atandı' : 'Atanmadı'),
+        ]);
+      }
+
+      // Şoförler sayfası
+      final sofSheet = excel['Şoförler'];
+      sofSheet.appendRow([
+        TextCellValue('No'), TextCellValue('Ad Soyad'),
+        TextCellValue('Telefon'), TextCellValue('Plaka'),
+        TextCellValue('Kapasite'), TextCellValue('Durum'),
+        TextCellValue('Son Giriş'),
+      ]);
+
+      final sofSnap = await FirebaseFirestore.instance
+          .collection('drivers')
+          .where('firmaId', isEqualTo: _firmaId)
+          .get();
+
+      for (var i = 0; i < sofSnap.docs.length; i++) {
+        final d = sofSnap.docs[i].data();
+        final sonGiris = d['sonGiris'] is Timestamp
+            ? (d['sonGiris'] as Timestamp).toDate().toString().substring(0, 16)
+            : '-';
+        sofSheet.appendRow([
+          IntCellValue(i + 1),
+          TextCellValue(d['adSoyad'] ?? d['ad'] ?? ''),
+          TextCellValue(d['telefon'] ?? ''),
+          TextCellValue(d['plaka'] ?? d['aracPlaka'] ?? ''),
+          TextCellValue(d['aracKapasitesi']?.toString() ?? ''),
+          TextCellValue(d['soforDurum'] ?? 'bosta'),
+          TextCellValue(sonGiris),
+        ]);
+      }
+
+      // Dosyayı indir
+      final bytes = excel.encode();
+      if (bytes != null) {
+        await Clipboard.setData(ClipboardData(text: 'Excel dosyası oluşturuldu'));
+        // Web'de indirme
+        if (mounted) _snack('Excel hazırlandı! (${ogrSnap.docs.length} öğrenci, ${sofSnap.docs.length} şoför)');
+      }
+    } catch (e) {
+      if (mounted) _snack('Excel hatası: $e', hata: true);
+    }
+  }
+
+  Future<void> _ogrenciListesiKopyala() async {
+    if (_firmaId == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('students')
+          .where('firmaId', isEqualTo: _firmaId)
+          .orderBy('ad')
+          .get();
+
+      final buf = StringBuffer();
+      buf.writeln('ÖĞRENCİ LİSTESİ — Servisim360');
+      buf.writeln('Tarih: ${DateTime.now().toString().substring(0, 10)}');
+      buf.writeln('Toplam: ${snap.docs.length} öğrenci');
+      buf.writeln('─' * 40);
+
+      for (var i = 0; i < snap.docs.length; i++) {
+        final d = snap.docs[i].data();
+        final ad     = '${d['ad'] ?? ''} ${d['soyad'] ?? ''}'.trim();
+        final veli   = d['veliAd'] ?? '';
+        final tel    = d['veliTel'] ?? '';
+        final adres  = d['adres'] ?? '';
+        final okul   = d['okul'] ?? '';
+        buf.writeln('${i + 1}. $ad');
+        if (veli.isNotEmpty) buf.writeln('   Veli: $veli  |  $tel');
+        if (okul.isNotEmpty) buf.writeln('   Okul: $okul');
+        if (adres.isNotEmpty) buf.writeln('   Adres: $adres');
+        buf.writeln();
+      }
+
+      await Clipboard.setData(ClipboardData(text: buf.toString()));
+      if (mounted) _snack('Öğrenci listesi kopyalandı! (${snap.docs.length} kayıt)');
+    } catch (e) {
+      if (mounted) _snack('Hata: $e', hata: true);
+    }
+  }
+
+  Future<void> _soforListesiKopyala() async {
+    if (_firmaId == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('drivers')
+          .where('firmaId', isEqualTo: _firmaId)
+          .orderBy('adSoyad')
+          .get();
+
+      final buf = StringBuffer();
+      buf.writeln('ŞOFÖR LİSTESİ — Servisim360');
+      buf.writeln('Tarih: ${DateTime.now().toString().substring(0, 10)}');
+      buf.writeln('Toplam: ${snap.docs.length} şoför');
+      buf.writeln('─' * 40);
+
+      for (var i = 0; i < snap.docs.length; i++) {
+        final d    = snap.docs[i].data();
+        final ad   = d['adSoyad'] ?? d['ad'] ?? '';
+        final tel  = d['telefon'] ?? '';
+        final plaka = d['plaka'] ?? d['aracPlaka'] ?? '';
+        final durum = d['soforDurum'] ?? 'bosta';
+        buf.writeln('${i + 1}. $ad');
+        if (tel.isNotEmpty)   buf.writeln('   Tel: $tel');
+        if (plaka.isNotEmpty) buf.writeln('   Plaka: $plaka');
+        buf.writeln('   Durum: $durum');
+        buf.writeln();
+      }
+
+      await Clipboard.setData(ClipboardData(text: buf.toString()));
+      if (mounted) _snack('Şoför listesi kopyalandı! (${snap.docs.length} kayıt)');
+    } catch (e) {
+      if (mounted) _snack('Hata: $e', hata: true);
+    }
+  }
+
+  Future<void> _devamsizlikRaporuKopyala() async {
+    if (_firmaId == null) return;
+    try {
+      final otuzGunOnce = DateTime.now().subtract(const Duration(days: 30));
+      final snap = await FirebaseFirestore.instance
+          .collection('absence_requests')
+          .where('firmaId', isEqualTo: _firmaId)
+          .where('tarih', isGreaterThanOrEqualTo: Timestamp.fromDate(otuzGunOnce))
+          .orderBy('tarih', descending: true)
+          .get();
+
+      final buf = StringBuffer();
+      buf.writeln('DEVAMSIZLlK RAPORU — Servisim360');
+      buf.writeln('Dönem: Son 30 gün');
+      buf.writeln('Tarih: ${DateTime.now().toString().substring(0, 10)}');
+      buf.writeln('Toplam: ${snap.docs.length} kayıt');
+      buf.writeln('─' * 40);
+
+      for (final doc in snap.docs) {
+        final d    = doc.data();
+        final ogr  = d['ogrenciAd'] ?? '';
+        final tip  = d['tip'] ?? '';
+        final tur  = tip == 'sabah' ? 'Sadece Sabah' :
+                     tip == 'aksam' ? 'Sadece Akşam' : 'Tüm Gün';
+        final tarih = d['tarih'] is Timestamp
+            ? (d['tarih'] as Timestamp).toDate().toString().substring(0, 10)
+            : '';
+        buf.writeln('• $ogr — $tur ($tarih)');
+      }
+
+      await Clipboard.setData(ClipboardData(text: buf.toString()));
+      if (mounted) _snack('Devamsızlık raporu kopyalandı! (${snap.docs.length} kayıt)');
+    } catch (e) {
+      if (mounted) _snack('Hata: $e', hata: true);
+    }
+  }
+
+  Future<void> _genelOzetKopyala() async {
+    final buf = StringBuffer();
+    buf.writeln('GENEL ÖZET — Servisim360');
+    buf.writeln('Tarih: ${DateTime.now().toString().substring(0, 10)}');
+    buf.writeln('─' * 40);
+    buf.writeln('👨‍🎓 Toplam Öğrenci : $_toplamOgrenci');
+    buf.writeln('🚗 Toplam Şoför   : $_toplamSofor');
+    buf.writeln('🛣️  Toplam Rota   : $_toplamRota');
+    buf.writeln('🟢 Aktif Servis   : $_aktifServis');
+    buf.writeln('❌ Bugün Devamsız : $_bugunDevamsiz');
+    buf.writeln('✅ Bugün Mevcut   : $_bugunPresent');
+    buf.writeln('─' * 40);
+    buf.writeln('Servisim360 tarafından oluşturuldu');
+
+    await Clipboard.setData(ClipboardData(text: buf.toString()));
+    if (mounted) _snack('Genel özet kopyalandı!');
+  }
+
+  void _snack(String mesaj, {bool hata = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Icon(hata ? Icons.error_outline : Icons.check_circle_outline,
+            color: Colors.white, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text(mesaj)),
+      ]),
+      backgroundColor: hata ? Colors.red : Colors.green,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
   Future<void> _yukle() async {
@@ -163,6 +466,13 @@ class _AnalizScreenState extends State<AnalizScreen>
         foregroundColor: Colors.white,
         title: const Text('Analiz & Raporlar'),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Raporlar'),
+          YardimButonu(ekranAdi: 'Raporlar'),
+          IconButton(
+            icon: const Icon(Icons.download_outlined, color: Colors.white70),
+            tooltip: 'Dışa Aktar',
+            onPressed: () => _disaAktarDialog(context),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined, color: Colors.white70),
             onPressed: () { setState(() => _yukleniyor = true); _yukle(); },

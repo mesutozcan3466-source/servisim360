@@ -1,4 +1,5 @@
-import 'dart:async'; import 'package:flutter/material.dart'; import 'package:cloud_firestore/cloud_firestore.dart'; import 'package:firebase_auth/firebase_auth.dart'; import 'package:geolocator/geolocator.dart'; import 'package:google_maps_flutter/google_maps_flutter.dart'; import 'package:url_launcher/url_launcher.dart'; import '../services/session_service.dart'; import '../screens/qr_checkin_screen.dart'; import '../screens/veli_ai_asistan_widget.dart'; import '../screens/sifre_degistir_screen.dart';
+import 'dart:async'; import 'package:flutter/material.dart';
+import 'ai_widget.dart'; import 'package:cloud_firestore/cloud_firestore.dart'; import 'package:firebase_auth/firebase_auth.dart'; import 'package:geolocator/geolocator.dart'; import 'package:google_maps_flutter/google_maps_flutter.dart'; import 'package:url_launcher/url_launcher.dart'; import '../services/session_service.dart'; import '../screens/qr_checkin_screen.dart'; import '../screens/veli_ai_asistan_widget.dart'; import '../screens/sifre_degistir_screen.dart';
 
 // ── Durak Grubu Modeli ──────────────────────────────────────────────────────
 class _DurakGrubu {
@@ -164,7 +165,8 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         Icon(Icons.directions_bus, color: Colors.orange, size: 28),
         SizedBox(width: 8),         Text('Servis Yaklasiyor!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
       ]),       content: Text('Servis yaklasik $mesafe metre uzakta. Cocugunuzu hazirlayin!'),
-      actions: [ElevatedButton(
+      actions: [
+          AiAsistanButonu(ekranAdi: 'Veli Paneli'),ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
           onPressed: () => Navigator.pop(context),           child: const Text('Tamam', style: TextStyle(color: Colors.white)))],
     ));

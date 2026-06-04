@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -292,6 +293,7 @@ class _VeliBasvuruFormScreenState extends State<VeliBasvuruFormScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar'), const SizedBox(width:8)],
         title: Text(_firmaAdi.isNotEmpty ? _firmaAdi : 'Servis Kayit',
             style: const TextStyle(fontWeight: FontWeight.bold)),
         bottom: PreferredSize(

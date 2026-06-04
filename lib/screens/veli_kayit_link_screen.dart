@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
@@ -631,6 +632,7 @@ class _VeliKayitLinkiScreenState extends State<VeliKayitLinkiScreen> {
             style: TextStyle(fontWeight: FontWeight.w800)),
         content: const Text('Bu link artik calismasin mi?'),
         actions: [
+          YardimButonu(ekranAdi: 'Kayitlar'),
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Vazgec'),

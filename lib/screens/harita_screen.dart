@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -280,6 +282,8 @@ class _HaritaScreenState extends State<HaritaScreen> {
               style: const TextStyle(fontSize: 10, color: Colors.white60)),
         ]),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Harita'),
+          YardimButonu(ekranAdi: 'Harita'),
           // Rota toggle
           IconButton(
             icon: Icon(_rotaGoster ? Icons.route : Icons.route_outlined,

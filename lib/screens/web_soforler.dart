@@ -33,6 +33,10 @@ class _WebSoforlerState extends State<WebSoforler> {
   final _modelCtrl    = TextEditingController();
   final _kulAdiCtrl   = TextEditingController();
   final _sifreCtrl    = TextEditingController();
+  final _tcCtrl       = TextEditingController();
+  final _ehliyetCtrl  = TextEditingController();
+  final _srcCtrl      = TextEditingController();
+  final _psikoCtrl    = TextEditingController();
   String? _seciliProjeId;
   String  _servisTuru = 'okul';
   bool    _aktif      = true;
@@ -46,6 +50,7 @@ class _WebSoforlerState extends State<WebSoforler> {
     _aramaCtrl.dispose(); _adCtrl.dispose(); _telCtrl.dispose();
     _plakaCtrl.dispose(); _kapasiteCtrl.dispose(); _modelCtrl.dispose();
     _kulAdiCtrl.dispose(); _sifreCtrl.dispose();
+    _tcCtrl.dispose(); _ehliyetCtrl.dispose(); _srcCtrl.dispose(); _psikoCtrl.dispose();
     super.dispose();
   }
 
@@ -269,6 +274,54 @@ class _WebSoforlerState extends State<WebSoforler> {
             const SizedBox(height: 14),
 
             // Giriş bilgileri
+            const Text('İsteğe Bağlı Belgeler',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _navy)),
+            const SizedBox(height: 4),
+            const Text('Zorunlu değil, ileride eklenebilir',
+                style: TextStyle(color: Colors.grey, fontSize: 11)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: TextField(
+                controller: _tcCtrl,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'TC Kimlik',
+                  prefixIcon: const Icon(Icons.credit_card_outlined, size: 16, color: _navy),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(
+                controller: _ehliyetCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Ehliyet Sınıfı',
+                  prefixIcon: const Icon(Icons.drive_eta_outlined, size: 16, color: _navy),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+              )),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: TextField(
+                controller: _srcCtrl,
+                decoration: InputDecoration(
+                  labelText: 'SRC Belgesi',
+                  prefixIcon: const Icon(Icons.article_outlined, size: 16, color: _navy),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(
+                controller: _psikoCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Psikoteknik Tarihi',
+                  prefixIcon: const Icon(Icons.calendar_today_outlined, size: 16, color: _navy),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+              )),
+            ]),
+            const SizedBox(height: 16),
+
             const Text('Giriş Bilgileri',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _navy)),
             const SizedBox(height: 4),
@@ -489,16 +542,16 @@ class _SoforKarti extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: aktif ? Border.all(color: Colors.green.withOpacity(0.4), width: 1.5) : null,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8)],
+        border: aktif ? Border.all(color: Colors.green.withValues(alpha: 0.4), width: 1.5) : null,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           CircleAvatar(
             radius: 22,
             backgroundColor: aktif
-                ? Colors.green.withOpacity(0.15)
-                : _navy.withOpacity(0.1),
+                ? Colors.green.withValues(alpha: 0.15)
+                : _navy.withValues(alpha: 0.1),
             child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
                 style: TextStyle(
                     color: aktif ? Colors.green : _navy,
@@ -515,7 +568,7 @@ class _SoforKarti extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-                color: durumRenk.withOpacity(0.1),
+                color: durumRenk.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8)),
             child: Text(durumAd, style: TextStyle(
                 fontSize: 10, fontWeight: FontWeight.bold, color: durumRenk)),

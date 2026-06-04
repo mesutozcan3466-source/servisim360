@@ -15,7 +15,7 @@ class WebAyarlar extends StatelessWidget {
         _AyarKart(Icons.access_time_outlined, 'Servis Saatleri', 'Calisma saatlerini duzenle',
             Colors.blue, () => Navigator.pushNamed(context, '/servis_saati')),
         _AyarKart(Icons.description_outlined, 'Sozlesme', 'Veli sozlesmesini duzenle',
-            Colors.teal, () => Navigator.pushNamed(context, '/sozlesme')),
+            Colors.teal, () => Navigator.pushNamed(context, '/sozlesme_yonetim')),
         _AyarKart(Icons.link_outlined, 'Kayit Linki', 'Yeni kayit linki olustur',
             _navy, () => Navigator.pushNamed(context, '/kayit_link')),
         _AyarKart(Icons.qr_code_2, 'QR Afis', 'QR kod afisi olustur',

@@ -1,291 +1,53 @@
 {
   "indexes": [
     {
+      "collectionGroup": "services",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "firmaId", "order": "ASCENDING" },
+        { "fieldPath": "olusturma", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "services",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "projeId", "order": "ASCENDING" },
+        { "fieldPath": "olusturma", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "drivers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId",     "order": "ASCENDING" },
-        { "fieldPath": "servisAktif", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "drivers",
-      "queryScope": "COLLECTION",
-      "fields": [
         { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "aktif",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "aktif",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",  "order": "ASCENDING" },
-        { "fieldPath": "surucuId", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "ad",      "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "aktif",    "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "sira",     "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "bindi",    "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "vehicles",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",     "order": "ASCENDING" },
-        { "fieldPath": "servisAktif", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "vehicles",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "aktif",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "parents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "durum",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "parents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",   "order": "ASCENDING" },
-        { "fieldPath": "ogrenciId", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "absence_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",   "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "absence_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ogrenciId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",     "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "absence_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",   "order": "ASCENDING" },
-        { "fieldPath": "ogrenciId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",     "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "absence_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",    "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "absence_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "durum",    "order": "ASCENDING" },
-        { "fieldPath": "tarih",    "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "aliciId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",   "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",   "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "licenses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "durum",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "licenses",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",     "order": "ASCENDING" },
-        { "fieldPath": "bitisTarihi", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "projects",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",         "order": "ASCENDING" },
-        { "fieldPath": "olusturmaTarihi", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "projects",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "aktif",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "routes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "aktif",   "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "routes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",  "order": "ASCENDING" },
-        { "fieldPath": "surucuId", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "acil_durumlar",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "durum",   "order": "ASCENDING" },
-        { "fieldPath": "tarih",   "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "hazir_mesajlar",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tip",     "order": "ASCENDING" },
-        { "fieldPath": "sira",    "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "konusmalar",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "veliId",   "order": "ASCENDING" },
-        { "fieldPath": "tarih",    "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "kayit_linkleri",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId",   "order": "ASCENDING" },
-        { "fieldPath": "aktif",     "order": "ASCENDING" },
+        { "fieldPath": "soforDurum", "order": "ASCENDING" },
         { "fieldPath": "olusturma", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "guzergah_kayitlar",
+      "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",   "order": "ASCENDING" }
+        { "fieldPath": "ad", "order": "ASCENDING" }
       ]
     },
     {
-      "collectionGroup": "bildirimler",
+      "collectionGroup": "absence_requests",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",   "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "fiyatlar",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tip",     "order": "ASCENDING" },
-        { "fieldPath": "mahalle", "order": "ASCENDING" }
+        { "fieldPath": "tarih", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "fiyatlar",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId",     "order": "ASCENDING" },
-        { "fieldPath": "tip",         "order": "ASCENDING" },
+        { "fieldPath": "firmaId", "order": "ASCENDING" },
+        { "fieldPath": "tip", "order": "ASCENDING" },
         { "fieldPath": "kmBaslangic", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "qr_logs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ogrenciId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",     "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "qr_logs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "surucuId", "order": "ASCENDING" },
-        { "fieldPath": "tarih",    "order": "DESCENDING" }
       ]
     }
   ],

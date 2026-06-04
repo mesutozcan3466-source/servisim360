@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SifreDegistirScreen extends StatefulWidget {
@@ -48,6 +50,15 @@ class _SifreDegistirScreenState extends State<SifreDegistirScreen> {
       await user.updatePassword(_yeniCtrl.text.trim());
       if (mounted) {
         _snack('Sifre basariyla guncellendi', Colors.green);
+        // ilkGiris flag'ini temizle
+        try {
+          final uid = FirebaseAuth.instance.currentUser?.uid;
+          if (uid != null) {
+            await FirebaseFirestore.instance
+                .collection('kullanicilar').doc(uid)
+                .update({'ilkGiris': false});
+          }
+        } catch (_) {}
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {

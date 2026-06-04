@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -91,6 +92,7 @@ class _WebVeliPanelState extends State<WebVeliPanel> {
               style: const TextStyle(fontWeight: FontWeight.bold)),
         ]),
         actions: [
+          YardimButonu(ekranAdi: 'Veli Paneli'),
           IconButton(
             icon: const Icon(Icons.logout_outlined),
             onPressed: () async {

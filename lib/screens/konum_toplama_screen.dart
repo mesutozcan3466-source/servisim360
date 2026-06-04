@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -49,7 +50,7 @@ class _KonumToplamaScreenState extends State<KonumToplamaScreen> {
       final snap = await _db
           .collection('firmalar')
           .doc(firmaId)
-          .collection('ogrenciler')
+          .collection('students')
           .get();
       _ogrenciler =
           snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
@@ -107,7 +108,7 @@ class _KonumToplamaScreenState extends State<KonumToplamaScreen> {
     await _db
         .collection('firmalar')
         .doc(_firmaId)
-        .collection('ogrenciler')
+        .collection('students')
         .doc(_seciliOgrenci!['id'])
         .update({
       'lat': _seciliKonum!.latitude,
@@ -141,6 +142,7 @@ class _KonumToplamaScreenState extends State<KonumToplamaScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: navyBlue,
+        actions: [YardimButonu(ekranAdi: 'Harita'), const SizedBox(width:8)],
         title: const Text('Konum Toplama',
             style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),

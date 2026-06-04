@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -84,6 +85,7 @@ class _AcilDurumScreenState extends State<AcilDurumScreen>
       appBar: AppBar(
         backgroundColor: navy,
         foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Genel')],
         title: const Text('Acil Durum',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),

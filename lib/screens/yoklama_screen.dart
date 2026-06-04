@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 import '../services/push_bildirim_service.dart';
@@ -147,7 +148,8 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white,
         title: const Text('Yoklama', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _yukle)],
+        actions: [
+          YardimButonu(ekranAdi: 'Sofor Paneli'),IconButton(icon: const Icon(Icons.refresh), onPressed: _yukle)],
       ),
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator(color: _navy))

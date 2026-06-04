@@ -68,6 +68,32 @@ class _LoginScreenState extends State<LoginScreen>
     } catch (_) {}
   }
 
+  Future<void> _sonGirisGuncelle(String uid, String rol, String? driverId) async {
+    try {
+      final now = FieldValue.serverTimestamp();
+      await FirebaseFirestore.instance
+          .collection('kullanicilar').doc(uid).update({
+        'sonGiris'          : now,
+        'toplamGirisSayisi' : FieldValue.increment(1),
+      });
+      if (rol == 'sofor' || rol == 'bireyselSofor') {
+        final hedef = driverId ?? uid;
+        await FirebaseFirestore.instance
+            .collection('drivers').doc(hedef).update({
+          'sonGiris'          : now,
+          'toplamGirisSayisi' : FieldValue.increment(1),
+          'updatedAt'         : now,
+        }).catchError((_) async {
+          await FirebaseFirestore.instance
+              .collection('drivers').doc(uid).update({
+            'sonGiris' : now,
+            'updatedAt': now,
+          });
+        });
+      }
+    } catch (e) { debugPrint('sonGiris hata: \$e'); }
+  }
+
   Future<void> _girisiKaydet(String email, String sifre) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -119,13 +145,24 @@ class _LoginScreenState extends State<LoginScreen>
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(uid).get();
       final durum = doc.data()?['durum'] as String? ?? 'aktif';
-      if (durum == 'beklemede') {
+      final rol   = doc.data()?['rol'] as String? ?? 'veli';
+      // firmaAdmin ve superAdmin için onay beklemesi gerekmez
+      final onayGerekmez = rol == 'firmaAdmin' || rol == 'firma_admin' ||
+          rol == 'superAdmin' || rol == 'super_admin' || rol == 'sofor';
+      if (durum == 'beklemede' && !onayGerekmez) {
         if (mounted) Navigator.pushReplacementNamed(context, '/onay_bekleme'); return;
       }
       if (durum == 'askida') { _snack('Hesabiniz askiya alindi', Colors.orange); return; }
-      final rol = doc.data()?['rol'] as String? ?? 'veli';
+      final ilkGiris = doc.data()?['ilkGiris'] as bool? ?? false;
       await _girisiKaydet(email, sifre);
       _cihazBilgisiGuncelle();
+      // sonGiris güncelle — kullanicilar + drivers (şoförse)
+      _sonGirisGuncelle(uid, doc.data()?['rol'] ?? '', doc.data()?['driverId']);
+      // İlk girişse şifre değiştir ekranına yönlendir
+      if (ilkGiris && mounted) {
+        Navigator.pushReplacementNamed(context, '/sifre_degistir');
+        return;
+      }
       if (mounted) Navigator.pushReplacementNamed(context, _rotaAl(rol));
     } on FirebaseAuthException catch (e) {
       _snack(e.code == 'wrong-password' || e.code == 'user-not-found'

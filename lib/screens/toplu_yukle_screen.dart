@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
@@ -49,6 +50,7 @@ class _TopluYukleScreenState extends State<TopluYukleScreen>
       backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar')],
         title: const Text('Toplu Yukle', style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tab,

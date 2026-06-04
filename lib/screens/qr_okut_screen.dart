@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -43,7 +44,7 @@ class _QrOkutScreenState extends State<QrOkutScreen> {
     final doc = await _db
         .collection('firms')
         .doc(_firmaId)
-        .collection('ogrenciler')
+        .collection('students')
         .doc(ogrenciId)
         .get();
 
@@ -52,7 +53,7 @@ class _QrOkutScreenState extends State<QrOkutScreen> {
       await _db
           .collection('firms')
           .doc(_firmaId)
-          .collection('ogrenciler')
+          .collection('students')
           .doc(ogrenciId)
           .update({
         'bindiMi': true,
@@ -84,6 +85,7 @@ class _QrOkutScreenState extends State<QrOkutScreen> {
             style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          YardimButonu(ekranAdi: 'Kayitlar'),
           if (_bulunanOgrenci != null)
             IconButton(
               icon: const Icon(Icons.refresh, color: Colors.white),

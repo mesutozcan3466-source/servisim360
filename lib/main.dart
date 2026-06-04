@@ -42,7 +42,12 @@ import 'screens/sofor_panel_screen.dart';
 import 'screens/ayarlar_screen.dart';
 import 'screens/bildirimler_screen.dart';
 import 'screens/fiyat_yonetim_screen.dart';
-import 'screens/sozlesme_screen.dart';
+import 'screens/araclar_screen.dart';
+import 'screens/sozlesme_yonetim_screen.dart';
+import 'screens/sofor_sozlesme_screen.dart';
+import 'screens/dijital_imza_screen.dart';
+import 'screens/arsiv_screen.dart';
+import 'screens/proje_arsiv_screen.dart';
 import 'screens/yoklama_screen.dart';
 import 'screens/rotalar_screen.dart';
 import 'screens/admin_arac_takip_screen.dart';
@@ -68,7 +73,6 @@ import 'screens/qr_afis_screen.dart';
 import 'screens/veli_kayit_yuz_yuze_scren.dart';
 import 'screens/toplu_yukle_screen.dart';
 import 'screens/veli_kayit_link_screen.dart';
-import 'screens/hazir_mesaj_screen.dart';
 import 'screens/acil_durum_screen.dart';
 import 'screens/firma_ekle_screen.dart';
 import 'screens/web_layout.dart';
@@ -341,7 +345,12 @@ class _ServisimAppState extends State<ServisimApp> {
         '/guzergah_gecmis': (_) => const GuzergahGecmisScreen(),
 
         '/fiyat_yonetim':  (_) => const FiyatYonetimScreen(),
-        '/sozlesme':        (_) => const SozlesmeScreen(),
+        '/fiyat':           (_) => const FiyatYonetimScreen(),
+        '/araclar':         (_) => const AraclarScreen(),
+        '/sozlesme':        (_) => const SozlesmeYonetimScreen(), // eski → yeni
+        '/sozlesme_yonetim': (_) => const SozlesmeYonetimScreen(),
+        '/arsiv':           (_) => const ArsivScreen(),
+        '/proje_arsiv':     (_) => const ProjeArsivScreen(),
 
         '/kayit_link':          (_) => const KayitLinkScreen(),
         '/veli_basvurular':     (_) => const VeliBasvurularScreen(),
@@ -413,13 +422,8 @@ class _ServisimAppState extends State<ServisimApp> {
               ));
         }
         if (settings.name == '/hazir_mesaj') {
-          final args = settings.arguments as Map<String, String?>?;
           return MaterialPageRoute(
-              builder: (_) => HazirMesajScreen(
-                mod:     args?['mod']     ?? 'veli',
-                karsiId: args?['karsiId'] ?? '',
-                karsiAdi:args?['karsiAdi']?? '',
-              ));
+              builder: (_) => const HazirMesajlarScreen());
         }
         return null;
       },

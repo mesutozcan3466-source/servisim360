@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/hazir_mesaj_service.dart';
 import '../services/session_service.dart';
@@ -367,6 +368,7 @@ class _MesajListesi extends StatelessWidget {
         title: const Text('Mesajı Sil'),
         content: const Text('Bu hazır mesaj silinsin mi?'),
         actions: [
+          YardimButonu(ekranAdi: 'Sofor Paneli'),
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('İptal')),
           TextButton(onPressed: () => Navigator.pop(context, true),
               child: const Text('Sil', style: TextStyle(color: Colors.red))),

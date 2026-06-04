@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -258,6 +259,7 @@ class _SoforAyarSheetState extends State<SoforAyarSheet>
         title: const Text('Soforu Sil'),
         content: Text('${_adCtrl.text} silinecek. Emin misiniz?'),
         actions: [
+          YardimButonu(ekranAdi: 'Servisler'),
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Iptal')),
           TextButton(
               onPressed: () => Navigator.pop(context, true),

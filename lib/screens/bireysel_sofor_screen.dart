@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -195,6 +196,7 @@ class _BireyselSoforScreenState extends State<BireyselSoforScreen>
           ]),
         ]),
         actions: [
+          YardimButonu(ekranAdi: 'Sofor Paneli'),
           Container(
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

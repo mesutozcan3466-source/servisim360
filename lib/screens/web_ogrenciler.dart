@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/session_service.dart';
 
 class WebOgrenciler extends StatefulWidget {
@@ -12,6 +14,7 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
   static const _navy   = Color(0xFF1a3a6b);
   static const _orange = Color(0xFFFF8C00);
 
+  String _firmaId = '';
   List<Map<String, dynamic>> _ogrenciler = [];
   List<Map<String, dynamic>> _filtreliOgr = [];
   List<Map<String, dynamic>> _soforler = [];
@@ -29,6 +32,7 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
 
   Future<void> _yukle() async {
     final firmaId = await SessionService.instance.firmaIdAl() ?? '';
+    _firmaId = firmaId;
     final projeId = SessionService.instance.aktifProjeld ?? '';
     if (firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
 
@@ -114,6 +118,16 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
           const SizedBox(width: 12),
 
           // Yeni kayıt butonları
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            icon: const Icon(Icons.person_add_rounded, size: 16),
+            label: const Text('Hizli Ekle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            onPressed: () => _hizliOgrenciEkleDialog(),
+          ),
+          const SizedBox(width: 8),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
                 backgroundColor: _navy, foregroundColor: Colors.white,
@@ -264,6 +278,271 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
 
   static const _baslik = TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
       color: Color(0xFF1a3a6b));
+
+  String _rastgeleKod() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final now = DateTime.now();
+    final buf = StringBuffer();
+    for (var i = 0; i < 6; i++) buf.write(chars[(now.microsecond + i * 7) % chars.length]);
+    return buf.toString();
+  }
+
+  void _hizliOgrenciEkleDialog() {
+    final adCtrl    = TextEditingController();
+    final soyadCtrl = TextEditingController();
+    final veliCtrl  = TextEditingController();
+    final telCtrl   = TextEditingController();
+    final adresCtrl = TextEditingController();
+    final okulCtrl  = TextEditingController();
+    bool yukleniyor = false;
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSt) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: 540,
+            constraints: const BoxConstraints(maxHeight: 680),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20), color: Colors.white),
+            child: Column(children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: const BoxDecoration(
+                    color: _navy,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                child: Row(children: [
+                  const Icon(Icons.person_add_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Öğrenci Ekle',
+                        style: TextStyle(color: Colors.white,
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+                    Text('Veli hesabı otomatik oluşturulacak',
+                        style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  ])),
+                  IconButton(icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx)),
+                ]),
+              ),
+              Expanded(child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Öğrenci Bilgileri', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13, color: _navy)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _webInp(adCtrl, 'Ad *', Icons.person_outline)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _webInp(soyadCtrl, 'Soyad', Icons.person_outline)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _webInp(okulCtrl, 'Okul', Icons.school_outlined)),
+                  ]),
+                  const SizedBox(height: 8),
+                  _webInp(adresCtrl, 'Adres', Icons.location_on_outlined),
+                  const SizedBox(height: 16),
+                  const Text('Veli Bilgileri', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13, color: _navy)),
+                  const SizedBox(height: 4),
+                  const Text('Veli hesabı otomatik oluşturulur (tel no = kullanıcı adı)',
+                      style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  const SizedBox(height: 8),
+                  _webInp(veliCtrl, 'Veli Adı Soyadı *', Icons.family_restroom_outlined),
+                  const SizedBox(height: 8),
+                  _webInp(telCtrl, 'Veli Telefon *', Icons.phone_outlined,
+                      tip: TextInputType.phone),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade200)),
+                    child: const Row(children: [
+                      Icon(Icons.auto_awesome, color: Colors.green, size: 14),
+                      SizedBox(width: 8),
+                      Expanded(child: Text(
+                        'Kayıt sonrası veli hesabı otomatik oluşturulur. WhatsApp ile bildirim gönderebilirsiniz.',
+                        style: TextStyle(fontSize: 11, color: Colors.green),
+                      )),
+                    ]),
+                  ),
+                ]),
+              )),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  Expanded(child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10))),
+                    child: const Text('İptal'),
+                  )),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 2, child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: _navy, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10))),
+                    onPressed: yukleniyor ? null : () async {
+                      if (adCtrl.text.trim().isEmpty || telCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('Ad ve telefon zorunlu!'),
+                            behavior: SnackBarBehavior.floating));
+                        return;
+                      }
+                      setSt(() => yukleniyor = true);
+                      try {
+                        final now      = FieldValue.serverTimestamp();
+                        final geciciSif = _rastgeleKod();
+                        final kulAdi    = telCtrl.text.trim();
+
+                        final ogrRef = await FirebaseFirestore.instance
+                            .collection('students').add({
+                          'firmaId' : _firmaId,
+                          'ad'      : adCtrl.text.trim(),
+                          'soyad'   : soyadCtrl.text.trim(),
+                          'adSoyad' : '${adCtrl.text.trim()} ${soyadCtrl.text.trim()}'.trim(),
+                          'adres'   : adresCtrl.text.trim(),
+                          'okul'    : okulCtrl.text.trim(),
+                          'veliAd'  : veliCtrl.text.trim(),
+                          'veliTel' : telCtrl.text.trim(),
+                          'aktif'   : true,
+                          'olusturma': now,
+                        });
+                        await FirebaseFirestore.instance
+                            .collection('parents').doc(ogrRef.id).set({
+                          'firmaId'     : _firmaId,
+                          'ogrenciId'   : ogrRef.id,
+                          'ad'          : veliCtrl.text.trim(),
+                          'telefon'     : telCtrl.text.trim(),
+                          'kullaniciAdi': kulAdi,
+                          'geciciSifre' : geciciSif,
+                          'ilkGiris'    : true,
+                          'aktif'       : true,
+                          'rol'         : 'veli',
+                          'olusturma'   : now,
+                        });
+                        await FirebaseFirestore.instance
+                            .collection('kullanicilar').doc(ogrRef.id).set({
+                          'firmaId'     : _firmaId,
+                          'ad'          : veliCtrl.text.trim(),
+                          'telefon'     : telCtrl.text.trim(),
+                          'kullaniciAdi': kulAdi,
+                          'sifre'       : geciciSif,
+                          'ilkGiris'    : true,
+                          'rol'         : 'veli',
+                          'ogrenciId'   : ogrRef.id,
+                          'olusturma'   : now,
+                        });
+                        await FirebaseFirestore.instance
+                            .collection('students').doc(ogrRef.id).update({'veliId': ogrRef.id});
+
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        await _yukle();
+                        if (context.mounted) {
+                          _veliGirisDialog(
+                            veliCtrl.text.trim(), telCtrl.text.trim(),
+                            kulAdi, geciciSif, adCtrl.text.trim());
+                        }
+                      } catch (e) {
+                        setSt(() => yukleniyor = false);
+                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                            content: Text('Hata: \$e'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating));
+                      }
+                    },
+                    icon: yukleniyor
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.save_rounded),
+                    label: Text(yukleniyor ? 'Kaydediliyor...' : 'Kaydet & Veli Hesabı Oluştur',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  )),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _veliGirisDialog(String veliAd, String tel, String kulAdi,
+      String sifre, String ogrAd) {
+    final mesaj = 'Servisim360 Giriş Bilgileri\n'
+        'Öğrenci: \$ogrAd\n'
+        'Kullanıcı Adı: \$kulAdi\n'
+        'Geçici Şifre: \$sifre\n'
+        'Uygulamaya giriş yapabilirsiniz.';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('\$veliAd — Giriş Bilgileri'),
+        content: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200)),
+          child: Text(mesaj, style: const TextStyle(fontSize: 13)),
+        ),
+        actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Kopyala'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: mesaj));
+              Navigator.pop(_);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Kopyalandı!'), backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating));
+            }),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(_);
+              final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
+              final url = Uri.parse(
+                  'https://wa.me/90\$temiz?text=\${Uri.encodeComponent(mesaj)}');
+              if (await canLaunchUrl(url)) {
+                launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('WhatsApp',
+                style: TextStyle(fontWeight: FontWeight.bold))),
+          TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat')),
+        ],
+      ),
+    );
+  }
+
+  Widget _webInp(TextEditingController c, String label, IconData icon,
+      {TextInputType? tip}) =>
+      TextField(
+        controller: c, keyboardType: tip,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, size: 16, color: _navy),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+      );
 
   void _ogrenciDuzenle(Map<String, dynamic> ogr) {
     showDialog(context: context, builder: (_) => _OgrenciDuzenleDialog(

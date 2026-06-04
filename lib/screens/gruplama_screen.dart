@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -287,6 +289,8 @@ class _GruplamaScreenState extends State<GruplamaScreen>
               '"${data['ad'] ?? 'Ogrenci'}" zaten "$soforAd" servisine atanmis.\n\nYine de farkli bir servise tasinmak ister misiniz?',
             ),
             actions: [
+          AiAsistanButonu(ekranAdi: 'Rotalar'),
+          YardimButonu(ekranAdi: 'Rotalar'),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Iptal'),

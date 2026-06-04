@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -233,6 +234,7 @@ GOREVLERIN:
         title: const Text('Sohbeti Temizle'),
         content: const Text('Tum mesajlar silinecek. Emin misin?'),
         actions: [
+          YardimButonu(ekranAdi: 'Genel'),
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Iptal')),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -53,7 +55,7 @@ class _KayitLinkScreenState extends State<KayitLinkScreen> {
         .get();
     setState(() {
       _projeler = snap.docs
-          .map((d) => {'id': d.id, 'ad': d.data()['ad'] ?? d.id})
+          .map((d) => {'id': d.id, 'ad': d.data()['projeAd'] ?? d.data()['ad'] ?? 'Proje ${d.id.substring(0,6)}'})
           .toList();
       if (_projeler.isNotEmpty) {
         _secilenProjeId = _projeler[0]['id'];
@@ -63,7 +65,12 @@ class _KayitLinkScreenState extends State<KayitLinkScreen> {
   }
 
   String _linkOlustur(String linkId) {
-    return 'https://servisim.org.tr/kayit/$linkId';
+    // Production'da domain, geliştirmede localhost
+    const bool production = bool.fromEnvironment('dart.vm.product');
+    if (production) {
+      return 'https://servisim.org.tr/kayit/$linkId';
+    }
+    return 'https://servisim360.web.app/#/veli_basvuru?linkId=$linkId';
   }
 
   Future<void> _linkOlusturVeKaydet() async {
@@ -135,6 +142,8 @@ class _KayitLinkScreenState extends State<KayitLinkScreen> {
       appBar: AppBar(
         backgroundColor: navy,
         foregroundColor: Colors.white,
+        actions: [AiAsistanButonu(ekranAdi: 'Kayitlar'),
+          YardimButonu(ekranAdi: 'Kayitlar')],
         title: const Text('Kayit Linki Olustur',
             style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,

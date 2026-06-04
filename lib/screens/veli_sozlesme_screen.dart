@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -339,6 +340,7 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [YardimButonu(ekranAdi: 'Sozlesmeler'), const SizedBox(width:8)],
         title: Text(
             widget.dolduran == 'admin'
                 ? 'Yeni Ogrenci Kaydi'
@@ -754,34 +756,55 @@ class _SozlesmeSayfasi extends StatelessWidget {
 
   const _SozlesmeSayfasi({required this.ayar, required this.firmaAd});
 
-  String get _sozlesmeMetni => '''
-$firmaAd OKUL SERVIS HIZMETLERI SOZLESMESI
+  // Dinamik madde listesi: şablondan veya varsayılandan gelir
+  List<Map<String, dynamic>> get _maddeler {
+    final sablonMaddeler = List<Map<String, dynamic>>.from(
+        ayar['maddeler'] ?? []);
+    final ozelMaddeler = List<Map<String, dynamic>>.from(
+        ayar['ozelMaddeler'] ?? []);
 
-${ayar['sozlesme'] ?? 'Taraflar arasinda akdedilen bu sozlesme ile veli/vasi asagidaki sartlari kabul etmektedir.'}
+    // Eğer şablondan madde geliyorsa kullan
+    if (sablonMaddeler.isNotEmpty) {
+      final aktifler = sablonMaddeler
+          .where((m) => m['aktif'] == true)
+          .toList();
+      return [...aktifler, ...ozelMaddeler];
+    }
+
+    // Yoksa varsayılan metni kullan
+    return [];
+  }
+
+  String get _sozlesmeMetniVarsayilan => '''
+$firmaAd HİZMET SÖZLEŞMESİ
+
+${ayar['sozlesme'] ?? 'Taraflar arasında akdedilen bu sözleşme ile veli/vasi aşağıdaki şartları kabul etmektedir.'}
 
 MADDE 1 - KAPSAM
-Bu sozlesme bir egitim-ogretim donemi icin gecerlidir.
+Bu sözleşme bir eğitim-öğretim dönemi için geçerlidir.
 
-MADDE 2 - UCRET
-${ayar['ucretBilgi'] ?? 'Ucret adresinize gore otomatik hesaplanir.'}
-${ayar['odeme'] ?? 'Odeme her ayin 1-5 arasinda yapilir.'}
+MADDE 2 - ÜCRET
+${ayar['ucretBilgi'] ?? 'Ücret adresinize göre otomatik hesaplanır.'}
+${ayar['odeme'] ?? 'Ödeme her ayın 1-5. günleri arasında yapılır.'}
 
-MADDE 3 - IPTAL
-${ayar['iptal'] ?? 'Iptal bildirimi en az 15 gun oncesinde yapilmalidir.'}
+MADDE 3 - İPTAL
+${ayar['iptal'] ?? 'İptal bildirimi en az 15 gün öncesinde yapılmalıdır.'}
 
-MADDE 4 - SERVIS KURALLARI
-${ayar['kurallar'] ?? '- Ogrenci belirlenen noktada hazir olmalidir.\n- Servis bekleme suresi 3 dakikadir.'}
+MADDE 4 - SERVİS KURALLARI
+${ayar['kurallar'] ?? '- Öğrenci belirlenen noktada hazır olmalıdır.\n- Servis bekleme süresi 3 dakikadır.'}
 
-MADDE 5 - VERI GIZLILIGI
-${ayar['kvkk'] ?? 'Kisisel verileriniz KVKK kapsaminda islenmektedir.'}
+MADDE 5 - VERİ GİZLİLİĞİ
+${ayar['kvkk'] ?? 'Kişisel verileriniz KVKK kapsamında işlenmektedir.'}
 ''';
 
   @override
   Widget build(BuildContext context) {
+    final dinamikMaddeler = _maddeler;
+
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-        child: _SayfaBaslik('Sozlesme', Icons.description_outlined),
+        child: _SayfaBaslik('Sözleşme', Icons.description_outlined),
       ),
       Expanded(child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -790,11 +813,42 @@ ${ayar['kvkk'] ?? 'Kisisel verileriniz KVKK kapsaminda islenmektedir.'}
           decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: Colors.grey.withValues(alpha: 0.2))),
-          child: Text(_sozlesmeMetni,
-              style: const TextStyle(
-                  fontSize: 13, height: 1.7, color: Colors.black87)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
+          child: dinamikMaddeler.isEmpty
+              // Eski statik metin — geriye dönük uyum
+              ? Text(_sozlesmeMetniVarsayilan,
+                  style: const TextStyle(fontSize: 13, height: 1.7, color: Colors.black87))
+              // Dinamik madde listesi
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('$firmaAd HİZMET SÖZLEŞMESİ',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15, color: _navy)),
+                  const SizedBox(height: 4),
+                  Text('Bu sözleşme, taraflar arasında akdedilmiş olup '
+                      'aşağıdaki hüküm ve koşulları kapsamaktadır.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                  const Divider(height: 24),
+                  ...dinamikMaddeler.asMap().entries.map((e) {
+                    final i = e.key + 1;
+                    final m = e.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        Text('MADDE $i — ${(m['baslik'] ?? '').toUpperCase()}',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12, color: _navy)),
+                        const SizedBox(height: 4),
+                        Text(m['icerik'] ?? '',
+                            style: const TextStyle(
+                                fontSize: 13, height: 1.6)),
+                      ]),
+                    );
+                  }),
+                ]),
         ),
       )),
     ]);

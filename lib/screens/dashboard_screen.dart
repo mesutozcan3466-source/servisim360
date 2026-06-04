@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -145,6 +147,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ])),
         ]),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Ana Ekran'),
+          YardimButonu(ekranAdi: 'Ana Ekran'),
           GestureDetector(
             onTap: _projeSecimAc,
             child: Container(
@@ -809,14 +813,19 @@ class _OperasyonSayfasi extends StatelessWidget {
       _YonetimKarti(Icons.alt_route_outlined, Colors.orange, 'Canli Rota', () => Navigator.pushNamed(context, '/canli_rota')),
       _YonetimKarti(Icons.access_time_outlined, Colors.blue, 'Servis Saatleri', () => Navigator.pushNamed(context, '/servis_saati')),
       const SizedBox(height: 20),
-      const _SekBaslik('Arac & Sofor', Icons.local_taxi_outlined, _navy), const SizedBox(height: 12),
-      _YonetimKarti(Icons.drive_eta_outlined, _navy, 'Soforler', () => Navigator.pushNamed(context, '/suruculer')),
+      const _SekBaslik('Servisler', Icons.directions_bus_outlined, _navy), const SizedBox(height: 12),
+      _YonetimKarti(Icons.directions_bus_filled_rounded, _navy, 'Servis Yonetimi', () => Navigator.pushNamed(context, '/suruculer')),
       _YonetimKarti(Icons.route_outlined, Colors.orange, 'Rotalar', () => Navigator.pushNamed(context, '/rotalar')),
-      _YonetimKarti(Icons.history_outlined, Colors.purple, 'Guzergah Gecmisi', () => Navigator.pushNamed(context, '/guzergah_gecmis')),
       const SizedBox(height: 20),
-      const _SekBaslik('Devamsizlik', Icons.event_busy_outlined, Colors.red), const SizedBox(height: 12),
-      _YonetimKarti(Icons.event_busy_outlined, Colors.red, 'Devamsizlik Listesi', () => Navigator.pushNamed(context, '/yoklama')),
-      _YonetimKarti(Icons.fact_check_outlined, Colors.teal, 'Hazir Mesajlar', () => Navigator.pushNamed(context, '/hazir_mesajlar')),
+      const _SekBaslik('Kayitlar', Icons.people_outlined, Colors.blue), const SizedBox(height: 12),
+      _YonetimKarti(Icons.people_outlined, Colors.blue, 'Kayitlar & Ogrenciler', () => Navigator.pushNamed(context, '/ogrenci')),
+      _YonetimKarti(Icons.event_busy_outlined, Colors.red, 'Devamsizlik', () => Navigator.pushNamed(context, '/yoklama')),
+      const SizedBox(height: 20),
+      const _SekBaslik('Yonetim', Icons.settings_outlined, Colors.purple), const SizedBox(height: 12),
+      _YonetimKarti(Icons.description_outlined, Colors.teal, 'Sozlesme Yonetimi', () => Navigator.pushNamed(context, '/sozlesme_yonetim')),
+      _YonetimKarti(Icons.attach_money_outlined, Colors.green, 'Fiyatlandirma', () => Navigator.pushNamed(context, '/fiyat_yonetim')),
+      _YonetimKarti(Icons.history_outlined, Colors.purple, 'Guzergah Gecmisi', () => Navigator.pushNamed(context, '/guzergah_gecmis')),
+      _YonetimKarti(Icons.archive_outlined, Colors.indigo, 'Proje Arsivi', () => Navigator.pushNamed(context, '/proje_arsiv')),
       const SizedBox(height: 24),
     ]),
   );

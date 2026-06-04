@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -113,6 +114,7 @@ class _SuperAdminShellState extends State<SuperAdminShell> {
               style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
         ]),
         actions: [
+          YardimButonu(ekranAdi: 'Ana Ekran'),
           _CanliBadge(ikon: Icons.business, renk: Colors.white70, koleksiyon: 'firms'),
           const SizedBox(width: 4),
           _CanliBadge(ikon: Icons.drive_eta, renk: Colors.white70, koleksiyon: 'drivers'),

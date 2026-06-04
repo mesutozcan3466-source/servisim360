@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../screens/sofor_ai_asistan_widget.dart';
@@ -201,6 +202,7 @@ class _SoforRotaScreenState extends State<SoforRotaScreen>
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Rotalar')],
         title: const Text('Rota Yonetimi',
             style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(

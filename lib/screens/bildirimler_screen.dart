@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 
@@ -13,6 +14,7 @@ class BildirimlerScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Genel')],
         title: const Text('Bildirimler', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: FutureBuilder<String?>(

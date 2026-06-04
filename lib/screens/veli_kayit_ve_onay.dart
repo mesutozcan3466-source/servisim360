@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_service.dart';
@@ -203,6 +204,7 @@ class _VeliBasvuruFormScreenState extends State<VeliBasvuruFormScreen> {
       appBar: AppBar(
         backgroundColor: _navy,
         foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar')],
         title: const Text('Servis Kayit Formu'),
       ),
       body: _yukleniyor && !_kodDogrulandi
@@ -554,6 +556,7 @@ class _VeliOnayScreenState extends State<VeliOnayScreen>
       appBar: AppBar(
         backgroundColor: _navy,
         foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar')],
         title: const Text('Veli Basvurulari'),
         bottom: TabBar(
           controller: _tabCtrl,

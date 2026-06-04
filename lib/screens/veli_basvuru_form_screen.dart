@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
+import 'dijital_imza_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -26,26 +28,67 @@ class _VeliBasvuruFormScreenState
   final _babaTelCtrl     = TextEditingController();
   final _anneTelCtrl     = TextEditingController();
   final _ogrenciTcCtrl   = TextEditingController();
+  final _veliTcCtrl      = TextEditingController();
   final _sinifCtrl       = TextEditingController();
+  final _okulNoCtrl      = TextEditingController();
+  final _okulAdiCtrl     = TextEditingController();
+  final _ogrenciTelCtrl  = TextEditingController();
   final _adresCtrl       = TextEditingController();
 
   int _adim = 0;
   bool _yukleniyor = false;
   bool _sozlesmeOnay = false;
   bool _sartlarOnay = false;
+  bool _kvkkOnay    = false;
+  bool _dogruOnay   = false;
+  bool _dijitalOnay = false;
+  Map<String, dynamic>? _imzaVeri;
+  bool _imzaTamamlandi = false;
 
   LatLng? _konum;
   double? _hesaplananFiyat;
   String? _fiyatBilgisi;
   Map<String, dynamic>? _linkBilgisi;
   String _projeAdi = '';
-  String _firmaId = '';
-  String _projeId = '';
+  String _firmaId  = '';
+  String _projeId  = '';
+
+  // Sözleşme şablonu
+  String _sozlesmeSablonId = '';
+  List<Map<String, dynamic>> _sozlesmeMaddeleri = [];
+  List<Map<String, dynamic>> _ozelMaddeler = [];
+  Map<String, dynamic> _firmaData = {};
 
   @override
   void initState() {
     super.initState();
     _linkBilgisiniYukle();
+  }
+
+  Future<void> _sozlesmeYukle() async {
+    if (_firmaId.isEmpty || _projeId.isEmpty) return;
+    try {
+      // Firma bilgilerini al
+      final firmaDoc = await FirebaseFirestore.instance
+          .collection('firms').doc(_firmaId).get();
+      _firmaData = firmaDoc.data() ?? {};
+
+      // Proje sözleşme şablonunu al
+      final projeDoc = await FirebaseFirestore.instance
+          .collection('projects').doc(_projeId).get();
+      _sozlesmeSablonId = projeDoc.data()?['sozlesmeSablonId'] ?? '';
+
+      if (_sozlesmeSablonId.isNotEmpty) {
+        final sabDoc = await FirebaseFirestore.instance
+            .collection('firms').doc(_firmaId)
+            .collection('sozlesme_sablonlar').doc(_sozlesmeSablonId).get();
+        final sabData = sabDoc.data() ?? {};
+        final maddeler = List<Map<String, dynamic>>.from(sabData['maddeler'] ?? []);
+        _sozlesmeMaddeleri = maddeler.where((m) => m['aktif'] == true).toList();
+        _ozelMaddeler = List<Map<String, dynamic>>.from(sabData['ozelMaddeler'] ?? []);
+      }
+      if (mounted) setState(() {});
+    } catch (e) { debugPrint('sozlesme yukle hata: \$e'); }
   }
 
   Future<void> _linkBilgisiniYukle() async {
@@ -157,7 +200,17 @@ class _VeliBasvuruFormScreenState
             : null,
         'hesaplananFiyat': _hesaplananFiyat,
         'durum': 'beklemede',
-        'sozlesmeOnay': _sozlesmeOnay,
+        'sozlesmeOnay'    : _sozlesmeOnay,
+        'sartlarOnay'     : _sartlarOnay,
+        'kvkkOnay'        : _kvkkOnay,
+        'dogruOnay'       : _dogruOnay,
+        'dijitalOnay'     : _dijitalOnay,
+        'onayTarihi'      : FieldValue.serverTimestamp(),
+        'imzaVeri'        : _imzaVeri,
+        'imzaTamamlandi'  : _imzaTamamlandi,
+        'ipAdresi'        : 'Web',
+        'onayPlatformu'   : 'Servisim360 Web',
+        'sozlesmeSablonId': _sozlesmeSablonId,
         'basvuruTarihi': FieldValue.serverTimestamp(),
       });
       setState(() => _adim = 3);
@@ -202,6 +255,7 @@ class _VeliBasvuruFormScreenState
       appBar: AppBar(
         backgroundColor: navy,
         foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar')],
         title: Text(_projeAdi,
             style: const TextStyle(fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
@@ -469,18 +523,138 @@ class _VeliBasvuruFormScreenState
             _ozetSatir('Aylik Ucret',
                 '${_hesaplananFiyat!.toStringAsFixed(0)} TL'),
           const SizedBox(height: 20),
+          // Sözleşme maddeleri göster
+          if (_sozlesmeMaddeleri.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  '${_firmaData['firmaAdi'] ?? _firmaData['ad'] ?? ''} HİZMET SÖZLEŞMESİ',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                ..._sozlesmeMaddeleri.asMap().entries.map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Madde ${e.key + 1} — ${e.value['baslik'] ?? ''}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                    Text(e.value['icerik'] ?? '',
+                        style: const TextStyle(fontSize: 11, height: 1.5)),
+                  ]),
+                )),
+                ..._ozelMaddeler.asMap().entries.map((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Madde ${_sozlesmeMaddeleri.length + e.key + 1} — ${e.value['baslik'] ?? ''}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                    Text(e.value['icerik'] ?? '',
+                        style: const TextStyle(fontSize: 11, height: 1.5)),
+                  ]),
+                )),
+              ]),
+            ),
+          ],
+
           _onayKutusu(
             deger: _sozlesmeOnay,
             metin: 'Servis sozlesmesini okudum ve kabul ediyorum.',
             onChange: (v) =>
                 setState(() => _sozlesmeOnay = v ?? false),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _onayKutusu(
             deger: _sartlarOnay,
-            metin: 'Kullanim sartlarini ve KVKK metnini okudum, onayliyorum.',
+            metin: 'Servis ucretini ve odeme kosullarini kabul ediyorum.',
             onChange: (v) =>
                 setState(() => _sartlarOnay = v ?? false),
+          ),
+          const SizedBox(height: 8),
+          _onayKutusu(
+            deger: _kvkkOnay,
+            metin: 'KVKK aydinlatma metnini okudum ve kabul ediyorum.',
+            onChange: (v) =>
+                setState(() => _kvkkOnay = v ?? false),
+          ),
+          const SizedBox(height: 8),
+          _onayKutusu(
+            deger: _dogruOnay,
+            metin: 'Verdigim bilgilerin dogru oldugunu beyan ediyorum.',
+            onChange: (v) =>
+                setState(() => _dogruOnay = v ?? false),
+          ),
+          const SizedBox(height: 8),
+          _onayKutusu(
+            deger: _dijitalOnay,
+            metin: 'Dijital onayimin fiziksel imza ile ayni gecerlilige sahip oldugunu kabul ediyorum.',
+            onChange: (v) =>
+                setState(() => _dijitalOnay = v ?? false),
+          ),
+          const SizedBox(height: 16),
+
+          // Dijital İmza Alanı
+          GestureDetector(
+            onTap: (_sozlesmeOnay && _sartlarOnay && _kvkkOnay &&
+                    _dogruOnay && _dijitalOnay)
+                ? () async {
+                    final imza = await Navigator.push<Map<String, dynamic>>(
+                      context,
+                      MaterialPageRoute(builder: (_) => DijitalImzaScreen(
+                        sozlesmeId: '',
+                        veliAd: _veliAdiCtrl.text.isNotEmpty ? _veliAdiCtrl.text : 'Veli',
+                        onImzaTamamlandi: (v) {},
+                      )),
+                    );
+                    if (imza != null && mounted) {
+                      setState(() {
+                        _imzaVeri = imza;
+                        _imzaTamamlandi = true;
+                      });
+                    }
+                  }
+                : null,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: _imzaTamamlandi
+                      ? Colors.green.shade50 : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: _imzaTamamlandi
+                          ? Colors.green : Colors.grey.shade300,
+                      width: _imzaTamamlandi ? 2 : 1)),
+              child: Row(children: [
+                Icon(
+                  _imzaTamamlandi
+                      ? Icons.verified_outlined
+                      : Icons.draw_outlined,
+                  color: _imzaTamamlandi ? Colors.green : Colors.grey,
+                  size: 24),
+                const SizedBox(width: 12),
+                Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(
+                    _imzaTamamlandi ? 'İmza Alındı' : 'Dijital İmza',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _imzaTamamlandi ? Colors.green : Colors.grey[700])),
+                  Text(
+                    _imzaTamamlandi
+                        ? 'İmzanız başarıyla kaydedildi'
+                        : 'Önce tüm onayları işaretleyin',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                ])),
+                if (_imzaTamamlandi)
+                  const Icon(Icons.check_circle_rounded,
+                      color: Colors.green, size: 20),
+              ]),
+            ),
           ),
           const SizedBox(height: 32),
           Row(
@@ -503,7 +677,9 @@ class _VeliBasvuruFormScreenState
                 flex: 2,
                 child: ElevatedButton(
                   onPressed:
-                  (_yukleniyor || !_sozlesmeOnay || !_sartlarOnay)
+                  (_yukleniyor || !_sozlesmeOnay || !_sartlarOnay ||
+                          !_kvkkOnay || !_dogruOnay || !_dijitalOnay ||
+                          !_imzaTamamlandi)
                       ? null
                       : _basvuruTamamla,
                   style: ElevatedButton.styleFrom(
@@ -696,6 +872,10 @@ class _VeliBasvuruFormScreenState
   void dispose() {
     _ogrenciAdiCtrl.dispose();
     _ogrenciTcCtrl.dispose();
+    _veliTcCtrl.dispose();
+    _okulNoCtrl.dispose();
+    _okulAdiCtrl.dispose();
+    _ogrenciTelCtrl.dispose();
     _sinifCtrl.dispose();
     _veliAdiCtrl.dispose();
     _telefonCtrl.dispose();

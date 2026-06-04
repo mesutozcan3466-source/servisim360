@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -42,7 +43,7 @@ class _KayitHavuzuScreenState extends State<KayitHavuzuScreen> {
     await _db
         .collection('firms')
         .doc(_firmaId)
-        .collection('ogrenciler')
+        .collection('students')
         .add({
       'ad': d['ad'] ?? '',
       'soyad': d['soyad'] ?? '',
@@ -90,7 +91,8 @@ class _KayitHavuzuScreenState extends State<KayitHavuzuScreen> {
         backgroundColor: const Color(0xFFF5F6FA),
         appBar: AppBar(
           backgroundColor: navyBlue,
-          title: const Text('Kayit Havuzu',
+          actions: [YardimButonu(ekranAdi: 'Kayitlar'), const SizedBox(width:8)],
+        title: const Text('Kayit Havuzu',
               style: TextStyle(color: Colors.white)),
           iconTheme: const IconThemeData(color: Colors.white),
           bottom: const TabBar(

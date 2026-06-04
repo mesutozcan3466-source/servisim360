@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import '../services/sozlesme_pdf_service.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -56,6 +59,8 @@ class _VeliBasvurularScreenState extends State<VeliBasvurularScreen>
           ],
         ),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Kayitlar'),
+          YardimButonu(ekranAdi: 'Kayitlar'),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: _aramaAc,
@@ -331,39 +336,167 @@ class _BasvuruKarti extends StatelessWidget {
   }
 
   Future<void> _onayla(BuildContext context) async {
-    // 1. Basvuruyu onayla
+    final now = FieldValue.serverTimestamp();
+
+    // 1. Başvuruyu onayla
     await FirebaseFirestore.instance
-        .collection('veli_basvurular')
-        .doc(docId)
-        .update({
-      'durum': 'onaylandi',
-      'onayTarihi': FieldValue.serverTimestamp(),
+        .collection('veli_basvurular').doc(docId).update({
+      'durum'     : 'onaylandi',
+      'onayTarihi': now,
     });
 
-    // 2. students koleksiyonuna ogrenci ekle
-    await FirebaseFirestore.instance.collection('students').add({
-      'firmaId':       data['firmaId'],
-      'projeId':       data['projeId'] ?? '',
-      'ad':            (data['ogrenciAdi'] as String?)?.split(' ').first ?? '',
-      'soyad':         (data['ogrenciAdi'] as String?)
-          ?.split(' ').skip(1).join(' ') ?? '',
-      'veliAdi':       data['veliAdi'],
-      'telefon':       data['telefon'],
-      'adres':         data['adres'],
-      'konum':         data['konum'],
-      'fiyat':         data['hesaplananFiyat'],
-      'bindi':         false,
-      'durum':         'aktif',
-      'kayitTarihi':   FieldValue.serverTimestamp(),
-      'basvuruId':     docId,
+    // 2. Öğrenci kaydı
+    final ogrRef = await FirebaseFirestore.instance
+        .collection('students').add({
+      'firmaId'      : data['firmaId'],
+      'projeId'      : data['projeId'] ?? '',
+      'ad'           : (data['ogrenciAdi'] as String?)?.split(' ').first ?? '',
+      'soyad'        : (data['ogrenciAdi'] as String?)?.split(' ').skip(1).join(' ') ?? '',
+      'adSoyad'      : data['ogrenciAdi'] ?? '',
+      'ogrenciTc'    : data['ogrenciTc'] ?? '',
+      'veliAd'       : data['veliAdi'] ?? '',
+      'veliTc'       : data['veliTc'] ?? '',
+      'veliTel'      : data['telefon'] ?? '',
+      'babaTel'      : data['babaTel'] ?? data['telefon'] ?? '',
+      'anneTel'      : data['anneTel'] ?? '',
+      'okul'         : data['okulAdi'] ?? '',
+      'sinif'        : data['sinif'] ?? '',
+      'okulNo'       : data['okulNo'] ?? '',
+      'adres'        : data['adres'] ?? '',
+      'konum'        : data['konum'],
+      'aylikUcret'   : data['hesaplananFiyat'],
+      'sozlesmeDurum': 'imzalandi',
+      'bindi'        : false,
+      'aktif'        : true,
+      'kayitTarihi'  : now,
+      'basvuruId'    : docId,
+      'kayitTipi'    : 'link_basvuru',
     });
+
+    // 3. Otomatik veli hesabı
+    final geciciSifre = (data['telefon'] ?? '').toString();
+    await FirebaseFirestore.instance
+        .collection('parents').doc(ogrRef.id).set({
+      'firmaId'     : data['firmaId'],
+      'ogrenciId'   : ogrRef.id,
+      'ad'          : data['veliAdi'] ?? '',
+      'telefon'     : data['telefon'] ?? '',
+      'kullaniciAdi': geciciSifre,
+      'geciciSifre' : geciciSifre,
+      'ilkGiris'    : true,
+      'aktif'       : true,
+      'rol'         : 'veli',
+      'olusturma'   : now,
+    });
+    await FirebaseFirestore.instance
+        .collection('kullanicilar').doc(ogrRef.id).set({
+      'firmaId'     : data['firmaId'],
+      'ad'          : data['veliAdi'] ?? '',
+      'telefon'     : data['telefon'] ?? '',
+      'kullaniciAdi': geciciSifre,
+      'sifre'       : geciciSifre,
+      'ilkGiris'    : true,
+      'rol'         : 'veli',
+      'ogrenciId'   : ogrRef.id,
+      'olusturma'   : now,
+    });
+
+    // 4. Sözleşme arşivine kaydet
+    await FirebaseFirestore.instance.collection('sozlesmeler').add({
+      'firmaId'        : data['firmaId'],
+      'projeId'        : data['projeId'] ?? '',
+      'ogrenciId'      : ogrRef.id,
+      'ogrenciAd'      : data['ogrenciAdi'] ?? '',
+      'veliAd'         : data['veliAdi'] ?? '',
+      'ucret'          : data['hesaplananFiyat'] ?? '',
+      'adres'          : data['adres'] ?? '',
+      'durum'          : 'imzalandi',
+      'kayitTipi'      : 'link_basvuru',
+      'sozlesmeOnay'   : data['sozlesmeOnay'] ?? false,
+      'kvkkOnay'       : data['kvkkOnay'] ?? false,
+      'dijitalOnay'    : data['dijitalOnay'] ?? false,
+      'imzaVeri'       : data['imzaVeri'],
+      'onayTarihi'     : now,
+      'sozlesmeSablonId': data['sozlesmeSablonId'] ?? '',
+      'olusturma'      : now,
+      'durumGecmisi'   : [{'durum': 'imzalandi', 'tarih': DateTime.now().toString()}],
+    });
+
+    // 5. PDF oluştur
+    try {
+      await SozlesmePdfServisi.olusturVePaylasim(
+        firmaAd     : data['firmaAdi'] ?? data['firmaId'] ?? '',
+        ogrenciAd   : data['ogrenciAdi'] ?? '',
+        veliAd      : data['veliAdi'] ?? '',
+        anneTel     : data['telefon'] ?? '',
+        adres       : data['adres'] ?? '',
+        aylikUcret  : (data['hesaplananFiyat'] as num?)?.toDouble(),
+        sozlesmeMetni: data['sozlesmeMetni'] ?? '',
+      );
+    } catch (_) {}
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Basvuru onaylandi, ogrenci kaydedildi'),
-            backgroundColor: Colors.green),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Onaylandi — Ogrenci + Veli hesabi + Arsiv kaydedildi'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Future<void> _duzenle(BuildContext context) async {
+    final adCtrl   = TextEditingController(text: data['ogrenciAdi'] ?? '');
+    final veliCtrl = TextEditingController(text: data['veliAdi'] ?? '');
+    final telCtrl  = TextEditingController(text: data['telefon'] ?? '');
+    final adresCtrl = TextEditingController(text: data['adres'] ?? '');
+
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Başvuruyu Düzenle'),
+        content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: adCtrl,
+              decoration: const InputDecoration(labelText: 'Öğrenci Ad Soyad',
+                  border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 8),
+          TextField(controller: veliCtrl,
+              decoration: const InputDecoration(labelText: 'Veli Ad Soyad',
+                  border: OutlineInputBorder(), isDense: true)),
+          const SizedBox(height: 8),
+          TextField(controller: telCtrl,
+              decoration: const InputDecoration(labelText: 'Telefon',
+                  border: OutlineInputBorder(), isDense: true),
+              keyboardType: TextInputType.phone),
+          const SizedBox(height: 8),
+          TextField(controller: adresCtrl,
+              decoration: const InputDecoration(labelText: 'Adres',
+                  border: OutlineInputBorder(), isDense: true)),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b),
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(_, true),
+            child: const Text('Kaydet')),
+        ],
+      ),
+    );
+
+    if (onay == true) {
+      await FirebaseFirestore.instance
+          .collection('veli_basvurular').doc(docId).update({
+        'ogrenciAdi': adCtrl.text.trim(),
+        'veliAdi'   : veliCtrl.text.trim(),
+        'telefon'   : telCtrl.text.trim(),
+        'adres'     : adresCtrl.text.trim(),
+        'updatedAt' : FieldValue.serverTimestamp(),
+        'duzenlendi': true,
+      });
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Düzenlendi!'),
+              backgroundColor: Colors.blue,
+              behavior: SnackBarBehavior.floating));
     }
   }
 

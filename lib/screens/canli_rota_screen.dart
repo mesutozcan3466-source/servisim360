@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -225,6 +226,7 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
         backgroundColor: _navy, foregroundColor: Colors.white,
         title: const Text('Canli Rota', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          YardimButonu(ekranAdi: 'Rotalar'),
           if (_servisAktif)
             Padding(
               padding: const EdgeInsets.only(right: 12),

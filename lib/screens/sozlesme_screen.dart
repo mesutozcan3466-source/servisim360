@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 
@@ -82,6 +83,7 @@ class _SozlesmeScreenState extends State<SozlesmeScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         actions: [
+          YardimButonu(ekranAdi: 'Sozlesmeler'),
           if (!_yukleniyor)
             Padding(
               padding: const EdgeInsets.only(right: 12),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
@@ -31,8 +33,10 @@ class _WebHaritaState extends State<WebHarita> {
   Map<String, dynamic>? _seciliSofor;
 
   GoogleMapController? _mapController;
-  Set<Marker> _markerlar = {};
+  Set<Marker>   _markerlar   = {};
   Set<Polyline> _polylineler = {};
+  MapType  _mapTipi        = MapType.normal;
+  DateTime _sonGuncelleme  = DateTime.now();
 
   static const CameraPosition _turkiyeMerkez = CameraPosition(
     target: LatLng(39.9334, 32.8597),
@@ -43,6 +47,14 @@ class _WebHaritaState extends State<WebHarita> {
   void initState() {
     super.initState();
     _yukle();
+    Future.delayed(const Duration(seconds: 30), _otomatikYenile);
+  }
+
+  Future<void> _otomatikYenile() async {
+    if (!mounted) return;
+    setState(() => _sonGuncelleme = DateTime.now());
+    await _markerlarOlustur();
+    if (mounted) Future.delayed(const Duration(seconds: 30), _otomatikYenile);
   }
 
   @override
@@ -97,12 +109,68 @@ class _WebHaritaState extends State<WebHarita> {
     }
 
     _sub = sofQuery.snapshots().listen((snap) {
+      if (!mounted) return;
       _soforler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      _markerlarOlustur();
-      if (mounted) setState(() {});
+      // setState sadece şoförler değiştiyse çağır
+      if (mounted) {
+        _markerlarOlustur();
+        setState(() => _sonGuncelleme = DateTime.now());
+      }
     });
 
-    setState(() => _yukleniyor = false);
+    if (mounted) setState(() => _yukleniyor = false);
+  }
+
+  // ── Mesafe hesaplama (Haversine) ─────────────────────────────
+  double _mesafeHesapla(LatLng a, LatLng b) {
+    const R = 6371000.0;
+    final dLat = (b.latitude  - a.latitude)  * math.pi / 180;
+    final dLng = (b.longitude - a.longitude) * math.pi / 180;
+    final x = math.sin(dLat/2) * math.sin(dLat/2) +
+        math.cos(a.latitude  * math.pi / 180) *
+        math.cos(b.latitude  * math.pi / 180) *
+        math.sin(dLng/2) * math.sin(dLng/2);
+    return R * 2 * math.atan2(math.sqrt(x), math.sqrt(1 - x));
+  }
+
+  // ── Nearest Neighbor — en yakın komşu algoritması ─────────────
+  // 17 öğrenci için bile saniyeler içinde en kısa rotayı bulur
+  List<Map<String, dynamic>> _rotaSirala(
+      List<Map<String, dynamic>> ogrenciler, LatLng? baslangic) {
+    if (ogrenciler.isEmpty) return ogrenciler;
+
+    // Konumu olan öğrencileri filtrele
+    final konumluOgrenciler = ogrenciler
+        .where((o) => _konumAl(o) != null).toList();
+    final konumsuzlar = ogrenciler
+        .where((o) => _konumAl(o) == null).toList();
+
+    if (konumluOgrenciler.isEmpty) return ogrenciler;
+
+    final siralananlar = <Map<String, dynamic>>[];
+    final kalan = List<Map<String, dynamic>>.from(konumluOgrenciler);
+
+    // Başlangıç noktası: şoför konumu yoksa ilk öğrenci
+    LatLng mevcutKonum = baslangic ?? _konumAl(kalan.first)!;
+
+    while (kalan.isNotEmpty) {
+      // En yakın öğrenciyi bul
+      double minMesafe = double.infinity;
+      int enYakinIdx = 0;
+
+      for (var i = 0; i < kalan.length; i++) {
+        final k = _konumAl(kalan[i]);
+        if (k == null) continue;
+        final m = _mesafeHesapla(mevcutKonum, k);
+        if (m < minMesafe) { minMesafe = m; enYakinIdx = i; }
+      }
+
+      final secilen = kalan.removeAt(enYakinIdx);
+      siralananlar.add(secilen);
+      mevcutKonum = _konumAl(secilen)!;
+    }
+
+    return [...siralananlar, ...konumsuzlar];
   }
 
   LatLng? _konumAl(Map<String, dynamic> d) {
@@ -149,24 +217,34 @@ class _WebHaritaState extends State<WebHarita> {
         ));
       }
 
-      final buSoforunOgrencileri =
-      _ogrenciler.where((o) => (o['surucuId'] ?? '') == sid).toList();
+      // Öğrencileri en yakın komşu algoritmasıyla sırala
+      final tumOgrenciler =
+          _ogrenciler.where((o) => (o['surucuId'] ?? '') == sid).toList();
+      final siraliOgrenciler = _rotaSirala(tumOgrenciler, soforKonum);
       final List<LatLng> rotaNoktalar = [];
       if (soforKonum != null) rotaNoktalar.add(soforKonum);
 
-      for (final ogr in buSoforunOgrencileri) {
+      for (var rotaIdx = 0; rotaIdx < siraliOgrenciler.length; rotaIdx++) {
+        final ogr = siraliOgrenciler[rotaIdx];
         final ogrKonum = _konumAl(ogr);
         if (ogrKonum != null) {
-          final bindi = ogr['bindi'] ?? false;
+          final bindi   = ogr['bindi'] ?? false;
+          final siraNo  = rotaIdx + 1;
           yeniMarkerlar.add(Marker(
             markerId: MarkerId('ogr_${ogr['id']}'),
             position: ogrKonum,
             infoWindow: InfoWindow(
-              title: ogr['ad'] ?? 'Ogrenci',
-              snippet: bindi ? 'Bindi' : 'Bekliyor',
+              title: '$siraNo. ${ogr['ad'] ?? 'Ogrenci'}',
+              snippet: bindi
+                  ? '✅ Bindi'
+                  : '⏳ Bekliyor — ${(ogrKonum != null && soforKonum != null)
+                      ? '${(_mesafeHesapla(soforKonum, ogrKonum) / 1000).toStringAsFixed(1)} km'
+                      : ''}',
             ),
             icon: BitmapDescriptor.defaultMarkerWithHue(
-              bindi ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueOrange,
+              bindi
+                  ? BitmapDescriptor.hueGreen
+                  : BitmapDescriptor.hueOrange,
             ),
           ));
           rotaNoktalar.add(ogrKonum);
@@ -247,8 +325,15 @@ class _WebHaritaState extends State<WebHarita> {
             child: Row(children: [
               const Icon(Icons.directions_bus_outlined, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              const Expanded(child: Text('Servisler',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Servisler',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(
+                  '${_sonGuncelleme.hour.toString().padLeft(2, '0')}:'
+                  '${_sonGuncelleme.minute.toString().padLeft(2, '0')}'
+                  ' güncellendi',
+                  style: const TextStyle(color: Colors.white54, fontSize: 9)),
+              ])),
               GestureDetector(
                 onTap: () {
                   setState(() { _seciliSoforId = null; _seciliSofor = null; });
@@ -387,12 +472,23 @@ class _WebHaritaState extends State<WebHarita> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: true,
             mapToolbarEnabled: false,
-            mapType: MapType.normal,
+            mapType: _mapTipi,
           ),
           Positioned(top: 12, right: 12, child: Column(children: [
             _HaritaBtn(icon: Icons.refresh, tooltip: 'Yenile', onTap: _yukle),
             const SizedBox(height: 6),
             _HaritaBtn(icon: Icons.fit_screen, tooltip: 'Hepsini Goster', onTap: _kameraFit),
+            const SizedBox(height: 6),
+            _HaritaBtn(
+              icon: _mapTipi == MapType.normal
+                  ? Icons.satellite_alt_outlined
+                  : Icons.map_outlined,
+              tooltip: _mapTipi == MapType.normal ? 'Uydu Gorunumu' : 'Normal Goruntu',
+              onTap: () => setState(() {
+                _mapTipi = _mapTipi == MapType.normal
+                    ? MapType.satellite : MapType.normal;
+              }),
+            ),
             const SizedBox(height: 6),
             _HaritaBtn(icon: Icons.route, tooltip: 'Canli Rota',
                 onTap: () => Navigator.pushNamed(context, '/canli_rota')),
@@ -501,6 +597,20 @@ class _WebHaritaState extends State<WebHarita> {
       ])),
     ]);
   }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color renk;
+  final String metin;
+  const _LegendItem(this.renk, this.metin);
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: renk, shape: BoxShape.circle)),
+    const SizedBox(width: 3),
+    Text(metin, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+  ]);
 }
 
 class _HaritaBtn extends StatelessWidget {

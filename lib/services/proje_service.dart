@@ -85,9 +85,9 @@ class ProjeService {
 
     try {
       final results = await Future.wait([
-        projeRef.collection('ogrenciler').count().get(),
-        projeRef.collection('suruculer').count().get(),
-        projeRef.collection('araclar').count().get(),
+        projeRef.collection('students').count().get(),
+        projeRef.collection('drivers').count().get(),
+        projeRef.collection('vehicles').count().get(),
       ]);
 
       return {

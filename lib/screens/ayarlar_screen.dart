@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_service.dart';
@@ -43,6 +44,7 @@ class _AyarlarScreenState extends State<AyarlarScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white,
+        actions: [YardimButonu(ekranAdi: 'Ayarlar')],
         title: const Text('Ayarlar', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [

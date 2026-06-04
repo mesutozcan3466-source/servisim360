@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -30,18 +31,27 @@ class _QrAfisScreenState extends State<QrAfisScreen> {
 
   Future<void> _yukle() async {
     final firmaId = await SessionService.instance.firmaIdAl() ?? '';
+    if (firmaId.isEmpty) {
+      setState(() => _yukleniyor = false);
+      return;
+    }
     final projeId = SessionService.instance.aktifProjeld ?? '';
     _projeAdi     = SessionService.instance.aktifProjeAdi ?? '';
 
     final firmaDoc = await FirebaseFirestore.instance.collection('firms').doc(firmaId).get();
     _firmaAdi = firmaDoc.data()?['firmaAdi'] ?? firmaDoc.data()?['ad'] ?? '';
 
-    final snap = await FirebaseFirestore.instance
+    // projeId boşsa tüm firma linklerini getir
+    var query = FirebaseFirestore.instance
         .collection('kayit_linkleri')
-        .where('projeId', isEqualTo: projeId)
-        .where('aktif', isEqualTo: true)
-        .orderBy('olusturma', descending: true)
-        .get();
+        .where('firmaId', isEqualTo: firmaId)
+        .where('aktif', isEqualTo: true);
+
+    if (projeId.isNotEmpty) {
+      query = query.where('projeId', isEqualTo: projeId);
+    }
+
+    final snap = await query.get();
 
     setState(() {
       _linkler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
@@ -94,6 +104,7 @@ class _QrAfisScreenState extends State<QrAfisScreen> {
         backgroundColor: _navy, foregroundColor: Colors.white,
         title: const Text('QR Kod Afis', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          YardimButonu(ekranAdi: 'Kayitlar'),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             onPressed: _olusturuluyor ? null : _yeniLinkOlustur,

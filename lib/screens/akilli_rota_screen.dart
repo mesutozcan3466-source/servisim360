@@ -97,7 +97,7 @@ başka hiçbir metin ekleme. JSON şeması:
       final ogrenciIdler = entry.value;
 
       // Sürücü belgesine atanan öğrencileri ekle
-      final surucuRef = db.collection('suruculer').doc(surucuId);
+      final surucuRef = db.collection('drivers').doc(surucuId);
       batch.update(surucuRef, {
         'atananOgrenciler': ogrenciIdler,
         'guncellenmeTarihi': FieldValue.serverTimestamp(),
@@ -105,7 +105,7 @@ başka hiçbir metin ekleme. JSON şeması:
 
       // Her öğrenci belgesine sürücü bilgisini yaz
       for (final ogrenciId in ogrenciIdler) {
-        final ogrRef = db.collection('ogrenciler').doc(ogrenciId);
+        final ogrRef = db.collection('students').doc(ogrenciId);
         batch.update(ogrRef, {
           'atananSurucu': surucuId,
           'guncellenmeTarihi': FieldValue.serverTimestamp(),

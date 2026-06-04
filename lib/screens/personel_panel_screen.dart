@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_service.dart';
@@ -83,6 +84,7 @@ class _PersonelPanelScreenState extends State<PersonelPanelScreen>
               fontSize: 11, color: Colors.white60)),
         ]),
         actions: [
+          YardimButonu(ekranAdi: 'Sofor Paneli'),
           IconButton(
             icon: const Icon(Icons.logout_outlined, color: Colors.white70),
             onPressed: () async {

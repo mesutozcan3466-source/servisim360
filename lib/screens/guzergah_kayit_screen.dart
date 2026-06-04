@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
@@ -104,6 +105,7 @@ class _GuzergahKayitScreenState extends State<GuzergahKayitScreen> {
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0,
+        actions: [YardimButonu(ekranAdi: 'Rotalar'), const SizedBox(width:8)],
         title: const Text('Güzergah Kayıt', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Padding(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -118,6 +119,7 @@ class _WebVeliTakipState extends State<WebVeliTakip> {
             ? '${_ogrenci!['ad']} - Servis Takibi' : 'Servis Takibi',
             style: const TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          YardimButonu(ekranAdi: 'Veli Paneli'),
           if (_sofor != null && _sofor!['servisAktif'] == true)
             IconButton(
               icon: const Icon(Icons.message, color: Color(0xFF25D366)),

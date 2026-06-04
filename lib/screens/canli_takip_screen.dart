@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -438,6 +440,8 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Harita'),
+          YardimButonu(ekranAdi: 'Harita'),
           // Servis saati gostergesi
           Padding(
             padding: const EdgeInsets.only(right: 8),

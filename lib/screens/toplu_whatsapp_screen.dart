@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -165,6 +166,7 @@ class _TopluWhatsappScreenState extends State<TopluWhatsappScreen>
         backgroundColor: _navy, foregroundColor: Colors.white,
         title: const Text('Toplu WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          YardimButonu(ekranAdi: 'Raporlar'),
           if (toplamSecili > 0)
             Container(
               margin: const EdgeInsets.only(right: 12),

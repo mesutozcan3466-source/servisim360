@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -234,6 +235,7 @@ class _OcrKayitScreenState extends State<OcrKayitScreen>
         backgroundColor: _navy,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar'), const SizedBox(width:8)],
         title: const Text('Toplu Ogrenci Kaydi',
             style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(

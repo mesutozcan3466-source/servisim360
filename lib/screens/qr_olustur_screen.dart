@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -36,7 +37,7 @@ class _QrOlusturScreenState extends State<QrOlusturScreen> {
       final snap = await _db
           .collection('firms')
           .doc(firmaId)
-          .collection('ogrenciler')
+          .collection('students')
           .get();
       _ogrenciler =
           snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
@@ -50,6 +51,7 @@ class _QrOlusturScreenState extends State<QrOlusturScreen> {
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
         backgroundColor: navyBlue,
+        actions: [YardimButonu(ekranAdi: 'Kayitlar'), const SizedBox(width:8)],
         title: const Text('QR Kod Olustur',
             style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),

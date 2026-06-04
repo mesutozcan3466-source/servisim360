@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/session_service.dart';
 
 class OgrencilerScreen extends StatefulWidget {
@@ -31,6 +35,8 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
         backgroundColor: _navy, foregroundColor: Colors.white,
         title: const Text('Öğrenciler', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Kayitlar'),
+          YardimButonu(ekranAdi: 'Kayitlar'),
           IconButton(
             icon: const Icon(Icons.person_add_outlined),
             onPressed: () => _ogrenciEkleDialog(context),
@@ -122,55 +128,285 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
     );
   }
 
-  void _ogrenciEkleDialog(BuildContext context) {
-    final adCtrl    = TextEditingController();
-    final adresCtrl = TextEditingController();
-    final veliCtrl  = TextEditingController();
-    final telCtrl   = TextEditingController();
+  // Rastgele 6 haneli şifre üret
+  String _rastgeleKod() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final now = DateTime.now();
+    final buf = StringBuffer();
+    for (var i = 0; i < 6; i++) buf.write(chars[(now.microsecond + i * 7) % chars.length]);
+    return buf.toString();
+  }
 
-    showModalBottomSheet(
-      context: context, isScrollControlled: true, backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(left: 20, right: 20, top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Öğrenci Ekle',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _navy)),
-          const SizedBox(height: 16),
-          _input(adCtrl,    'Öğrenci Adı *', Icons.person_outline),
-          const SizedBox(height: 10),
-          _input(adresCtrl, 'Adres',          Icons.location_on_outlined),
-          const SizedBox(height: 10),
-          _input(veliCtrl,  'Veli Adı',       Icons.family_restroom_outlined),
-          const SizedBox(height: 10),
-          _input(telCtrl,   'Veli Telefon',   Icons.phone_outlined,
-              tipi: TextInputType.phone),
-          const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _turuncu, foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () async {
-              if (adCtrl.text.trim().isEmpty) return;
-              await FirebaseFirestore.instance.collection('students').add({
-                'firmaId': _firmaId,
-                'ad':      adCtrl.text.trim(),
-                'adres':   adresCtrl.text.trim(),
-                'veliAd':  veliCtrl.text.trim(),
-                'veliTel': telCtrl.text.trim(),
-                'aktif':   true,
-                'olusturma': FieldValue.serverTimestamp(),
-              });
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Ekle',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          )),
+  void _ogrenciEkleDialog(BuildContext context) {
+    final adCtrl      = TextEditingController();
+    final soyadCtrl   = TextEditingController();
+    final adresCtrl   = TextEditingController();
+    final veliCtrl    = TextEditingController();
+    final telCtrl     = TextEditingController();
+    final okulCtrl    = TextEditingController();
+    final sinifCtrl   = TextEditingController();
+    bool yukleniyor   = false;
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setSt) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: 520,
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), color: Colors.white),
+            child: Column(children: [
+              // Başlık
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: const BoxDecoration(
+                    color: _navy,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                child: Row(children: [
+                  const Icon(Icons.person_add_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Öğrenci Ekle', style: TextStyle(color: Colors.white,
+                        fontSize: 17, fontWeight: FontWeight.bold)),
+                    Text('Veli hesabı otomatik oluşturulacak',
+                        style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  ])),
+                  IconButton(icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx)),
+                ]),
+              ),
+
+              Expanded(child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Öğrenci bilgileri
+                  const Text('Öğrenci Bilgileri', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13, color: _navy)),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _input(adCtrl, 'Ad *', Icons.person_outline)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _input(soyadCtrl, 'Soyad', Icons.person_outline)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _input(okulCtrl, 'Okul', Icons.school_outlined)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _input(sinifCtrl, 'Sınıf', Icons.class_outlined)),
+                  ]),
+                  const SizedBox(height: 8),
+                  _input(adresCtrl, 'Adres', Icons.location_on_outlined),
+                  const SizedBox(height: 16),
+
+                  // Veli bilgileri
+                  const Text('Veli Bilgileri', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13, color: _navy)),
+                  const SizedBox(height: 4),
+                  const Text('Veli hesabı otomatik oluşturulur',
+                      style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  const SizedBox(height: 8),
+                  _input(veliCtrl, 'Veli Adı Soyadı *', Icons.family_restroom_outlined),
+                  const SizedBox(height: 8),
+                  _input(telCtrl, 'Veli Telefon * (kullanıcı adı olacak)',
+                      Icons.phone_outlined, tipi: TextInputType.phone),
+
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.green.shade200)),
+                    child: const Row(children: [
+                      Icon(Icons.auto_awesome, color: Colors.green, size: 14),
+                      SizedBox(width: 8),
+                      Expanded(child: Text(
+                        'Kayıt sonrası veli hesabı otomatik oluşturulur. '
+                        'Kullanıcı adı telefon numarası, şifre otomatik üretilir.',
+                        style: TextStyle(fontSize: 11, color: Colors.green),
+                      )),
+                    ]),
+                  ),
+                ]),
+              )),
+
+              // Kaydet butonu
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  Expanded(child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: const Text('İptal'),
+                  )),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 2, child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: _turuncu, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: yukleniyor ? null : () async {
+                      if (adCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('Öğrenci adı zorunlu!'),
+                            behavior: SnackBarBehavior.floating));
+                        return;
+                      }
+                      if (telCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                            content: Text('Veli telefonu zorunlu!'),
+                            behavior: SnackBarBehavior.floating));
+                        return;
+                      }
+                      setSt(() => yukleniyor = true);
+                      try {
+                        final now       = FieldValue.serverTimestamp();
+                        final geciciSif = _rastgeleKod();
+                        final temizTel  = telCtrl.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+                        final kulAdi    = telCtrl.text.trim(); // tel no = kullanıcı adı
+
+                        // 1. Öğrenci kaydet
+                        final ogrRef = await FirebaseFirestore.instance.collection('students').add({
+                          'firmaId'   : _firmaId,
+                          'ad'        : adCtrl.text.trim(),
+                          'soyad'     : soyadCtrl.text.trim(),
+                          'adSoyad'   : '${adCtrl.text.trim()} ${soyadCtrl.text.trim()}'.trim(),
+                          'adres'     : adresCtrl.text.trim(),
+                          'okul'      : okulCtrl.text.trim(),
+                          'sinif'     : sinifCtrl.text.trim(),
+                          'veliAd'    : veliCtrl.text.trim(),
+                          'veliTel'   : telCtrl.text.trim(),
+                          'aktif'     : true,
+                          'olusturma' : now,
+                        });
+
+                        // 2. Otomatik veli hesabı oluştur
+                        await FirebaseFirestore.instance.collection('parents').doc(ogrRef.id).set({
+                          'firmaId'       : _firmaId,
+                          'ogrenciId'     : ogrRef.id,
+                          'ad'            : veliCtrl.text.trim(),
+                          'telefon'       : telCtrl.text.trim(),
+                          'kullaniciAdi'  : kulAdi,
+                          'geciciSifre'   : geciciSif,
+                          'ilkGiris'      : true,  // ilk girişte şifre değiştir
+                          'aktif'         : true,
+                          'rol'           : 'veli',
+                          'olusturma'     : now,
+                        });
+
+                        // 3. kullanicilar koleksiyonuna da ekle
+                        await FirebaseFirestore.instance.collection('kullanicilar').doc(ogrRef.id).set({
+                          'firmaId'     : _firmaId,
+                          'ad'          : veliCtrl.text.trim(),
+                          'telefon'     : telCtrl.text.trim(),
+                          'kullaniciAdi': kulAdi,
+                          'sifre'       : geciciSif,
+                          'ilkGiris'    : true,
+                          'rol'         : 'veli',
+                          'ogrenciId'   : ogrRef.id,
+                          'olusturma'   : now,
+                        });
+
+                        // 4. Öğrenciye veliId bağla
+                        await FirebaseFirestore.instance.collection('students').doc(ogrRef.id).update({
+                          'veliId': ogrRef.id,
+                        });
+
+                        if (ctx.mounted) Navigator.pop(ctx);
+
+                        // 5. Giriş bilgisi gönder dialog
+                        if (context.mounted) {
+                          _veliGirisDialog(context,
+                            veliCtrl.text.trim(),
+                            telCtrl.text.trim(),
+                            kulAdi,
+                            geciciSif,
+                            adCtrl.text.trim(),
+                          );
+                        }
+                      } catch (e) {
+                        setSt(() => yukleniyor = false);
+                        ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                            content: Text('Hata: \$e'),
+                            backgroundColor: Colors.red,
+                            behavior: SnackBarBehavior.floating));
+                      }
+                    },
+                    icon: yukleniyor
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Icons.save_rounded),
+                    label: Text(yukleniyor ? 'Kaydediliyor...' : 'Kaydet & Veli Hesabı Oluştur',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                  )),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _veliGirisDialog(BuildContext context, String veliAd, String tel,
+      String kulAdi, String sifre, String ogrAd) {
+    final mesaj =
+        'Servisim360\'a Hoş Geldiniz!\n'
+        'Öğrenci: \$ogrAd\n'
+        'Kullanıcı Adınız: \$kulAdi\n'
+        'Geçici Şifreniz: \$sifre\n'
+        'Uygulamaya giriş yapabilirsiniz.';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('\$veliAd — Giriş Bilgileri'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade200)),
+            child: Text(mesaj, style: const TextStyle(fontSize: 13)),
+          ),
+          const SizedBox(height: 12),
+          const Text('Giriş bilgilerini gönderin:',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
+        actions: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Kopyala'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: mesaj));
+              Navigator.pop(_);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Kopyalandı!'),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating));
+            }),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(_);
+              final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
+              final url = Uri.parse(
+                  'https://wa.me/90\$temiz?text=\${Uri.encodeComponent(mesaj)}');
+              if (await canLaunchUrl(url)) {
+                launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold))),
+          TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat')),
+        ],
       ),
     );
   }

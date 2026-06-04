@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pdf/pdf.dart';
@@ -75,7 +76,7 @@ class _GecmisScreenState extends State<GecmisScreen>
       final ogrSnap = await _db
           .collection('firms')
           .doc(_firmaId)
-          .collection('ogrenciler')
+          .collection('students')
           .get();
       _toplamOgrenci = ogrSnap.docs.length;
 
@@ -99,7 +100,7 @@ class _GecmisScreenState extends State<GecmisScreen>
       final surucuSnap = await _db
           .collection('firms')
           .doc(_firmaId)
-          .collection('suruculer')
+          .collection('drivers')
           .get();
       _aktifSofor = surucuSnap.docs
           .where((d) => d.data()['servisDurumu'] == 'basladi')
@@ -371,6 +372,7 @@ class _GecmisScreenState extends State<GecmisScreen>
             style: TextStyle(color: Colors.white, fontSize: 17)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          YardimButonu(ekranAdi: 'Raporlar'),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
             tooltip: 'PDF Rapor Al',

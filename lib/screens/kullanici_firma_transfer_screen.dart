@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class KullaniciFirmaTransferScreen extends StatefulWidget {
@@ -87,6 +88,7 @@ class _KullaniciFirmaTransferScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        actions: [YardimButonu(ekranAdi: 'Ayarlar')],
         title: const Text('Firma Transfer'),
         backgroundColor: _navy,
         foregroundColor: Colors.white,

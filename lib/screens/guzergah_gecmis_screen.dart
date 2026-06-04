@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/guzergah_kayit_service.dart';
@@ -71,6 +72,7 @@ class _GuzergahGecmisScreenState extends State<GuzergahGecmisScreen> {
         title: const Text('Güzergah Geçmişi',
             style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          YardimButonu(ekranAdi: 'Raporlar'),
           IconButton(
             icon: const Icon(Icons.cleaning_services_outlined),
             tooltip: 'Eski kayıtları temizle',

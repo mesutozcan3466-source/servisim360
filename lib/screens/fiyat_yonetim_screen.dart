@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'ai_widget.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // ─── FiyatSonucu modeli ──────────────────────────────────────────────────────
-// tip: 'mahalle' | 'ilce' | 'yok'
+// tip: 'mahalle' | 'ilce' | 'km' | 'yok'
 class FiyatSonucu {
   final double? ucret;   // null = fiyat bulunamadi
   final String ilce;
   final String mahalle;
   final bool bulundu;
   final String aciklama;
-  final String tip;      // 'mahalle' | 'ilce' | 'yok'
+  final String tip;      // 'mahalle' | 'ilce' | 'km' | 'yok'
+  final double? mesafeKm; // km bazlı hesaplamada kullanılan mesafe
 
   const FiyatSonucu({
     required this.ucret,
@@ -19,6 +22,7 @@ class FiyatSonucu {
     required this.bulundu,
     required this.aciklama,
     required this.tip,
+    this.mesafeKm,
   });
 
   static const FiyatSonucu bulunamadi = FiyatSonucu(
@@ -40,6 +44,7 @@ class FiyatHesaplamaServisi {
     String ilce = '',
     String mahalle = '',
     String? veliAdresi, // veli_sozlesme_screen'den gelir, adres string'i
+    double? mesafeKm,   // km bazlı hesaplama için
   }) async {
     if (firmaId.isEmpty) return FiyatSonucu.bulunamadi;
 
@@ -102,6 +107,56 @@ class FiyatHesaplamaServisi {
       );
     }
 
+    // 3. Km bazlı — mesafeKm parametresi verilmişse
+    if (mesafeKm != null && mesafeKm > 0) {
+      final kmSnap = await FirebaseFirestore.instance
+          .collection('fiyatlar')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('tip', isEqualTo: 'km')
+          .orderBy('kmBaslangic')
+          .get();
+
+      for (final doc in kmSnap.docs) {
+        final d = doc.data();
+        final kmBaslangic = (d['kmBaslangic'] as num?)?.toDouble() ?? 0;
+        final kmBitis     = (d['kmBitis']     as num?)?.toDouble() ?? 999;
+        if (mesafeKm >= kmBaslangic && mesafeKm <= kmBitis) {
+          final ucret = (d['ucret'] as num?)?.toDouble();
+          return FiyatSonucu(
+            ucret: ucret,
+            ilce: _ilce,
+            mahalle: _mahalle,
+            bulundu: true,
+            aciklama: '\${mesafeKm.toStringAsFixed(1)} km mesafe için aylık servis ücreti',
+            tip: 'km',
+            mesafeKm: mesafeKm,
+          );
+        }
+      }
+
+      // Km kademesi bulunamadıysa km başına ücret bak
+      final kmBirimSnap = await FirebaseFirestore.instance
+          .collection('fiyatlar')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('tip', isEqualTo: 'km_birim')
+          .limit(1).get();
+      if (kmBirimSnap.docs.isNotEmpty) {
+        final d = kmBirimSnap.docs.first.data();
+        final kmBasFiyat  = (d['kmBasFiyat'] as num?)?.toDouble() ?? 0;
+        final kmBirimFiyat = (d['kmBirimFiyat'] as num?)?.toDouble() ?? 0;
+        final ucret = kmBasFiyat + (mesafeKm * kmBirimFiyat);
+        return FiyatSonucu(
+          ucret: ucret,
+          ilce: _ilce,
+          mahalle: _mahalle,
+          bulundu: true,
+          aciklama: 'Baz: ${kmBasFiyat.toStringAsFixed(0)} TL + \${mesafeKm.toStringAsFixed(1)} km × ${kmBirimFiyat.toStringAsFixed(0)} TL/km',
+          tip: 'km',
+          mesafeKm: mesafeKm,
+        );
+      }
+    }
+
     return FiyatSonucu.bulunamadi;
   }
 }
@@ -130,7 +185,7 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     _firmaIdAl();
   }
 
@@ -203,6 +258,8 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
         title: const Text('Fiyati Sil'),
         content: const Text('Bu fiyat kaydini silmek istiyor musunuz?'),
         actions: [
+          AiAsistanButonu(ekranAdi: 'Fiyatlandirma'),
+          YardimButonu(ekranAdi: 'Fiyatlandirma'),
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Iptal')),
@@ -255,12 +312,13 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
           tabs: const [
             Tab(icon: Icon(Icons.add), text: 'Fiyat Ekle'),
             Tab(icon: Icon(Icons.list), text: 'Fiyat Listesi'),
+            Tab(icon: Icon(Icons.social_distance_outlined), text: 'Km Bazlı'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabCtrl,
-        children: [_eklemeFormu(), _fiyatListesi()],
+        children: [_eklemeFormu(), _fiyatListesi(), _kmFiyatFormu()],
       ),
     );
   }
@@ -351,6 +409,312 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
         ],
       ),
     );
+  }
+
+  // ── Km Bazlı Fiyatlandırma ─────────────────────────────────────
+  Widget _kmFiyatFormu() {
+    final kmBasCtrl     = TextEditingController();
+    final kmBitisCtrl   = TextEditingController();
+    final ucretCtrl     = TextEditingController();
+    final kmBasFiyatCtrl   = TextEditingController();
+    final kmBirimFiyatCtrl = TextEditingController();
+
+    return StatefulBuilder(builder: (ctx, setSt) {
+      bool birimMod = false; // false = kademe modu, true = birim fiyat modu
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // Mod seçici
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: Colors.white, borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade200)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Hesaplama Yöntemi',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: navy)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: GestureDetector(
+                  onTap: () => setSt(() => birimMod = false),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: !birimMod ? navy : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: navy.withValues(alpha: 0.3))),
+                    child: Column(children: [
+                      Icon(Icons.stairs_outlined,
+                          color: !birimMod ? Colors.white : navy, size: 20),
+                      const SizedBox(height: 6),
+                      Text('Km Kademesi', style: TextStyle(
+                          color: !birimMod ? Colors.white : navy,
+                          fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('0-5 km: 1500 TL', style: TextStyle(
+                          color: !birimMod ? Colors.white70 : Colors.grey,
+                          fontSize: 10)),
+                    ]),
+                  ),
+                )),
+                const SizedBox(width: 10),
+                Expanded(child: GestureDetector(
+                  onTap: () => setSt(() => birimMod = true),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: birimMod ? navy : Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: navy.withValues(alpha: 0.3))),
+                    child: Column(children: [
+                      Icon(Icons.calculate_outlined,
+                          color: birimMod ? Colors.white : navy, size: 20),
+                      const SizedBox(height: 6),
+                      Text('Km Başına', style: TextStyle(
+                          color: birimMod ? Colors.white : navy,
+                          fontWeight: FontWeight.bold, fontSize: 12)),
+                      Text('500 + (km × 200 TL)', style: TextStyle(
+                          color: birimMod ? Colors.white70 : Colors.grey,
+                          fontSize: 10)),
+                    ]),
+                  ),
+                )),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Kademe modu
+          if (!birimMod) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Km Kademesi Ekle',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: navy)),
+                const SizedBox(height: 4),
+                const Text('Örnek: 0-5 km arası 1500 TL, 5-10 km arası 2000 TL',
+                    style: TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 14),
+                Row(children: [
+                  Expanded(child: TextField(
+                    controller: kmBasCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Başlangıç km',
+                      prefixIcon: const Icon(Icons.start_outlined),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                    ),
+                  )),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('—', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  ),
+                  Expanded(child: TextField(
+                    controller: kmBitisCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Bitiş km',
+                      prefixIcon: const Icon(Icons.sports_score_outlined),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                    ),
+                  )),
+                ]),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: ucretCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Aylık Ücret (TL)',
+                    prefixIcon: const Icon(Icons.attach_money_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: orange, foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10))),
+                  onPressed: () async {
+                    if (kmBasCtrl.text.isEmpty || kmBitisCtrl.text.isEmpty ||
+                        ucretCtrl.text.isEmpty) return;
+                    await FirebaseFirestore.instance.collection('fiyatlar').add({
+                      'firmaId'     : _firmaId,
+                      'tip'         : 'km',
+                      'kmBaslangic' : double.tryParse(kmBasCtrl.text) ?? 0,
+                      'kmBitis'     : double.tryParse(kmBitisCtrl.text) ?? 0,
+                      'ucret'       : double.tryParse(ucretCtrl.text) ?? 0,
+                      'olusturma'   : FieldValue.serverTimestamp(),
+                    });
+                    kmBasCtrl.clear(); kmBitisCtrl.clear(); ucretCtrl.clear();
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(content: Text('Kademe eklendi!'),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating));
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Kademe Ekle',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                )),
+              ]),
+            ),
+            const SizedBox(height: 12),
+
+            // Mevcut km kademeleri
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('fiyatlar')
+                  .where('firmaId', isEqualTo: _firmaId)
+                  .where('tip', isEqualTo: 'km')
+                  .orderBy('kmBaslangic').snapshots(),
+              builder: (_, snap) {
+                final docs = snap.data?.docs ?? [];
+                if (docs.isEmpty) return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(10)),
+                  child: const Text('Henüz km kademesi eklenmedi',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      textAlign: TextAlign.center),
+                );
+                return Column(children: docs.map((doc) {
+                  final d = doc.data() as Map<String, dynamic>;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    child: ListTile(
+                      dense: true,
+                      leading: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: navy.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6)),
+                        child: Text(
+                          '${(d['kmBaslangic'] as num?)?.toInt() ?? 0}–'
+                          '${(d['kmBitis'] as num?)?.toInt() ?? 0} km',
+                          style: const TextStyle(fontWeight: FontWeight.bold,
+                              color: navy, fontSize: 12)),
+                      ),
+                      title: Text('${(d['ucret'] as num?)?.toInt() ?? 0} TL / ay',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: Colors.red, size: 18),
+                        onPressed: () => doc.reference.delete()),
+                    ),
+                  );
+                }).toList());
+              },
+            ),
+          ],
+
+          // Birim fiyat modu
+          if (birimMod) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Km Başına Fiyat',
+                    style: TextStyle(fontWeight: FontWeight.bold,
+                        fontSize: 14, color: navy)),
+                const SizedBox(height: 4),
+                const Text('Formül: Toplam = Baz Fiyat + (Mesafe × Km Birim Fiyatı)',
+                    style: TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: kmBasFiyatCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Baz Fiyat (TL)',
+                    helperText: 'Her müşteri için sabit ücret',
+                    prefixIcon: const Icon(Icons.attach_money_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: kmBirimFiyatCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Km Birim Fiyatı (TL/km)',
+                    helperText: 'Her km başına eklenecek tutar',
+                    prefixIcon: const Icon(Icons.route_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Önizleme
+                if (kmBasFiyatCtrl.text.isNotEmpty && kmBirimFiyatCtrl.text.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Column(children: [3, 5, 8, 10, 15].map((km) {
+                      final baz    = double.tryParse(kmBasFiyatCtrl.text) ?? 0;
+                      final birim  = double.tryParse(kmBirimFiyatCtrl.text) ?? 0;
+                      final toplam = baz + km * birim;
+                      return Row(children: [
+                        Text('$km km →', style: const TextStyle(
+                            fontSize: 12, color: Colors.blue)),
+                        const Spacer(),
+                        Text('${toplam.toStringAsFixed(0)} TL / ay',
+                            style: const TextStyle(fontWeight: FontWeight.bold,
+                                fontSize: 12, color: Colors.blue)),
+                      ]);
+                    }).toList()),
+                  ),
+                const SizedBox(height: 14),
+                SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: navy, foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10))),
+                  onPressed: () async {
+                    if (kmBasFiyatCtrl.text.isEmpty ||
+                        kmBirimFiyatCtrl.text.isEmpty) return;
+                    // Önceki birim kaydını sil
+                    final eski = await FirebaseFirestore.instance
+                        .collection('fiyatlar')
+                        .where('firmaId', isEqualTo: _firmaId)
+                        .where('tip', isEqualTo: 'km_birim').get();
+                    for (final d in eski.docs) await d.reference.delete();
+                    // Yeni kayıt
+                    await FirebaseFirestore.instance.collection('fiyatlar').add({
+                      'firmaId'      : _firmaId,
+                      'tip'          : 'km_birim',
+                      'kmBasFiyat'   : double.tryParse(kmBasFiyatCtrl.text) ?? 0,
+                      'kmBirimFiyat' : double.tryParse(kmBirimFiyatCtrl.text) ?? 0,
+                      'olusturma'    : FieldValue.serverTimestamp(),
+                    });
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(content: Text('Km birim fiyatı kaydedildi!'),
+                            backgroundColor: Colors.green,
+                            behavior: SnackBarBehavior.floating));
+                  },
+                  icon: const Icon(Icons.save_rounded, size: 18),
+                  label: const Text('Kaydet',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                )),
+              ]),
+            ),
+          ],
+        ]),
+      );
+    });
   }
 
   Widget _fiyatListesi() {

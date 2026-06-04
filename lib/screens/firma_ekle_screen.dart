@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -171,6 +172,7 @@ class _FirmaEkleScreenState extends State<FirmaEkleScreen> {
         title: const Text('Yeni Firma Ekle',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
         actions: [
+          YardimButonu(ekranAdi: 'Ayarlar'),
           if (_yukleniyor)
             const Padding(
               padding: EdgeInsets.all(16),

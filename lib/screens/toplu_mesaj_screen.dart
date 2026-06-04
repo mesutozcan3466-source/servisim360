@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/session_service.dart';
@@ -124,6 +125,7 @@ class _TopluMesajScreenState extends State<TopluMesajScreen>
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: _navy, foregroundColor: Colors.white, elevation: 0,
+        actions: [YardimButonu(ekranAdi: 'Raporlar')],
         title: const Text('Toplu Mesaj', style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: TabBar(
           controller: _tabCtrl,

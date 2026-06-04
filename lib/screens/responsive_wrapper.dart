@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 // ════════════════════════════════════════════════════════════════
@@ -326,6 +327,7 @@ class _MobilLayoutState extends State<_MobilLayout> {
                 fontSize: 11, color: Colors.white60)),
         ]),
         actions: [
+          YardimButonu(ekranAdi: 'Genel'),
           if (widget.ekAlan != null) widget.ekAlan!,
           IconButton(
               icon: const Icon(Icons.logout_outlined),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'yardim_widget.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -359,6 +360,7 @@ class _QrCheckInScreenState extends State<QrCheckInScreen> {
           ),
         ),
         actions: [
+          YardimButonu(ekranAdi: 'Kayitlar'),
           TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Iptal')),
