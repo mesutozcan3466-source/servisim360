@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/session_service.dart';
-import 'ai_widget.dart';
-import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -71,7 +68,6 @@ class FiyatHesaplamaServisi {
       final snap = await FirebaseFirestore.instance
           .collection('fiyatlar')
           .where('firmaId', isEqualTo: firmaId)
-          .where('projeId', isEqualTo: _projeId)
           .where('ilce', isEqualTo: _ilce)
           .where('mahalle', isEqualTo: _mahalle)
           .limit(1)
@@ -93,7 +89,6 @@ class FiyatHesaplamaServisi {
     final snap = await FirebaseFirestore.instance
         .collection('fiyatlar')
         .where('firmaId', isEqualTo: firmaId)
-          .where('projeId', isEqualTo: _projeId)
         .where('ilce', isEqualTo: _ilce)
         .where('mahalle', isEqualTo: '')
         .limit(1)
@@ -115,7 +110,6 @@ class FiyatHesaplamaServisi {
       final kmSnap = await FirebaseFirestore.instance
           .collection('fiyatlar')
           .where('firmaId', isEqualTo: firmaId)
-          .where('projeId', isEqualTo: _projeId)
           .where('tip', isEqualTo: 'km')
           .orderBy('kmBaslangic')
           .get();
@@ -142,7 +136,6 @@ class FiyatHesaplamaServisi {
       final kmBirimSnap = await FirebaseFirestore.instance
           .collection('fiyatlar')
           .where('firmaId', isEqualTo: firmaId)
-          .where('projeId', isEqualTo: _projeId)
           .where('tip', isEqualTo: 'km_birim')
           .limit(1).get();
       if (kmBirimSnap.docs.isNotEmpty) {
@@ -186,8 +179,6 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
   final _notCtrl = TextEditingController();
   bool _yukleniyor = false;
   String _firmaId = '';
-  String _projeId  = '';
-  String _projeAdi = '';
 
   @override
   void initState() {
@@ -203,11 +194,7 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
         .collection('kullanicilar')
         .doc(uid)
         .get();
-    setState(() {
-      _firmaId  = snap.data()?['firmaId'] ?? '';
-      _projeId  = SessionService.instance.aktifProjeld  ?? '';
-      _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
-    });
+    setState(() => _firmaId = snap.data()?['firmaId'] ?? '');
   }
 
   Future<void> _fiyatEkle() async {
@@ -228,7 +215,6 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
       final sorgu = await FirebaseFirestore.instance
           .collection('fiyatlar')
           .where('firmaId', isEqualTo: _firmaId)
-          .where('projeId', isEqualTo: _projeId)
           .where('ilce', isEqualTo: ilce)
           .where('mahalle', isEqualTo: mahalle)
           .get();
@@ -270,8 +256,6 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
         title: const Text('Fiyati Sil'),
         content: const Text('Bu fiyat kaydini silmek istiyor musunuz?'),
         actions: [
-          AiAsistanButonu(ekranAdi: 'Fiyatlandirma'),
-          YardimButonu(ekranAdi: 'Fiyatlandirma'),
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Iptal')),
@@ -583,7 +567,6 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('fiyatlar')
                   .where('firmaId', isEqualTo: _firmaId)
-          .where('projeId', isEqualTo: _projeId)
                   .where('tip', isEqualTo: 'km')
                   .orderBy('kmBaslangic').snapshots(),
               builder: (_, snap) {
@@ -738,7 +721,6 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
       stream: FirebaseFirestore.instance
           .collection('fiyatlar')
           .where('firmaId', isEqualTo: _firmaId)
-          .where('projeId', isEqualTo: _projeId)
           .orderBy('ilce')
           .snapshots(),
       builder: (ctx, snap) {
