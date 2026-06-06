@@ -128,8 +128,8 @@ class _WebHaritaState extends State<WebHarita> {
     final dLng = (b.longitude - a.longitude) * math.pi / 180;
     final x = math.sin(dLat/2) * math.sin(dLat/2) +
         math.cos(a.latitude  * math.pi / 180) *
-        math.cos(b.latitude  * math.pi / 180) *
-        math.sin(dLng/2) * math.sin(dLng/2);
+            math.cos(b.latitude  * math.pi / 180) *
+            math.sin(dLng/2) * math.sin(dLng/2);
     return R * 2 * math.atan2(math.sqrt(x), math.sqrt(1 - x));
   }
 
@@ -219,7 +219,7 @@ class _WebHaritaState extends State<WebHarita> {
 
       // Öğrencileri en yakın komşu algoritmasıyla sırala
       final tumOgrenciler =
-          _ogrenciler.where((o) => (o['surucuId'] ?? '') == sid).toList();
+      _ogrenciler.where((o) => (o['surucuId'] ?? '') == sid).toList();
       final siraliOgrenciler = _rotaSirala(tumOgrenciler, soforKonum);
       final List<LatLng> rotaNoktalar = [];
       if (soforKonum != null) rotaNoktalar.add(soforKonum);
@@ -238,8 +238,8 @@ class _WebHaritaState extends State<WebHarita> {
               snippet: bindi
                   ? '✅ Bindi'
                   : '⏳ Bekliyor — ${(ogrKonum != null && soforKonum != null)
-                      ? '${(_mesafeHesapla(soforKonum, ogrKonum) / 1000).toStringAsFixed(1)} km'
-                      : ''}',
+                  ? '${(_mesafeHesapla(soforKonum, ogrKonum) / 1000).toStringAsFixed(1)} km'
+                  : ''}',
             ),
             icon: BitmapDescriptor.defaultMarkerWithHue(
               bindi
@@ -306,10 +306,6 @@ class _WebHaritaState extends State<WebHarita> {
 
   @override
   Widget build(BuildContext context) {
-    if (_yukleniyor) {
-      return const Center(child: CircularProgressIndicator(color: _navy));
-    }
-
     return Row(children: [
       // SOL PANEL
       Container(
@@ -329,10 +325,10 @@ class _WebHaritaState extends State<WebHarita> {
                 const Text('Servisler',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                 Text(
-                  '${_sonGuncelleme.hour.toString().padLeft(2, '0')}:'
-                  '${_sonGuncelleme.minute.toString().padLeft(2, '0')}'
-                  ' güncellendi',
-                  style: const TextStyle(color: Colors.white54, fontSize: 9)),
+                    '${_sonGuncelleme.hour.toString().padLeft(2, '0')}:'
+                        '${_sonGuncelleme.minute.toString().padLeft(2, '0')}'
+                        ' güncellendi',
+                    style: const TextStyle(color: Colors.white54, fontSize: 9)),
               ])),
               GestureDetector(
                 onTap: () {
@@ -474,6 +470,14 @@ class _WebHaritaState extends State<WebHarita> {
             mapToolbarEnabled: false,
             mapType: _mapTipi,
           ),
+          // Loading overlay - harita hep görünür kalır
+          if (_yukleniyor)
+            Container(
+              color: Colors.white.withValues(alpha: 0.7),
+              child: const Center(
+                child: CircularProgressIndicator(color: _navy),
+              ),
+            ),
           Positioned(top: 12, right: 12, child: Column(children: [
             _HaritaBtn(icon: Icons.refresh, tooltip: 'Yenile', onTap: _yukle),
             const SizedBox(height: 6),
