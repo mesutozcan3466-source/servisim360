@@ -12,6 +12,7 @@ import 'web_soforler.dart';
 import 'web_ayarlar.dart';
 import 'sofor_sozlesme_screen.dart';
 import 'araclar_screen.dart';
+import 'plaka_tanima_screen.dart';
 import 'sozlesme_yonetim_screen.dart';
 import 'web_raporlar.dart';
 import 'web_harita.dart';

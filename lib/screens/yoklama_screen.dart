@@ -15,6 +15,8 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
   static const _turuncu = Color(0xFFFF8C00);
 
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   List<Map<String, dynamic>> _ogrenciler = [];
   bool _yukleniyor = true;
   final Map<String, String> _durumlar = {};
@@ -27,12 +29,15 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
 
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
-    _firmaId = await SessionService.instance.firmaldAl();
+    _firmaId  = await SessionService.instance.firmaldAl();
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (_firmaId == null) { setState(() => _yukleniyor = false); return; }
 
     final snap = await FirebaseFirestore.instance
         .collection('students')
         .where('firmaId', isEqualTo: _firmaId)
+          .where('projeId', isEqualTo: _projeId)
         .where('aktif', isEqualTo: true)
         .get();
 

@@ -33,6 +33,8 @@ class _SoforRotaScreenState extends State<SoforRotaScreen>
   List<Map<String, dynamic>> _ogrenciler = [];
   Map<String, dynamic>? _soforData;
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   String _aracPlaka = '';
   bool _yukleniyor = true;
 
@@ -57,7 +59,9 @@ class _SoforRotaScreenState extends State<SoforRotaScreen>
   }
 
   Future<void> _yukle() async {
-    _firmaId = await SessionService.instance.firmaldAl();
+    _firmaId  = await SessionService.instance.firmaldAl();
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
 
     try {
       var dSnap = await FirebaseFirestore.instance

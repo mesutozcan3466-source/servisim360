@@ -21,6 +21,8 @@ class _AraclarScreenState extends State<AraclarScreen> {
   static const _turuncu = Color(0xFFFF8C00);
 
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   String  _aramaMetni = '';
   String? _filtreDurum; // null = tümü
   List<Map<String, dynamic>> _soforler = [];
@@ -151,6 +153,7 @@ class _AraclarScreenState extends State<AraclarScreen> {
             stream: FirebaseFirestore.instance
                 .collection('vehicles')
                 .where('firmaId', isEqualTo: _firmaId)
+          .where('projeId', isEqualTo: _projeId)
                 .orderBy('olusturma', descending: true)
                 .snapshots(),
             builder: (_, snap) {

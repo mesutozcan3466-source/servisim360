@@ -17,12 +17,16 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
   static const _turuncu = Color(0xFFFF8C00);
 
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   String  _arama = '';
 
   @override
   void initState() {
     super.initState();
     SessionService.instance.firmaIdAl().then((id) {
+      _projeId  = SessionService.instance.aktifProjeld  ?? '';
+      _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
       if (mounted) setState(() => _firmaId = id);
     });
   }
@@ -63,6 +67,7 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
           stream: FirebaseFirestore.instance
               .collection('students')
               .where('firmaId', isEqualTo: _firmaId)
+          .where('projeId', isEqualTo: _projeId)
               .orderBy('ad')
               .snapshots(),
           builder: (_, snap) {

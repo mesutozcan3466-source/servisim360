@@ -62,6 +62,27 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
     super.dispose();
   }
 
+  void _okulaUlastiDinle() {
+    // Plaka tanıma sistemi okula giriş yapınca veli bilgilendirilir
+    FirebaseFirestore.instance
+        .collection('okul_girisler')
+        .where('ogrenciId', isEqualTo: _ogrenciId)
+        .snapshots()
+        .listen((snap) {
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (!mounted || data['bildirimGonderildi'] == true) continue;
+        _ozelBildirimGoster(
+          '🏫 Okula Ulaştı',
+          '${data['ogrenciAd'] ?? 'Öğrenci'} '
+          '${data['girisSaatiStr'] ?? ''} saatinde okula ulaştı.',
+          Colors.green,
+        );
+        doc.reference.update({'bildirimGonderildi': true});
+      }
+    });
+  }
+
   Future<void> _yukle() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) { setState(() => _yukleniyor = false); return; }
@@ -321,6 +342,42 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
       _hazirolBildirimi = true;
       _yaklasiyorDurakDialog();
     }
+  }
+
+  void _ozelBildirimGoster(String baslik, String mesaj, Color renk) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: renk.withValues(alpha: 0.05),
+        title: Row(children: [
+          Container(padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: renk.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Icon(
+                renk == Colors.green
+                    ? Icons.school_outlined : Icons.directions_bus_outlined,
+                color: renk, size: 22)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(baslik,
+              style: TextStyle(color: renk, fontWeight: FontWeight.bold,
+                  fontSize: 15))),
+        ]),
+        content: Text(mesaj,
+            style: const TextStyle(fontSize: 13, height: 1.5)),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: renk, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(_),
+            child: const Text('Tamam')),
+        ],
+      ),
+    );
   }
 
   void _snackBildirim(String baslik, String mesaj, Color renk, IconData ikon) {

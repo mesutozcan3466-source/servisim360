@@ -47,6 +47,7 @@ import 'screens/sozlesme_yonetim_screen.dart';
 import 'screens/sofor_sozlesme_screen.dart';
 import 'screens/dijital_imza_screen.dart';
 import 'screens/arsiv_screen.dart';
+import 'screens/plaka_tanima_screen.dart';
 import 'screens/proje_arsiv_screen.dart';
 import 'screens/yoklama_screen.dart';
 import 'screens/rotalar_screen.dart';
@@ -350,6 +351,7 @@ class _ServisimAppState extends State<ServisimApp> {
         '/sozlesme':        (_) => const SozlesmeYonetimScreen(), // eski → yeni
         '/sozlesme_yonetim': (_) => const SozlesmeYonetimScreen(),
         '/arsiv':           (_) => const ArsivScreen(),
+        '/plaka_tanima':    (_) => const PlakaTanimaScreen(),
         '/proje_arsiv':     (_) => const ProjeArsivScreen(),
 
         '/kayit_link':          (_) => const KayitLinkScreen(),

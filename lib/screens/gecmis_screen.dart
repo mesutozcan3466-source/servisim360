@@ -23,6 +23,8 @@ class _GecmisScreenState extends State<GecmisScreen>
   late TabController _tabController;
 
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   bool _yukleniyor = true;
 
   // Filtre

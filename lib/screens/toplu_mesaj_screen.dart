@@ -18,6 +18,8 @@ class _TopluMesajScreenState extends State<TopluMesajScreen>
 
   late TabController _tabCtrl;
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   bool _yukleniyor = true;
 
   List<Map<String, dynamic>> _veliler   = [];
@@ -41,7 +43,9 @@ class _TopluMesajScreenState extends State<TopluMesajScreen>
 
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
-    _firmaId = await SessionService.instance.firmaIdAl();
+    _firmaId  = await SessionService.instance.firmaIdAl();
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (_firmaId == null) { setState(() => _yukleniyor = false); return; }
 
     try {
@@ -246,7 +250,7 @@ class _TopluMesajScreenState extends State<TopluMesajScreen>
               child: CheckboxListTile(
                 value: secili, activeColor: _navy,
                 onChanged: (v) => onSecildi(id, v ?? false),
-                title: Text(ad, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        title: Text(ad, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 subtitle: Text(tel, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                 secondary: CircleAvatar(
                   backgroundColor: _navy.withValues(alpha: 0.1), radius: 18,

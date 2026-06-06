@@ -115,6 +115,7 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
       _notifDinle();
       _fcmTokenKaydet();
       _servisSaatiKontrol();
+      _gelmeyecekDinle(); // Veli gelmeyecek seçince anlık güncelle
       _sesli.baslat();
       await ArkaplanKonumServisi.baslatServisi();
     }
@@ -304,7 +305,97 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         'hiz': pos.speed * 3.6,
         'konumGuncelleme': FieldValue.serverTimestamp(),
       });
+      // Yaklaşıyor kontrolü — her konum güncellemesinde
+      await _yaklasiyorKontrol(pos);
     } catch (_) {}
+  }
+
+  // ── YAKLAŞIYOR BİLDİRİMİ ─────────────────────────────────────
+  final Set<String> _yaklasiyorBildirimGonderildi = {};
+
+  Future<void> _yaklasiyorKontrol(Position soforPos) async {
+    // Gelmeyecek öğrencileri filtrele
+    final bekleyenler = _ogrenciler.where((o) {
+      if (o['bindi'] == true) return false;
+      if (o['bugunGelmeyecek'] == true) return false;
+      return true;
+    }).toList();
+
+    for (final ogr in bekleyenler) {
+      final konum = ogr['konum'];
+      if (konum == null) continue;
+      double ogrLat, ogrLng;
+      if (konum is GeoPoint) { ogrLat = konum.latitude; ogrLng = konum.longitude; }
+      else continue;
+
+      final mesafe = Geolocator.distanceBetween(
+          soforPos.latitude, soforPos.longitude, ogrLat, ogrLng);
+
+      final ogrId = ogr['id'] as String;
+
+      // 700m — Servis yaklaşıyor bildirimi
+      if (mesafe <= 700 && !_yaklasiyorBildirimGonderildi.contains('700_$ogrId')) {
+        _yaklasiyorBildirimGonderildi.add('700_$ogrId');
+        final dakika = (mesafe / 300).ceil(); // 300m/dk ortalama hız
+        await _veliBildirimGonder(ogr, '🚍 Servis Yaklaşıyor',
+            'Servis ${mesafe.toInt()} metre uzakta, tahmini $dakika dakika.');
+      }
+
+      // 100m — Kapınızdayız bildirimi
+      if (mesafe <= 100 && !_yaklasiyorBildirimGonderildi.contains('100_$ogrId')) {
+        _yaklasiyorBildirimGonderildi.add('100_$ogrId');
+        await _veliBildirimGonder(ogr, '🚍 Kapınızdayız',
+            'Servis kapınızda bekliyor. Lütfen hazır olun!');
+      }
+    }
+  }
+
+  Future<void> _veliBildirimGonder(
+      Map<String, dynamic> ogr, String baslik, String mesaj) async {
+    try {
+      final veliId = ogr['veliId'] ?? ogr['id'];
+      await FirebaseFirestore.instance.collection('bildirimler').add({
+        'aliciId'  : veliId,
+        'firmaId'  : _firmaId,
+        'surucuId' : _surucuId,
+        'ogrenciId': ogr['id'],
+        'baslik'   : baslik,
+        'mesaj'    : mesaj,
+        'tip'      : 'yaklasıyor',
+        'okundu'   : false,
+        'tarih'    : FieldValue.serverTimestamp(),
+      });
+    } catch (e) { debugPrint('Bildirim hata: $e'); }
+  }
+
+  // ── BUGÜN GELMEYECEK — ROTA GÜNCELLEMESİ ────────────────────
+  Future<void> _gelmeyecekGuncelle() async {
+    // Firestore'dan güncel gelmeyecek durumunu çek
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('students')
+          .where('surucuId', isEqualTo: _surucuId)
+          .get();
+
+      final guncelliste = snap.docs.map((d) {
+        final data = d.data();
+        return {
+          'id'              : d.id,
+          ...data,
+          // Gelmeyecek öğrencileri listede tut ama filtrele
+          'bugunGelmeyecek': data['bugunGelmeyecek'] ?? false,
+        };
+      }).toList();
+
+      // Sırala: gelmeyecekler sona
+      guncelliste.sort((a, b) {
+        final aGelm = a['bugunGelmeyecek'] == true ? 1 : 0;
+        final bGelm = b['bugunGelmeyecek'] == true ? 1 : 0;
+        return aGelm.compareTo(bGelm);
+      });
+
+      if (mounted) setState(() => _ogrenciler = guncelliste);
+    } catch (e) { debugPrint('Gelmeyecek güncelle hata: $e'); }
   }
 
   Future<void> _fcmTokenKaydet() async {
@@ -369,6 +460,25 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     return nowMin >= basMin && nowMin <= bitMin;
   }
 
+  void _gelmeyecekDinle() {
+    if (_surucuId.isEmpty) return;
+    // Öğrencilerin bugunGelmeyecek alanını dinle — veli değiştirince anlık güncelle
+    FirebaseFirestore.instance
+        .collection('students')
+        .where('surucuId', isEqualTo: _surucuId)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      final liste = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      liste.sort((a, b) {
+        final aGelm = a['bugunGelmeyecek'] == true ? 1 : 0;
+        final bGelm = b['bugunGelmeyecek'] == true ? 1 : 0;
+        return aGelm.compareTo(bGelm);
+      });
+      setState(() => _ogrenciler = liste);
+    });
+  }
+
   void _notifDinle() {
     if (_surucuId.isEmpty) return;
     _notifStream = FirebaseFirestore.instance
@@ -380,21 +490,89 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
       for (final doc in snap.docs) {
         final data = doc.data();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Row(children: [
-            const Icon(Icons.notifications_outlined, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(data['baslik'] ?? 'Bildirim', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
-              Text(data['mesaj'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.white70)),
-            ])),
-          ]),
-          backgroundColor: _navy, duration: const Duration(seconds: 5), behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(label: 'Tamam', textColor: _turuncu, onPressed: () {}),
-        ));
+        final tip = data['tip'] ?? '';
+
+        // Rota önerisi — özel dialog
+        if (tip == 'rota_oneri') {
+          _rotaOneriGoster(
+            data['baslik'] ?? 'Rota Önerisi',
+            data['mesaj']  ?? '',
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Row(children: [
+              const Icon(Icons.notifications_outlined, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(data['baslik'] ?? 'Bildirim', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                Text(data['mesaj'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              ])),
+            ]),
+            backgroundColor: _navy, duration: const Duration(seconds: 5), behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(label: 'Tamam', textColor: _turuncu, onPressed: () {}),
+          ));
+        }
         doc.reference.update({'okundu': true});
       }
     });
+  }
+
+  void _rotaOneriGoster(String baslik, String mesaj) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.blue.shade50,
+        title: Row(children: [
+          Container(padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.alt_route_outlined,
+                  color: Colors.blue, size: 24)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(baslik,
+              style: const TextStyle(color: Colors.blue,
+                  fontWeight: FontWeight.bold, fontSize: 15))),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(mesaj,
+              style: const TextStyle(fontSize: 13, height: 1.6)),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10)),
+            child: const Row(children: [
+              Icon(Icons.info_outline, color: Colors.blue, size: 14),
+              SizedBox(width: 6),
+              Expanded(child: Text(
+                'Google Maps açarak trafik durumunu kontrol edebilirsiniz.',
+                style: TextStyle(fontSize: 11, color: Colors.blue))),
+            ]),
+          ),
+        ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(_),
+              child: const Text('Kapat')),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10))),
+            onPressed: () {
+              Navigator.pop(_);
+              _navigasyonAc(); // Navigasyonu doğrudan aç
+            },
+            icon: const Icon(Icons.navigation_outlined, size: 16),
+            label: const Text('Navigasyonu Aç')),
+        ],
+      ),
+    );
   }
 
   Widget _bostaSatir(IconData icon, String text, bool tamam) =>
@@ -867,6 +1045,121 @@ class _MiniIstat extends StatelessWidget {
     Text(deger, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: renk)),
     Text(etiket, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
   ]);
+}
+
+// ── ÖĞRENCİ DETAY KARTI ─────────────────────────────────────
+class _OgrenciDetaySheet extends StatelessWidget {
+  final Map<String, dynamic> ogr;
+  static const _navy    = Color(0xFF1a3a6b);
+  static const _turuncu = Color(0xFFFF8C00);
+
+  const _OgrenciDetaySheet({required this.ogr});
+
+  @override
+  Widget build(BuildContext context) {
+    final ad      = '${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}'.trim();
+    final adres   = ogr['adres'] ?? ogr['address'] ?? '-';
+    final babaTel = ogr['babaTel'] ?? ogr['veliTel'] ?? '';
+    final anneTel = ogr['anneTel'] ?? '';
+    final ogrTel  = ogr['ogrenciTel'] ?? '';
+    final sinif   = ogr['sinif'] ?? '';
+    final okul    = ogr['okul'] ?? '';
+    final notlar  = ogr['notlar'] ?? ogr['not'] ?? '';
+    final bindi   = ogr['bindi'] ?? false;
+
+    return Container(
+      decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      padding: const EdgeInsets.all(20),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+
+        // Öğrenci başlık
+        Row(children: [
+          CircleAvatar(radius: 24,
+              backgroundColor: _navy.withValues(alpha: 0.1),
+              child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : '?',
+                  style: const TextStyle(color: _navy,
+                      fontWeight: FontWeight.bold, fontSize: 18))),
+          const SizedBox(width: 14),
+          Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(ad, style: const TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 17)),
+            if (sinif.isNotEmpty || okul.isNotEmpty)
+              Text('$sinif${sinif.isNotEmpty && okul.isNotEmpty ? " • " : ""}$okul',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          ])),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+                color: bindi ? Colors.green.shade50 : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8)),
+            child: Text(bindi ? '✅ Bindi' : '⏳ Bekliyor',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
+                    color: bindi ? Colors.green : Colors.orange)),
+          ),
+        ]),
+        const Divider(height: 20),
+
+        // Adres
+        _detayRow(Icons.location_on_outlined, 'Adres', adres, Colors.blue),
+        if (notlar.isNotEmpty)
+          _detayRow(Icons.notes_outlined, 'Not', notlar, Colors.purple),
+        const SizedBox(height: 12),
+
+        // Telefon butonları
+        if (babaTel.isNotEmpty)
+          _telBtn('Baba / Veli', babaTel, Colors.green, context),
+        if (anneTel.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _telBtn('Anne', anneTel, Colors.pink, context),
+        ],
+        if (ogrTel.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _telBtn('Öğrenci', ogrTel, _navy, context),
+        ],
+        const SizedBox(height: 8),
+      ]),
+    );
+  }
+
+  Widget _detayRow(IconData ikon, String label, String deger, Color renk) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(ikon, size: 16, color: renk),
+          const SizedBox(width: 8),
+          Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+            Text(deger, style: const TextStyle(fontSize: 13)),
+          ])),
+        ]),
+      );
+
+  Widget _telBtn(String label, String tel, Color renk, BuildContext ctx) =>
+      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+            backgroundColor: renk, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10))),
+        onPressed: () async {
+          final uri = Uri.parse('tel:$tel');
+          try {
+            // ignore: deprecated_member_use
+            await launchUrl(uri);
+          } catch (_) {}
+        },
+        icon: const Icon(Icons.phone_outlined, size: 18),
+        label: Text('$label — $tel',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+      ));
 }
 
 class _VeliAraSheet extends StatelessWidget {

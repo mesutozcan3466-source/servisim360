@@ -152,7 +152,7 @@ class _KullaniciFirmaTransferScreenState
                         Icons.business,
                         color: secili ? _navy : Colors.grey,
                       ),
-                      title: Text(
+        title: Text(
                         f['ad'],
                         style: TextStyle(
                           fontWeight: secili

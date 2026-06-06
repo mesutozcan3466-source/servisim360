@@ -19,6 +19,8 @@ class _KonumToplamaScreenState extends State<KonumToplamaScreen> {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   GoogleMapController? _mapController;
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   bool _yukleniyor = true;
 
   List<Map<String, dynamic>> _ogrenciler = [];

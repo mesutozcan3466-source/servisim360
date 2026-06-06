@@ -22,6 +22,8 @@ class _ArsivScreenState extends State<ArsivScreen>
 
   late TabController _tab;
   String _firmaId = '';
+  String _projeId  = '';
+  String _projeAdi = '';
   String _arama   = '';
   final _aramaCtrl = TextEditingController();
 
@@ -45,7 +47,9 @@ class _ArsivScreenState extends State<ArsivScreen>
   void dispose() { _tab.dispose(); _aramaCtrl.dispose(); super.dispose(); }
 
   Future<void> _yukle() async {
-    _firmaId = await SessionService.instance.firmaIdAl() ?? '';
+    _firmaId  = await SessionService.instance.firmaIdAl() ?? '';
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (mounted) setState(() {});
   }
 
@@ -112,7 +116,8 @@ class _ArsivScreenState extends State<ArsivScreen>
 
     var query = FirebaseFirestore.instance
         .collection('sozlesmeler')
-        .where('firmaId', isEqualTo: _firmaId);
+        .where('firmaId', isEqualTo: _firmaId)
+          .where('projeId', isEqualTo: _projeId);
 
     if (durum != 'tumu') {
       query = query.where('durum', isEqualTo: durum);

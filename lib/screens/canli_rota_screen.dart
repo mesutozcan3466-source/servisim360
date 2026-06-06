@@ -22,6 +22,8 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
   Set<Polyline> _polylines = {};
 
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   String? _surucuDocId;
   bool    _servisAktif = false;
   bool    _yukleniyor  = true;
@@ -52,7 +54,9 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
   }
 
   Future<void> _init() async {
-    _firmaId = await SessionService.instance.firmaIdAl();
+    _firmaId  = await SessionService.instance.firmaIdAl();
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid != null && _firmaId != null) {
@@ -60,6 +64,7 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
       final snap = await FirebaseFirestore.instance
           .collection('drivers')
           .where('firmaId', isEqualTo: _firmaId)
+          .where('projeId', isEqualTo: _projeId)
           .where('uid', isEqualTo: uid)
           .limit(1).get();
 

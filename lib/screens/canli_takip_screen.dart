@@ -41,6 +41,8 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
   Map<String, dynamic>? _sofor;
   String? _soforDocId;
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
 
   // Harita
   LatLng? _soforKonum;
@@ -143,7 +145,9 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
       return;
     }
 
-    _firmaId = await SessionService.instance.firmaldAl();
+    _firmaId  = await SessionService.instance.firmaldAl();
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
 
     try {
       // Ogrenciyi bul — GUVENLIK: sadece kendi veliId'si

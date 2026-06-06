@@ -16,6 +16,8 @@ class _GuzergahGecmisScreenState extends State<GuzergahGecmisScreen> {
   static const _navy = Color(0xFF1a3a6b);
 
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   String? _seciliSurucuId;
   String? _seciliSurucuAd;
   List<Map<String, dynamic>> _suruculer = [];
@@ -29,7 +31,9 @@ class _GuzergahGecmisScreenState extends State<GuzergahGecmisScreen> {
   }
 
   Future<void> _yukle() async {
-    _firmaId = await SessionService.instance.firmaIdAl();
+    _firmaId  = await SessionService.instance.firmaIdAl();
+    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (_firmaId == null) return;
 
     // drivers koleksiyonu — Servisim360 yeni yapısı

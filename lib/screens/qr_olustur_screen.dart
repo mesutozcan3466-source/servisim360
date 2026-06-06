@@ -16,6 +16,8 @@ class _QrOlusturScreenState extends State<QrOlusturScreen> {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   String? _firmaId;
+  String  _projeId  = '';
+  String  _projeAdi = '';
   bool _yukleniyor = true;
   List<Map<String, dynamic>> _ogrenciler = [];
   Map<String, dynamic>? _seciliOgrenci;
