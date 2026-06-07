@@ -103,6 +103,20 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   bool   _yukleniyor = true;
   bool   _projeFiltresi = true; // true=sadece bu proje, false=firma geneli
 
+  // Sözleşme türü
+  String _sozlesmeTipi = 'ogrenci';
+
+  // Otomatik değişkenler
+  Map<String, String> _degiskenler = {
+    'OGRENCI_ADI': '', 'VELI_ADI': '', 'ADRES': '',
+    'MESAFE': '', 'AYLIK_UCRET': '', 'PROJE_ADI': '',
+    'SOFOR_ADI': '', 'PLAKA': '', 'OKUL_ADI': '',
+    'SINIF': '', 'OGRENCI_TEL': '', 'ANNE_TEL': '',
+    'BABA_TEL': '', 'SOZLESME_TUR': 'Öğrenci Servisi', 'TARIH': '',
+  };
+  Map<String, dynamic>? _seciliOgrenci;
+  List<Map<String, dynamic>> _ogrenciler = [];
+
   // Şablonlar
   List<Map<String, dynamic>> _sablonlar     = [];
   List<Map<String, dynamic>> _tumSablonlar  = []; // firma geneli
@@ -125,7 +139,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 5, vsync: this);
+    _tab = TabController(length: 7, vsync: this);
     _yukle();
   }
 
@@ -182,6 +196,14 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
         _seciliSablonId = _sablonlar.first['id'];
       }
       if (_seciliSablonId != null) await _sablonYukle(_seciliSablonId!);
+
+      // Öğrencileri yükle
+      final ogrSnap = await FirebaseFirestore.instance
+          .collection('students').where('firmaId', isEqualTo: _firmaId).get();
+      _ogrenciler = ogrSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      final now2 = DateTime.now();
+      _degiskenler['TARIH'] = '${now2.day.toString().padLeft(2,'0')}.${now2.month.toString().padLeft(2,'0')}.${now2.year}';
+      _degiskenler['PROJE_ADI'] = _projeAdi;
     } catch (e) { debugPrint('SozlesmeYonetim hata: $e'); }
     if (mounted) setState(() => _yukleniyor = false);
   }
@@ -281,6 +303,8 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
             Tab(icon: Icon(Icons.business_outlined,  size: 16), text: 'Firma Bilgileri'),
             Tab(icon: Icon(Icons.preview_outlined,   size: 16), text: 'Önizleme'),
             Tab(icon: Icon(Icons.picture_as_pdf_outlined, size: 16), text: 'PDF & Gönder'),
+            Tab(icon: Icon(Icons.verified_outlined, size: 16), text: 'Onaylar'),
+            Tab(icon: Icon(Icons.archive_outlined, size: 16), text: 'Arşiv'),
           ],
         ),
       ),
@@ -786,9 +810,44 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   // ════════════════════════════════════════════════════════════════
   // TAB 3 — FİRMA BİLGİLERİ
   // ════════════════════════════════════════════════════════════════
-  Widget _firmaBilgileriTab() => SingleChildScrollView(
+  Widget _firmaBilgileriTab() {
+    return SingleChildScrollView(
     padding: const EdgeInsets.all(20),
-    child: Column(children: [
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Sözleşme türü
+      const Text('Sözleşme Türü', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, children: [
+        _turChip('ogrenci', '🎓 Öğrenci'), _turChip('personel', '💼 Personel'),
+        _turChip('turizm', '✈️ Turizm'), _turChip('ozel', '🚐 Özel'),
+      ]),
+      const SizedBox(height: 16),
+      if (_ogrenciler.isNotEmpty) DropdownButtonFormField<String>(
+        value: _seciliOgrenci?['id'] as String?,
+        decoration: InputDecoration(labelText: 'Öğrenci Seç (Değişkenleri Doldurur)',
+            prefixIcon: const Icon(Icons.person_outlined),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
+        items: _ogrenciler.map((o) => DropdownMenuItem(
+          value: o['id'] as String,
+          child: Text('${o['ad'] ?? ''} ${o['soyad'] ?? ''}'.trim(), overflow: TextOverflow.ellipsis),
+        )).toList(),
+        onChanged: (v) {
+          final ogr = _ogrenciler.firstWhere((o) => o['id'] == v, orElse: () => {});
+          if (ogr.isNotEmpty) setState(() {
+            _seciliOgrenci = ogr;
+            _degiskenler['OGRENCI_ADI'] = '${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}'.trim();
+            _degiskenler['VELI_ADI']    = ogr['veliAd'] ?? '';
+            _degiskenler['ADRES']       = ogr['adres'] ?? '';
+            _degiskenler['ANNE_TEL']    = ogr['anneTel'] ?? '';
+            _degiskenler['BABA_TEL']    = ogr['babaTel'] ?? '';
+            _degiskenler['OKUL_ADI']    = ogr['okul'] ?? '';
+            _degiskenler['SINIF']       = ogr['sinif'] ?? '';
+          });
+        },
+      ),
+      const SizedBox(height: 16),
+      const Divider(),
+      const SizedBox(height: 8),
       _bilgiKutusu('Bu bilgiler PDF sözleşmede otomatik kullanılır.', Colors.blue),
       const SizedBox(height: 16),
 
@@ -863,7 +922,8 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       )),
     ]),
-  );
+    );
+  }
 
   Widget _formSatir(String label, TextEditingController ctrl, IconData icon,
       {TextInputType? tip}) =>
@@ -1315,5 +1375,138 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
       case 'Firma':     return Icons.business_outlined;
       default:          return Icons.article_outlined;
     }
+  }
+
+  String _sozlesmeAdAl(String tip) {
+    switch (tip) {
+      case 'personel': return 'Personel Servisi';
+      case 'turizm':   return 'Turizm Servisi';
+      case 'ozel':     return 'Özel Taşıma';
+      default:         return 'Öğrenci Servisi';
+    }
+  }
+
+  Widget _turChip(String deger, String ad) {
+    final secili = _sozlesmeTipi == deger;
+    return GestureDetector(
+      onTap: () => setState(() { _sozlesmeTipi = deger; }),
+      child: Container(
+        margin: const EdgeInsets.only(right: 6, bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: secili ? _navy : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: secili ? _navy : Colors.grey.shade300),
+        ),
+        child: Text(ad, style: TextStyle(
+            color: secili ? Colors.white : Colors.black87, fontSize: 12,
+            fontWeight: secili ? FontWeight.bold : FontWeight.normal)),
+      ),
+    );
+  }
+
+  // ── Onaylar Sekmesi ──────────────────────────────────────────
+  Widget _onaylarTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('students')
+          .where('firmaId', isEqualTo: _firmaId).snapshots(),
+      builder: (_, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final ogrenciler = snap.data!.docs
+            .map((d) => {'id': d.id, ...d.data() as Map<String, dynamic>})
+            .where((o) => (o['sozlesmeDurum'] ?? '').isNotEmpty).toList();
+        if (ogrenciler.isEmpty) return const Center(
+            child: Text('Henüz gönderilmiş sözleşme yok', style: TextStyle(color: Colors.grey)));
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: ogrenciler.length,
+          itemBuilder: (_, i) {
+            final ogr   = ogrenciler[i];
+            final durum = ogr['sozlesmeDurum'] as String? ?? '';
+            final steps = ['gonderildi','acildi','okundu','onaylandi','imzalandi'];
+            return Card(margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(padding: const EdgeInsets.all(14), child: Column(children: [
+                Row(children: [
+                  CircleAvatar(radius: 16, backgroundColor: _navy.withValues(alpha: 0.1),
+                      child: Text((ogr['ad'] ?? '?').isNotEmpty ? ogr['ad'][0] : '?',
+                          style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 12))),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text('${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}',
+                      style: const TextStyle(fontWeight: FontWeight.bold))),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text(durum, style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold))),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: steps.expand((s) {
+                  final done = steps.indexOf(durum) >= steps.indexOf(s);
+                  return [
+                    Expanded(child: Column(children: [
+                      CircleAvatar(radius: 12, backgroundColor: done ? Colors.green : Colors.grey.shade200,
+                          child: Icon(done ? Icons.check_rounded : Icons.circle_outlined,
+                              size: 12, color: done ? Colors.white : Colors.grey)),
+                      const SizedBox(height: 3),
+                      Text(s, style: TextStyle(fontSize: 7, color: done ? Colors.green : Colors.grey),
+                          textAlign: TextAlign.center),
+                    ])),
+                    if (s != steps.last) Container(height: 2, width: 10, color: Colors.grey.shade300,
+                        margin: const EdgeInsets.only(bottom: 16)),
+                  ];
+                }).toList()),
+              ])),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ── Arşiv Sekmesi ─────────────────────────────────────────────
+  Widget _arsivTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('sozlesmeler')
+          .where('firmaId', isEqualTo: _firmaId)
+          .orderBy('olusturma', descending: true).snapshots(),
+      builder: (_, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final arsiv = snap.data!.docs
+            .map((d) => {'id': d.id, ...d.data() as Map<String, dynamic>}).toList();
+        if (arsiv.isEmpty) return const Center(
+            child: Text('Arşiv boş — gönderilen sözleşmeler buraya kaydedilir',
+                style: TextStyle(color: Colors.grey)));
+        final gruplar = <String, List<Map<String, dynamic>>>{};
+        for (final s in arsiv) {
+          final ad = s['ogrenciAd'] as String? ?? 'Bilinmiyor';
+          gruplar.putIfAbsent(ad, () => []).add(s);
+        }
+        return ListView(padding: const EdgeInsets.all(16), children: gruplar.entries.map((e) {
+          return Card(margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ExpansionTile(
+              leading: CircleAvatar(radius: 16, backgroundColor: _navy.withValues(alpha: 0.1),
+                  child: Text(e.key.isNotEmpty ? e.key[0] : '?',
+                      style: const TextStyle(color: _navy, fontWeight: FontWeight.bold, fontSize: 12))),
+              title: Text(e.key, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('${e.value.length} sözleşme',
+                  style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              children: e.value.map((s) {
+                final durum = s['durum'] ?? 'hazirlandi';
+                final Color dc = durum == 'imzalandi' ? Colors.purple
+                    : durum == 'onaylandi' ? Colors.green
+                    : durum == 'gonderildi' ? Colors.blue : Colors.grey;
+                return ListTile(dense: true,
+                  leading: const Icon(Icons.description_outlined, size: 16),
+                  title: Text('${s['yil'] ?? ''} — ${s['sozlesmeTipi'] ?? 'ogrenci'}',
+                      style: const TextStyle(fontSize: 13)),
+                  trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: dc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text(durum, style: TextStyle(fontSize: 10, color: dc, fontWeight: FontWeight.bold))));
+              }).toList(),
+            ),
+          );
+        }).toList());
+      },
+    );
   }
 }

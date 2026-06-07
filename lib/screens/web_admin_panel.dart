@@ -49,11 +49,15 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     _MenuItem('Ana Ekran',   Icons.home_outlined,            0),
     _MenuItem('Harita',      Icons.map_outlined,             1),
     _MenuItem('Servisler',   Icons.directions_bus_outlined,  2),
-    _MenuItem('Kayitlar',    Icons.people_outlined,          3),
-    _MenuItem('Sozlesmeler', Icons.description_outlined,     4),
-    _MenuItem('Raporlar',    Icons.bar_chart_outlined,       5),
-    _MenuItem('Arsiv',       Icons.archive_outlined,          6),
-    _MenuItem('Ayarlar',     Icons.settings_outlined,        7),
+    _MenuItem('Ogrenciler',  Icons.school_outlined,          3),
+    _MenuItem('Veliler',     Icons.family_restroom_outlined, 4),
+    _MenuItem('Soforler',    Icons.drive_eta_outlined,       5),
+    _MenuItem('Kayitlar',    Icons.app_registration_rounded, 6),
+    _MenuItem('Sozlesmeler', Icons.description_outlined,     7),
+    _MenuItem('Raporlar',    Icons.bar_chart_outlined,       8),
+    _MenuItem('Arsiv',       Icons.archive_outlined,         9),
+    _MenuItem('Bildirimler', Icons.notifications_outlined,  10),
+    _MenuItem('Ayarlar',     Icons.settings_outlined,       11),
   ];
 
   @override
@@ -492,13 +496,17 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
         bekleyenDevamsizlik: _bekleyenDevamsizlik,
         onNavigate: (i) => setState(() => _aktifSekme = i),
       );
-      case 1: return WebHarita(firmaId: _firmaId, projeId: _projeId);
-      case 2: return _ServisYonetimSekme(firmaId: _firmaId, projeId: _projeId);
-      case 3: return _KayitlarSekme(firmaId: _firmaId, projeId: _projeId);
-      case 4: return const SozlesmeYonetimScreen();
-      case 5: return const WebRaporlar();
-      case 6: return const ProjeArsivScreen();
-      case 7: return const WebAyarlar();
+      case 1:  return WebHarita(key: ValueKey('h${_firmaId}${_projeId}'), firmaId: _firmaId, projeId: _projeId);
+      case 2:  return _ServisYonetimSekme(firmaId: _firmaId, projeId: _projeId);
+      case 3:  return _OgrencilerSekme(firmaId: _firmaId, projeId: _projeId);
+      case 4:  return _VelilerSekme(firmaId: _firmaId, projeId: _projeId);
+      case 5:  return _SoforlerSekme(firmaId: _firmaId, projeId: _projeId);
+      case 6:  return _KayitlarSekme(firmaId: _firmaId, projeId: _projeId);
+      case 7:  return const SozlesmeYonetimScreen();
+      case 8:  return const WebRaporlar();
+      case 9:  return const ArsivScreen();
+      case 10: return _BildirimSekme(firmaId: _firmaId);
+      case 11: return const WebAyarlar();
       default: return Center(child: Text(_menuler[_aktifSekme].ad,
           style: const TextStyle(fontSize: 20, color: Colors.grey)));
     }
@@ -1865,6 +1873,217 @@ class _ServisKarti extends StatelessWidget {
 // ════════════════════════════════════════════════════════════════
 // KAYITLAR SEKMESİ — Öğrenci + Veli birleşik
 // ════════════════════════════════════════════════════════════════
+// Veliler Sekmesi
+class _VelilerSekme extends StatefulWidget {
+  final String firmaId, projeId;
+  const _VelilerSekme({required this.firmaId, required this.projeId});
+  @override State<_VelilerSekme> createState() => _VelilerSekmeState();
+}
+class _VelilerSekmeState extends State<_VelilerSekme> {
+  static const _navy = Color(0xFF1a3a6b);
+  String _arama = '';
+  final _ctrl = TextEditingController();
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      Container(color: Colors.white, padding: const EdgeInsets.all(14),
+        child: TextField(controller: _ctrl,
+          onChanged: (v) => setState(() => _arama = v.toLowerCase()),
+          decoration: InputDecoration(
+            hintText: 'Veli ara...', isDense: true,
+            prefixIcon: const Icon(Icons.search, color: _navy, size: 18),
+            filled: true, fillColor: const Color(0xFFF5F7FA),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+          ),
+        ),
+      ),
+      Expanded(child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('students')
+            .where('firmaId', isEqualTo: widget.firmaId).snapshots(),
+        builder: (_, snap) {
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          final Map<String, Map<String, dynamic>> veliler = {};
+          for (final d in snap.data!.docs) {
+            final r = d.data() as Map<String, dynamic>;
+            final ad  = r['veliAd'] as String? ?? '';
+            final tel = r['anneTel'] as String? ?? r['veliTel'] as String? ?? '';
+            if (ad.isEmpty) continue;
+            final key = '$ad|$tel';
+            if (!veliler.containsKey(key)) veliler[key] = {'ad': ad, 'tel': tel, 'ogr': <String>[]};
+            (veliler[key]!['ogr'] as List).add('${r['ad'] ?? ''} ${r['soyad'] ?? ''}'.trim());
+          }
+          var liste = veliler.values.toList();
+          if (_arama.isNotEmpty) liste = liste.where((v) =>
+              (v['ad'] as String).toLowerCase().contains(_arama) ||
+              (v['tel'] as String).contains(_arama)).toList();
+          if (liste.isEmpty) return const Center(child: Text('Veli bulunamadi', style: TextStyle(color: Colors.grey)));
+          return ListView.builder(
+            padding: const EdgeInsets.all(14),
+            itemCount: liste.length,
+            itemBuilder: (_, i) {
+              final v = liste[i];
+              final ogrStr = (v['ogr'] as List).join(', ');
+              return Card(margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: CircleAvatar(radius: 20, backgroundColor: _navy.withValues(alpha: 0.1),
+                      child: Text((v['ad'] as String).isNotEmpty ? (v['ad'] as String)[0] : '?',
+                          style: const TextStyle(color: _navy, fontWeight: FontWeight.bold))),
+                  title: Text(v['ad'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('${v['tel']}\n$ogrStr', style: const TextStyle(fontSize: 11)),
+                  isThreeLine: true,
+                  trailing: (v['tel'] as String).isNotEmpty ? IconButton(
+                    icon: const Icon(Icons.message_rounded, color: Color(0xFF25D366)),
+                    onPressed: () async {
+                      final tel = (v['tel'] as String).replaceAll(RegExp(r'[^0-9]'), '');
+                      final url = Uri.parse('https://wa.me/90$tel');
+                      if (await canLaunchUrl(url)) launchUrl(url, mode: LaunchMode.externalApplication);
+                    },
+                  ) : null,
+                ),
+              );
+            },
+          );
+        },
+      )),
+    ]);
+  }
+}
+
+// Soforler Sekmesi
+class _SoforlerSekme extends StatefulWidget {
+  final String firmaId, projeId;
+  const _SoforlerSekme({required this.firmaId, required this.projeId});
+  @override State<_SoforlerSekme> createState() => _SoforlerSekmeState();
+}
+class _SoforlerSekmeState extends State<_SoforlerSekme> {
+  static const _navy = Color(0xFF1a3a6b);
+  String _arama = '';
+  final _ctrl = TextEditingController();
+  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      Container(color: Colors.white, padding: const EdgeInsets.all(14),
+        child: TextField(controller: _ctrl,
+          onChanged: (v) => setState(() => _arama = v.toLowerCase()),
+          decoration: InputDecoration(
+            hintText: 'Sofor ara...', isDense: true,
+            prefixIcon: const Icon(Icons.search, color: _navy, size: 18),
+            filled: true, fillColor: const Color(0xFFF5F7FA),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+          ),
+        ),
+      ),
+      Expanded(child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('drivers')
+            .where('firmaId', isEqualTo: widget.firmaId).snapshots(),
+        builder: (_, snap) {
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          var docs = snap.data!.docs;
+          if (_arama.isNotEmpty) docs = docs.where((d) {
+            final r = d.data() as Map<String, dynamic>;
+            return (r['adSoyad'] ?? r['ad'] ?? '').toLowerCase().contains(_arama) ||
+                   (r['plaka'] ?? '').toLowerCase().contains(_arama);
+          }).toList();
+          if (docs.isEmpty) return const Center(child: Text('Sofor bulunamadi', style: TextStyle(color: Colors.grey)));
+          return ListView.builder(
+            padding: const EdgeInsets.all(14),
+            itemCount: docs.length,
+            itemBuilder: (_, i) {
+              final r = docs[i].data() as Map<String, dynamic>;
+              final aktif = r['aktif'] as bool? ?? true;
+              return Card(margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: CircleAvatar(radius: 20, backgroundColor: _navy.withValues(alpha: 0.1),
+                      child: Text((r['adSoyad'] ?? r['ad'] ?? '?').isNotEmpty
+                          ? (r['adSoyad'] ?? r['ad'] ?? '?')[0] : '?',
+                          style: const TextStyle(color: _navy, fontWeight: FontWeight.bold))),
+                  title: Text(r['adSoyad'] ?? r['ad'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('${r['plaka'] ?? ''} - ${r['telefon'] ?? ''}',
+                      style: const TextStyle(fontSize: 12)),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: aktif ? Colors.green.shade50 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8)),
+                    child: Text(aktif ? 'Aktif' : 'Pasif',
+                        style: TextStyle(fontSize: 11,
+                            color: aktif ? Colors.green : Colors.grey,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      )),
+    ]);
+  }
+}
+
+// Bildirim Sekmesi
+class _BildirimSekme extends StatelessWidget {
+  final String firmaId;
+  static const _navy = Color(0xFF1a3a6b);
+  const _BildirimSekme({required this.firmaId});
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('bildirimler')
+          .where('firmaId', isEqualTo: firmaId)
+          .orderBy('tarih', descending: true)
+          .limit(50).snapshots(),
+      builder: (_, snap) {
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.notifications_none_rounded, size: 72, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          const Text('Bildirim yok', style: TextStyle(color: Colors.grey, fontSize: 15)),
+        ]));
+        return ListView.separated(
+          padding: const EdgeInsets.all(14),
+          itemCount: docs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 6),
+          itemBuilder: (_, i) {
+            final d = docs[i].data() as Map<String, dynamic>;
+            final tip = d['tip'] as String? ?? 'bilgi';
+            final Color renk = tip == 'uyari' ? Colors.orange
+                : tip == 'hata' ? Colors.red
+                : tip == 'basari' ? Colors.green : Colors.blue;
+            final tarih = d['tarih'] is Timestamp
+                ? (d['tarih'] as Timestamp).toDate() : DateTime.now();
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border(left: BorderSide(color: renk, width: 4)),
+              ),
+              child: Row(children: [
+                Icon(Icons.info_outline_rounded, color: renk, size: 20),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(d['baslik'] ?? d['mesaj'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  if ((d['icerik'] ?? '').isNotEmpty)
+                    Text(d['icerik'], style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                ])),
+                Text('${tarih.hour.toString().padLeft(2,'0')}:${tarih.minute.toString().padLeft(2,'0')}',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+
 class _KayitlarSekme extends StatefulWidget {
   final String firmaId, projeId;
   const _KayitlarSekme({required this.firmaId, required this.projeId});
