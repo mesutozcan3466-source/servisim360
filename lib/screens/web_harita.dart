@@ -37,7 +37,6 @@ class _WebHaritaState extends State<WebHarita> {
   Set<Polyline> _polylineler = {};
   MapType  _mapTipi        = MapType.normal;
   DateTime _sonGuncelleme  = DateTime.now();
-  bool _ilkYukleme = true;
 
   static const CameraPosition _turkiyeMerkez = CameraPosition(
     target: LatLng(39.9334, 32.8597),
@@ -74,12 +73,7 @@ class _WebHaritaState extends State<WebHarita> {
   }
 
   Future<void> _yukle() async {
-    // Sadece ilk yüklemede overlay göster
-    if (!_ilkYukleme) {
-      // Yenileme sırasında haritayı kapatma, sadece markerları güncelle
-    } else {
-      setState(() => _yukleniyor = true);
-    }
+    setState(() => _yukleniyor = true);
 
     // Parametre olarak verilmisse kullan, yoksa session'dan al
     if (widget.firmaId.isNotEmpty) {
@@ -124,12 +118,7 @@ class _WebHaritaState extends State<WebHarita> {
       }
     });
 
-    if (mounted) {
-      setState(() {
-        _yukleniyor = false;
-        _ilkYukleme = false;
-      });
-    }
+    if (mounted) setState(() => _yukleniyor = false);
   }
 
   // ── Mesafe hesaplama (Haversine) ─────────────────────────────
@@ -182,130 +171,6 @@ class _WebHaritaState extends State<WebHarita> {
     }
 
     return [...siralananlar, ...konumsuzlar];
-  }
-
-  // Son konum saatini formatla
-  String _sonKonumSaat(dynamic zaman) {
-    if (zaman == null) return '';
-    try {
-      DateTime dt;
-      if (zaman is Timestamp) {
-        dt = zaman.toDate();
-      } else {
-        return '';
-      }
-      final fark = DateTime.now().difference(dt);
-      if (fark.inSeconds < 60) return '${fark.inSeconds}sn';
-      if (fark.inMinutes < 60) return '${fark.inMinutes}dk';
-      return '${fark.inHours}sa';
-    } catch (_) { return ''; }
-  }
-
-  // Atanmamış öğrencileri göster
-  void _atanmamisGoster(BuildContext context) {
-    final atanmamis = _ogrenciler
-        .where((o) => (o['surucuId'] ?? '').toString().isEmpty)
-        .toList();
-    if (atanmamis.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tüm öğrenciler atanmış ✓'), backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating));
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
-          const SizedBox(width: 8),
-          Text('\${atanmamis.length} Atanmamış Öğrenci'),
-        ]),
-        content: SizedBox(
-          width: 350, height: 300,
-          child: ListView.builder(
-            itemCount: atanmamis.length,
-            itemBuilder: (_, i) {
-              final o = atanmamis[i];
-              return ListTile(
-                dense: true,
-                leading: CircleAvatar(radius: 14,
-                    backgroundColor: Colors.red.withValues(alpha: 0.1),
-                    child: Text((o['ad'] ?? '?').isNotEmpty ? o['ad'][0] : '?',
-                        style: const TextStyle(fontSize: 10, color: Colors.red))),
-                title: Text('\${o['ad'] ?? ''} \${o['soyad'] ?? ''}',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                subtitle: Text(o['adres'] ?? '', style: const TextStyle(fontSize: 11)),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat')),
-        ],
-      ),
-    );
-  }
-
-  // Şoförün öğrenci listesini göster
-  void _ogrenciListesiGoster(BuildContext context, Map<String, dynamic> sofor) {
-    final sid = sofor['id'] as String;
-    final ogrenciler = _ogrenciler.where((o) => o['surucuId'] == sid).toList();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          const Icon(Icons.people_rounded, color: Color(0xFF1a3a6b), size: 20),
-          const SizedBox(width: 8),
-          Expanded(child: Text('\${sofor['ad'] ?? 'Şoför'} — Öğrenciler (\${ogrenciler.length})',
-              style: const TextStyle(fontSize: 14))),
-        ]),
-        content: SizedBox(
-          width: 380, height: 400,
-          child: ogrenciler.isEmpty
-              ? const Center(child: Text('Bu şoföre öğrenci atanmamış',
-                  style: TextStyle(color: Colors.grey)))
-              : ListView.builder(
-                  itemCount: ogrenciler.length,
-                  itemBuilder: (_, i) {
-                    final o = ogrenciler[i];
-                    final bindi = o['bindi'] == true;
-                    return ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: bindi
-                            ? Colors.green.withValues(alpha: 0.1)
-                            : Colors.grey.withValues(alpha: 0.1),
-                        child: Icon(
-                          bindi ? Icons.check_rounded : Icons.schedule_rounded,
-                          size: 14,
-                          color: bindi ? Colors.green : Colors.grey,
-                        ),
-                      ),
-                      title: Text('\${o['ad'] ?? ''} \${o['soyad'] ?? ''}',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                      subtitle: Text(o['adres'] ?? '', style: const TextStyle(fontSize: 11)),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: bindi ? Colors.green.shade50 : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(bindi ? 'Bindi' : 'Bekliyor',
-                            style: TextStyle(fontSize: 10, color: bindi ? Colors.green : Colors.grey,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat')),
-        ],
-      ),
-    );
   }
 
   LatLng? _konumAl(Map<String, dynamic> d) {
@@ -488,12 +353,9 @@ class _WebHaritaState extends State<WebHarita> {
               const SizedBox(width: 8),
               _OzetChip('${_ogrenciler.length}', 'Ogrenci', _navy),
               const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _atanmamisGoster(context),
-                child: _OzetChip(
-                    '${_ogrenciler.where((o) => (o["surucuId"] ?? "").toString().isEmpty).length}',
-                    'Atanmamis', Colors.red),
-              ),
+              _OzetChip(
+                  '${_ogrenciler.where((o) => (o["surucuId"] ?? "").toString().isEmpty).length}',
+                  'Atanmamis', Colors.red),
             ]),
           ),
           const Divider(height: 1),
@@ -538,101 +400,27 @@ class _WebHaritaState extends State<WebHarita> {
                           width: secili ? 2 : 1),
                     ),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      // Ad + Durum
                       Row(children: [
                         Container(width: 10, height: 10,
                             decoration: BoxDecoration(
-                                color: aktif ? Colors.green : (konumVar ? renk : Colors.grey),
+                                color: aktif ? Colors.green : renk,
                                 shape: BoxShape.circle)),
                         const SizedBox(width: 8),
                         Expanded(child: Text(s['ad'] ?? 'Sofor',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12,
                                 color: secili ? renk : Colors.black87))),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: renk.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text('$ogrSayi öğr', style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 11, color: renk)),
-                        ),
+                        Text('$ogrSayi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: renk)),
                       ]),
-                      const SizedBox(height: 4),
-                      // Plaka + Saat
-                      Row(children: [
-                        if (s['aracPlaka'] != null)
-                          Text(s['aracPlaka'], style: const TextStyle(color: Colors.grey, fontSize: 10)),
-                        const Spacer(),
-                        // Son konum zamanı
-                        if (s['sonKonumZamani'] != null)
-                          Text(_sonKonumSaat(s['sonKonumZamani']),
-                              style: const TextStyle(color: Colors.grey, fontSize: 9)),
-                      ]),
-                      // Konum + Hız
-                      if (!konumVar)
-                        Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.orange.shade200),
-                          ),
-                          child: const Row(children: [
-                            Icon(Icons.location_off_rounded, size: 10, color: Colors.orange),
-                            SizedBox(width: 3),
-                            Text('GPS bekleniyor', style: TextStyle(color: Colors.orange, fontSize: 9)),
-                          ]),
-                        )
-                      else
-                        Row(children: [
-                          const Icon(Icons.location_on_rounded, size: 10, color: Colors.green),
-                          const SizedBox(width: 3),
-                          const Text('Canlı', style: TextStyle(color: Colors.green, fontSize: 9)),
-                          if ((s['hiz'] ?? 0) > 0) ...[
-                            const SizedBox(width: 8),
-                            const Icon(Icons.speed_rounded, size: 10, color: Colors.blue),
-                            const SizedBox(width: 2),
-                            Text('\${(s['hiz'] as num).toInt()} km/s',
-                                style: const TextStyle(color: Colors.blue, fontSize: 9)),
-                          ],
-                        ]),
-                      // Bindi bilgisi
-                      if (ogrSayi > 0) ...[
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          Text('$bindiSayi/$ogrSayi bindi',
-                              style: const TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 6),
-                          Expanded(child: LinearProgressIndicator(
-                            value: ogrSayi > 0 ? bindiSayi / ogrSayi : 0,
-                            backgroundColor: Colors.grey.shade200,
-                            color: Colors.green,
-                            minHeight: 3,
-                            borderRadius: BorderRadius.circular(2),
-                          )),
-                        ]),
+                      if (s['aracPlaka'] != null) ...[
+                        const SizedBox(height: 2),
+                        Text(s['aracPlaka'], style: const TextStyle(color: Colors.grey, fontSize: 10)),
                       ],
-                      // Seçiliyse öğrenci listesi butonu
-                      if (secili) ...[
+                      if (!konumVar)
+                        const Text('Konum yok', style: TextStyle(color: Colors.red, fontSize: 9)),
+                      if (secili && ogrSayi > 0) ...[
                         const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () => _ogrenciListesiGoster(context, s),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: renk.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: renk.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              Icon(Icons.people_outline, size: 12, color: renk),
-                              const SizedBox(width: 4),
-                              Text('Öğrenci Listesini Gör', style: TextStyle(fontSize: 10, color: renk, fontWeight: FontWeight.w600)),
-                            ]),
-                          ),
-                        ),
+                        Text('$bindiSayi/$ogrSayi bindi',
+                            style: const TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.w600)),
                       ],
                     ]),
                   ),
