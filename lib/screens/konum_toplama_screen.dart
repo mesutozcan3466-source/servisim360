@@ -1,3 +1,7 @@
+// ╔══════════════════════════════════════════════════════════════╗
+// ║  DOSYA: lib/screens/konum_toplama_screen.dart
+// ║  PROJE: servisim360
+// ╚══════════════════════════════════════════════════════════════╝
 import 'package:flutter/material.dart';
 import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -50,7 +54,7 @@ class _KonumToplamaScreenState extends State<KonumToplamaScreen> {
     setState(() => _firmaId = firmaId);
     if (firmaId.isNotEmpty) {
       final snap = await _db
-          .collection('firmalar')
+          .collection('firms')
           .doc(firmaId)
           .collection('students')
           .get();
@@ -108,7 +112,7 @@ class _KonumToplamaScreenState extends State<KonumToplamaScreen> {
     }
     setState(() => _kaydediliyor = true);
     await _db
-        .collection('firmalar')
+        .collection('firms')
         .doc(_firmaId)
         .collection('students')
         .doc(_seciliOgrenci!['id'])

@@ -218,6 +218,10 @@ class _AraclarScreenState extends State<AraclarScreen> {
     final modelCtrl    = TextEditingController();
     final kapasiteCtrl = TextEditingController();
     final yilCtrl      = TextEditingController();
+    final sigortaCtrl  = TextEditingController();
+    final muayeneCtrl  = TextEditingController();
+    final ruhsatCtrl   = TextEditingController();
+    bool  kameraVar    = false;
     String aracTipi    = 'minibus';
     bool   aktif       = true;
     bool   yukleniyor  = false;
@@ -356,14 +360,19 @@ class _AraclarScreenState extends State<AraclarScreen> {
                       try {
                         final now = FieldValue.serverTimestamp();
                         await FirebaseFirestore.instance.collection('vehicles').add({
-                          'plaka'    : plakaCtrl.text.trim().toUpperCase(),
-                          'marka'    : markaCtrl.text.trim(),
-                          'model'    : modelCtrl.text.trim(),
-                          'aracModeli': '${markaCtrl.text.trim()} ${modelCtrl.text.trim()}'.trim(),
-                          'kapasite' : int.tryParse(kapasiteCtrl.text.trim()) ?? 0,
+                          'plaka'         : plakaCtrl.text.trim().toUpperCase(),
+                          'marka'         : markaCtrl.text.trim(),
+                          'model'         : modelCtrl.text.trim(),
+                          'aracModeli'    : '${markaCtrl.text.trim()} ${modelCtrl.text.trim()}'.trim(),
+                          'kapasite'      : int.tryParse(kapasiteCtrl.text.trim()) ?? 0,
                           'aracKapasitesi': kapasiteCtrl.text.trim(),
-                          'yil'      : int.tryParse(yilCtrl.text.trim()),
-                          'aracTipi' : aracTipi,
+                          'yil'           : int.tryParse(yilCtrl.text.trim()),
+                          'aracTipi'      : aracTipi,
+                          'sigortaBitis'  : sigortaCtrl.text.trim(),
+                          'muayeneBitis'  : muayeneCtrl.text.trim(),
+                          'ruhsatNo'      : ruhsatCtrl.text.trim(),
+                          'kameraVar'     : kameraVar,
+                          'plakaTanimaAktif': kameraVar,
                           'durum'    : aktif ? 'musait' : 'pasif',
                           'aktif'    : aktif,
                           'firmaId'  : _firmaId,

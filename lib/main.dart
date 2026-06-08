@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,14 +10,14 @@ import 'screens/dashboard_screen.dart';
 import 'screens/onay_bekleme_screen.dart';
 import 'screens/veli_basvuru_form_screen.dart';
 
-// ── Global navigator key (deep link için gerekli) ────────────
+// â”€â”€ Global navigator key (deep link iÃ§in gerekli) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // ✅ Google Maps beyaz ekran düzeltmesi
+  // âœ… Google Maps beyaz ekran dÃ¼zeltmesi
   final GoogleMapsFlutterPlatform mapsImpl =
       GoogleMapsFlutterPlatform.instance;
   if (mapsImpl is GoogleMapsFlutterAndroid) {
@@ -43,23 +43,23 @@ class _Servis360AppState extends State<Servis360App> {
     _deepLinkDinle();
   }
 
-  // ── Deep Link Dinleyici ──────────────────────────────────────
+  // â”€â”€ Deep Link Dinleyici â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _deepLinkDinle() {
     _appLinks = AppLinks();
 
-    // Uygulama kapalıyken açılan link
+    // Uygulama kapalÄ±yken aÃ§Ä±lan link
     _appLinks.getInitialLink().then((uri) {
       if (uri != null) _linkIsle(uri);
     });
 
-    // Uygulama açıkken gelen link
+    // Uygulama aÃ§Ä±kken gelen link
     _appLinks.uriLinkStream.listen(
       (uri) => _linkIsle(uri),
-      onError: (e) => debugPrint('Deep link hatası: $e'),
+      onError: (e) => debugPrint('Deep link hatasÄ±: $e'),
     );
   }
 
-  // ── Link İşle ────────────────────────────────────────────────
+  // â”€â”€ Link Ä°ÅŸle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _linkIsle(Uri uri) {
     debugPrint('Deep link geldi: $uri');
 
@@ -67,25 +67,22 @@ class _Servis360AppState extends State<Servis360App> {
     // servisim360://kayit?uid=XXX&proje=YYY
     if (uri.pathSegments.contains('kayit') ||
         uri.host == 'kayit') {
-      final adminUid = uri.queryParameters['uid']   ?? '';
-      final projeId  = uri.queryParameters['proje'] ?? '';
+      final linkId = uri.queryParameters['linkId'] ?? uri.queryParameters['uid'] ?? '';
+      if (linkId.isEmpty) return;
+      // Kullanici giris yapti mi kontrol et
+      if (linkId.isEmpty) return;
 
-      if (adminUid.isEmpty) return;
-
-      // Kullanıcı giriş yapmış mı kontrol et
+      // KullanÄ±cÄ± giriÅŸ yapmÄ±ÅŸ mÄ± kontrol et
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // Giriş yapılmamışsa linki hatırla, giriş sonrası aç
-        debugPrint('Kullanıcı giriş yapmamış, link beklemeye alındı');
+        // GiriÅŸ yapÄ±lmamÄ±ÅŸsa linki hatÄ±rla, giriÅŸ sonrasÄ± aÃ§
+        debugPrint('KullanÄ±cÄ± giriÅŸ yapmamÄ±ÅŸ, link beklemeye alÄ±ndÄ±');
         return;
       }
 
       navigatorKey.currentState?.push(
         MaterialPageRoute(
-          builder: (_) => VeliBasvuruFormScreen(
-            adminUid: adminUid,
-            projeId:  projeId,
-          ),
+          builder: (_) => VeliBasvuruFormScreen(linkId: linkId),
         ),
       );
     }
@@ -96,7 +93,7 @@ class _Servis360AppState extends State<Servis360App> {
     return MaterialApp(
       title: 'Servis360',
       debugShowCheckedModeBanner: false,
-      // ✅ navigatorKey eklendi
+      // âœ… navigatorKey eklendi
       navigatorKey: navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -112,7 +109,7 @@ class _Servis360AppState extends State<Servis360App> {
   }
 }
 
-// ── Auth Kontrol ─────────────────────────────────────────────
+// â”€â”€ Auth Kontrol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class AuthKontrol extends StatelessWidget {
   const AuthKontrol({super.key});
 
@@ -149,7 +146,7 @@ class AuthKontrol extends StatelessWidget {
 
             final durum = userSnap.data!.get('durum') ?? 'beklemede';
 
-            if (durum == 'onaylı') {
+            if (durum == 'onaylÄ±') {
               return const DashboardScreen();
             } else {
               return const OnayBeklemeScreen();
@@ -160,3 +157,5 @@ class AuthKontrol extends StatelessWidget {
     );
   }
 }
+
+

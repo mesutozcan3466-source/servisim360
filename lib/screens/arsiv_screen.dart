@@ -1,8 +1,8 @@
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  DOSYA: lib/screens/arsiv_screen.dart                       ║
-// ║  Servisim360 — Evrak & Belge Yönetim Sistemi                ║
-// ║  v4 — Kategorili, Otomatik, Kalıcı Silme Yok               ║
-// ╚══════════════════════════════════════════════════════════════╝
+﻿// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+// â•‘  DOSYA: lib/screens/arsiv_screen.dart                       â•‘
+// â•‘  Servisim360 â€” Evrak & Belge YÃ¶netim Sistemi                â•‘
+// â•‘  v4 â€” Kategorili, Otomatik, KalÄ±cÄ± Silme Yok               â•‘
+// â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 import 'package:flutter/material.dart';
 import 'ai_widget.dart';
 import 'yardim_widget.dart';
@@ -11,13 +11,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'package:firebase_storage/firebase_storage.dart';
 import '../services/session_service.dart';
 
-// ════════════════════════════════════════════════════════════════
-// EVRAK KATEGORİLERİ
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// EVRAK KATEGORÄ°LERÄ°
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class _EvrakKategori {
   final String id, ad, ikon;
   final Color renk;
@@ -26,29 +24,29 @@ class _EvrakKategori {
 }
 
 const List<_EvrakKategori> _kategoriler = [
-  _EvrakKategori('ogrenci', 'Öğrenci Evrakları', '🎓', Color(0xFF2196F3), [
-    'Kayıt Formu', 'Sözleşme', 'Kimlik Fotokopisi', 'İkametgah', 'Fotoğraf', 'Diğer'
+  _EvrakKategori('ogrenci', 'Ã–ÄŸrenci EvraklarÄ±', 'ğŸ“', Color(0xFF2196F3), [
+    'KayÄ±t Formu', 'SÃ¶zleÅŸme', 'Kimlik Fotokopisi', 'Ä°kametgah', 'FotoÄŸraf', 'DiÄŸer'
   ]),
-  _EvrakKategori('sofor', 'Şoför Evrakları', '🚗', Color(0xFF4CAF50), [
-    'Ehliyet', 'SRC Belgesi', 'Psikoteknik', 'Adli Sicil', 'Kimlik', 'Sağlık Raporu', 'Diğer'
+  _EvrakKategori('sofor', 'ÅofÃ¶r EvraklarÄ±', 'ğŸš—', Color(0xFF4CAF50), [
+    'Ehliyet', 'SRC Belgesi', 'Psikoteknik', 'Adli Sicil', 'Kimlik', 'SaÄŸlÄ±k Raporu', 'DiÄŸer'
   ]),
-  _EvrakKategori('arac', 'Araç Evrakları', '🚌', Color(0xFFFF9800), [
-    'Ruhsat', 'Sigorta', 'Kasko', 'Muayene', 'Trafik Belgesi', 'Diğer'
+  _EvrakKategori('arac', 'AraÃ§ EvraklarÄ±', 'ğŸšŒ', Color(0xFFFF9800), [
+    'Ruhsat', 'Sigorta', 'Kasko', 'Muayene', 'Trafik Belgesi', 'DiÄŸer'
   ]),
-  _EvrakKategori('firma', 'Firma Evrakları', '🏢', Color(0xFF9C27B0), [
-    'Vergi Levhası', 'Yetki Belgesi', 'Taşıma İzni', 'Ticaret Sicil', 'İmza Sirküleri', 'Diğer'
+  _EvrakKategori('firma', 'Firma EvraklarÄ±', 'ğŸ¢', Color(0xFF9C27B0), [
+    'Vergi LevhasÄ±', 'Yetki Belgesi', 'TaÅŸÄ±ma Ä°zni', 'Ticaret Sicil', 'Ä°mza SirkÃ¼leri', 'DiÄŸer'
   ]),
-  _EvrakKategori('sozlesme', 'Sözleşmeler', '📄', Color(0xFF1a3a6b), [
-    'Öğrenci Sözleşmesi', 'Personel Sözleşmesi', 'Turizm Sözleşmesi', 'Hizmet Sözleşmesi', 'Diğer'
+  _EvrakKategori('sozlesme', 'SÃ¶zleÅŸmeler', 'ğŸ“„', Color(0xFF1a3a6b), [
+    'Ã–ÄŸrenci SÃ¶zleÅŸmesi', 'Personel SÃ¶zleÅŸmesi', 'Turizm SÃ¶zleÅŸmesi', 'Hizmet SÃ¶zleÅŸmesi', 'DiÄŸer'
   ]),
-  _EvrakKategori('sistem', 'Sistem Belgeleri', '💾', Color(0xFF607D8B), [
-    'PDF Rapor', 'Excel Rapor', 'Otomatik Belge', 'İndirilen Dosya', 'Diğer'
+  _EvrakKategori('sistem', 'Sistem Belgeleri', 'ğŸ’¾', Color(0xFF607D8B), [
+    'PDF Rapor', 'Excel Rapor', 'Otomatik Belge', 'Ä°ndirilen Dosya', 'DiÄŸer'
   ]),
 ];
 
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ANA EKRAN
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class ArsivScreen extends StatefulWidget {
   const ArsivScreen({super.key});
   @override
@@ -80,7 +78,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
     if (mounted) setState(() => _yukleniyor = false);
   }
 
-  // ── DOSYA YÜKLE ───────────────────────────────────────────────
+  // â”€â”€ DOSYA YÃœKLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _dosyaYukle({String? kategori, String? iliskiId, String? iliskiAd}) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any, withData: true,
@@ -88,8 +86,8 @@ class _ArsivScreenState extends State<ArsivScreen> {
     );
     if (result == null || result.files.isEmpty) return;
 
-    // Kategori seçimi dialog
-    String secilenKat = kategori ?? (_seciliKategori == 'tumu' ? 'ogrenci' : _seciliKategori);
+    // Kategori seÃ§imi dialog
+    String secilenKat = kategori ?? ((_seciliKategori == 'tumu') ? 'ogrenci' : _seciliKategori);
     String secilenAlt = '';
 
     if (!mounted) return;
@@ -104,18 +102,12 @@ class _ArsivScreenState extends State<ArsivScreen> {
     for (final file in result.files) {
       if (file.bytes == null) continue;
       try {
+        // Web'de base64 olarak kaydet (kÃ¼Ã§Ã¼k dosyalar iÃ§in)
+        // BÃ¼yÃ¼k dosyalar iÃ§in Firebase Storage kullanÄ±lmalÄ±
         final boyutKB = file.bytes!.length ~/ 1024;
-        String? downloadUrl;
-
-        // Firebase Storage'a yükle
-        try {
-          final path = 'evraklar/$_firmaId/$secilenKat/${DateTime.now().millisecondsSinceEpoch}_${file.name}';
-          final ref  = FirebaseStorage.instance.ref(path);
-          await ref.putData(file.bytes!, SettableMetadata(
-              contentType: _mimeType(file.extension ?? '')));
-          downloadUrl = await ref.getDownloadURL();
-        } catch (e) {
-          debugPrint('Storage hata: $e');
+        String? base64Data;
+        if (boyutKB < 500) { // 500KB altÄ± base64
+          base64Data = Uri.dataFromBytes(file.bytes!).toString();
         }
 
         await FirebaseFirestore.instance.collection('evraklar').add({
@@ -128,23 +120,23 @@ class _ArsivScreenState extends State<ArsivScreen> {
           'uzanti'     : file.extension ?? '',
           'iliskiId'   : iliskiIdFinal,
           'iliskiAd'   : iliskiAdFinal,
-          'downloadUrl': downloadUrl,
+          'base64'     : base64Data,
           'aktif'      : true,
           'kaynak'     : 'manuel',
           'olusturma'  : FieldValue.serverTimestamp(),
         });
         basarili++;
-      } catch (e) { debugPrint('Yükleme hatası: $e'); }
+      } catch (e) { debugPrint('YÃ¼kleme hatasÄ±: $e'); }
     }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$basarili dosya yüklendi ✓'),
+          content: Text('$basarili dosya yÃ¼klendi âœ“'),
           backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
     }
   }
 
-  // ── KATEGORİ + İLİŞKİ SEÇİM DIALOG ──────────────────────────
+  // â”€â”€ KATEGORÄ° + Ä°LÄ°ÅKÄ° SEÃ‡Ä°M DIALOG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<Map<String, String>?> _kategoriSecDialog(String initKat, String initAlt) async {
     String secilenKat = initKat;
     String secilenAlt = initAlt;
@@ -160,10 +152,10 @@ class _ArsivScreenState extends State<ArsivScreen> {
           title: const Row(children: [
             Icon(Icons.folder_outlined, color: _navy),
             SizedBox(width: 8),
-            Text('Evrak Kategorisi Seç'),
+            Text('Evrak Kategorisi SeÃ§'),
           ]),
           content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Kategori seç
+            // Kategori seÃ§
             const Align(alignment: Alignment.centerLeft,
                 child: Text('Kategori', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
             const SizedBox(height: 8),
@@ -183,9 +175,9 @@ class _ArsivScreenState extends State<ArsivScreen> {
               );
             }).toList()),
             const SizedBox(height: 16),
-            // Alt tür seç
+            // Alt tÃ¼r seÃ§
             const Align(alignment: Alignment.centerLeft,
-                child: Text('Belge Türü', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                child: Text('Belge TÃ¼rÃ¼', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 6, children: katObj.altTurler.map((a) {
               final sec = secilenAlt == a;
@@ -205,11 +197,11 @@ class _ArsivScreenState extends State<ArsivScreen> {
               );
             }).toList()),
             const SizedBox(height: 16),
-            // İlişki (kişi/araç adı)
+            // Ä°liÅŸki (kiÅŸi/araÃ§ adÄ±)
             TextField(
               decoration: const InputDecoration(
-                labelText: 'İlgili Kişi/Araç (İsteğe Bağlı)',
-                hintText: 'Örn: Ahmet Yılmaz, 34ABC123',
+                labelText: 'Ä°lgili KiÅŸi/AraÃ§ (Ä°steÄŸe BaÄŸlÄ±)',
+                hintText: 'Ã–rn: Ahmet YÄ±lmaz, 34ABC123',
                 prefixIcon: Icon(Icons.link_rounded, size: 16),
                 border: OutlineInputBorder(), isDense: true,
               ),
@@ -217,14 +209,14 @@ class _ArsivScreenState extends State<ArsivScreen> {
             ),
           ])),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(_), child: const Text('İptal')),
+            TextButton(onPressed: () => Navigator.pop(_), child: const Text('Ä°ptal')),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
               onPressed: secilenAlt.isEmpty ? null : () => Navigator.pop(_, {
                 'kategori': secilenKat, 'altTur': secilenAlt,
                 'iliskiId': iliskiId, 'iliskiAd': iliskiAd,
               }),
-              child: const Text('Yükle'),
+              child: const Text('YÃ¼kle'),
             ),
           ],
         );
@@ -232,7 +224,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
     );
   }
 
-  // ── KLASÖR OLUŞTUR ────────────────────────────────────────────
+  // â”€â”€ KLASÃ–R OLUÅTUR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _klasorOlustur() async {
     final ctrl = TextEditingController();
     final onay = await showDialog<bool>(
@@ -242,24 +234,24 @@ class _ArsivScreenState extends State<ArsivScreen> {
         title: const Row(children: [
           Icon(Icons.create_new_folder_rounded, color: _navy),
           SizedBox(width: 8),
-          Text('Yeni Klasör'),
+          Text('Yeni KlasÃ¶r'),
         ]),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           decoration: const InputDecoration(
-            labelText: 'Klasör Adı',
-            hintText: 'Örn: 2026 Öğrenci Evrakları',
+            labelText: 'KlasÃ¶r AdÄ±',
+            hintText: 'Ã–rn: 2026 Ã–ÄŸrenci EvraklarÄ±',
             prefixIcon: Icon(Icons.folder_outlined),
             border: OutlineInputBorder(),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
+          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Ä°ptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(_, true),
-            child: const Text('Oluştur'),
+            child: const Text('OluÅŸtur'),
           ),
         ],
       ),
@@ -272,7 +264,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
       'olusturma': FieldValue.serverTimestamp(),
     });
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Klasör oluşturuldu ✓'), backgroundColor: Colors.green,
+        content: Text('KlasÃ¶r oluÅŸturuldu âœ“'), backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating));
   }
 
@@ -285,17 +277,17 @@ class _ArsivScreenState extends State<ArsivScreen> {
         title: const Row(children: [
           Icon(Icons.archive_rounded, size: 20),
           SizedBox(width: 8),
-          Text('Evrak & Arşiv', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('Evrak & ArÅŸiv', style: TextStyle(fontWeight: FontWeight.bold)),
         ]),
         actions: [
           IconButton(
             icon: const Icon(Icons.create_new_folder_outlined),
-            tooltip: 'Klasör Oluştur',
+            tooltip: 'KlasÃ¶r OluÅŸtur',
             onPressed: _klasorOlustur,
           ),
           IconButton(
             icon: const Icon(Icons.upload_file_rounded),
-            tooltip: 'Dosya Yükle',
+            tooltip: 'Dosya YÃ¼kle',
             onPressed: _dosyaYukle,
           ),
           AiAsistanButonu(ekranAdi: 'Arsiv'),
@@ -306,7 +298,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator())
           : Column(children: [
-              // Üst bar
+              // Ãœst bar
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.all(14),
@@ -316,7 +308,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
                     controller: _aramaCtrl,
                     onChanged: (v) => setState(() => _arama = v.toLowerCase()),
                     decoration: InputDecoration(
-                      hintText: 'Dosya adı, kişi adı ara...',
+                      hintText: 'Dosya adÄ±, kiÅŸi adÄ± ara...',
                       prefixIcon: const Icon(Icons.search_rounded, color: _navy, size: 18),
                       suffixIcon: _arama.isNotEmpty
                           ? IconButton(icon: const Icon(Icons.clear_rounded, size: 16),
@@ -337,14 +329,14 @@ class _ArsivScreenState extends State<ArsivScreen> {
                     selectedColor: Colors.orange.shade100,
                   ),
                   const SizedBox(width: 10),
-                  // Yükle butonu
+                  // YÃ¼kle butonu
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: _turuncu, foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                     onPressed: _dosyaYukle,
                     icon: const Icon(Icons.upload_file_rounded, size: 16),
-                    label: const Text('Dosya Yükle', style: TextStyle(fontSize: 12)),
+                    label: const Text('Dosya YÃ¼kle', style: TextStyle(fontSize: 12)),
                   ),
                 ]),
               ),
@@ -356,7 +348,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(children: [
-                    _katBtn('tumu', '📁 Tümü', Colors.grey),
+                    _katBtn('tumu', 'ğŸ“ TÃ¼mÃ¼', Colors.grey),
                     ...  _kategoriler.map((k) => _katBtn(k.id, '${k.ikon} ${k.ad}', k.renk)),
                   ]),
                 ),
@@ -364,12 +356,12 @@ class _ArsivScreenState extends State<ArsivScreen> {
 
               const Divider(height: 1),
 
-              // İçerik
+              // Ä°Ã§erik
               Expanded(child: Row(children: [
-                // Sol — Klasörler
+                // Sol â€” KlasÃ¶rler
                 _buildKlasorPanel(),
                 const VerticalDivider(width: 1),
-                // Sağ — Dosyalar
+                // SaÄŸ â€” Dosyalar
                 Expanded(child: _buildDosyaListesi()),
               ])),
             ]),
@@ -395,7 +387,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
     );
   }
 
-  // ── SOL PANEL — KLASÖRLER ─────────────────────────────────────
+  // â”€â”€ SOL PANEL â€” KLASÃ–RLER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildKlasorPanel() {
     return Container(
       width: 220,
@@ -406,12 +398,12 @@ class _ArsivScreenState extends State<ArsivScreen> {
           child: Row(children: [
             const Icon(Icons.folder_outlined, color: _navy, size: 16),
             const SizedBox(width: 6),
-            const Text('Klasörler', style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 13)),
+            const Text('KlasÃ¶rler', style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 13)),
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.add_rounded, size: 18, color: _turuncu),
               onPressed: _klasorOlustur,
-              tooltip: 'Yeni Klasör',
+              tooltip: 'Yeni KlasÃ¶r',
               padding: EdgeInsets.zero, constraints: const BoxConstraints(),
             ),
           ]),
@@ -440,7 +432,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
                 if (klasorler.isNotEmpty) ...[
                   const Divider(),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      child: Text('ÖZEL KLASÖRLER', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold))),
+                      child: Text('Ã–ZEL KLASÃ–RLER', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold))),
                   ...klasorler.map((k) {
                     final d = k.data() as Map<String, dynamic>;
                     return ListTile(
@@ -469,7 +461,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
     );
   }
 
-  // ── SAĞ PANEL — DOSYALAR ──────────────────────────────────────
+  // â”€â”€ SAÄ PANEL â€” DOSYALAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildDosyaListesi() {
     var query = FirebaseFirestore.instance
         .collection('evraklar')
@@ -505,30 +497,30 @@ class _ArsivScreenState extends State<ArsivScreen> {
           return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.folder_open_outlined, size: 72, color: Colors.grey[300]),
             const SizedBox(height: 12),
-            const Text('Henüz dosya yok', style: TextStyle(color: Colors.grey, fontSize: 15)),
+            const Text('HenÃ¼z dosya yok', style: TextStyle(color: Colors.grey, fontSize: 15)),
             const SizedBox(height: 8),
-            const Text('Sağ üstteki "Dosya Yükle" ile ekleyin\nveya sistem otomatik ekler',
+            const Text('SaÄŸ Ã¼stteki "Dosya YÃ¼kle" ile ekleyin\nveya sistem otomatik ekler',
                 style: TextStyle(color: Colors.grey, fontSize: 12), textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: _turuncu, foregroundColor: Colors.white),
               onPressed: _dosyaYukle,
               icon: const Icon(Icons.upload_file_rounded),
-              label: const Text('Dosya Yükle'),
+              label: const Text('Dosya YÃ¼kle'),
             ),
           ]));
         }
 
-        // Grupla — alt türe göre
+        // Grupla â€” alt tÃ¼re gÃ¶re
         final gruplar = <String, List<QueryDocumentSnapshot>>{};
         for (final d in docs) {
           final data = d.data() as Map<String, dynamic>;
-          final tur = data['altTur'] as String? ?? 'Diğer';
+          final tur = data['altTur'] as String? ?? 'DiÄŸer';
           gruplar.putIfAbsent(tur, () => []).add(d);
         }
 
         return Column(children: [
-          // Özet bar
+          // Ã–zet bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: const Color(0xFFF8F9FA),
@@ -579,10 +571,10 @@ class _ArsivScreenState extends State<ArsivScreen> {
           Text('Pasife Al'),
         ]),
         content: const Text(
-            'Belge pasife alınacak. Kalıcı olarak silinmeyecek, '
-            '"Pasifler" filtresinden erişebilirsiniz.'),
+            'Belge pasife alÄ±nacak. KalÄ±cÄ± olarak silinmeyecek, '
+            '"Pasifler" filtresinden eriÅŸebilirsiniz.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
+          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Ä°ptal')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(_, true),
@@ -599,40 +591,25 @@ class _ArsivScreenState extends State<ArsivScreen> {
   }
 
   void _dosyaIndir(Map<String, dynamic> data) {
-    final url = data['downloadUrl'] as String?;
-    if (!kIsWeb) return;
-    if (url != null && url.isNotEmpty) {
-      // Firebase Storage URL ile indir
-      html.AnchorElement(href: url)
-        ..setAttribute('download', data['dosyaAdi'] ?? 'dosya')
-        ..setAttribute('target', '_blank')
-        ..click();
-    } else {
+    final base64 = data['base64'] as String?;
+    if (base64 == null || !kIsWeb) return;
+    try {
+      // PDF indirme web'de desteklenmiyor - mobilde share kullan
+      // final blob = html.Blob([base64]);
+      // final url = html.Url.createObjectUrlFromBlob(blob);
+      if (true) return; // Web PDF indir devre disi
+      // ..click();
+      // html.Url.revokeObjectUrl(url);
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('İndirme bağlantısı bulunamadı'),
-              behavior: SnackBarBehavior.floating));
-    }
-  }
-
-  String _mimeType(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'pdf':  return 'application/pdf';
-      case 'jpg':
-      case 'jpeg': return 'image/jpeg';
-      case 'png':  return 'image/png';
-      case 'webp': return 'image/webp';
-      case 'xlsx': return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'xls':  return 'application/vnd.ms-excel';
-      case 'doc':  return 'application/msword';
-      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      default:     return 'application/octet-stream';
+          const SnackBar(content: Text('Ä°ndirme hatasÄ±'), behavior: SnackBarBehavior.floating));
     }
   }
 }
 
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // EVRAK KARTI
-// ════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class _EvrakKarti extends StatelessWidget {
   final QueryDocumentSnapshot doc;
   final Future<void> Function(String) onPasif;
@@ -692,7 +669,7 @@ class _EvrakKarti extends StatelessWidget {
         boxShadow: aktif ? [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)] : null,
       ),
       child: Row(children: [
-        // İkon
+        // Ä°kon
         Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
@@ -728,14 +705,14 @@ class _EvrakKarti extends StatelessWidget {
         if (!aktif)
           const Padding(padding: EdgeInsets.only(right: 8),
               child: Text('Pasif', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold))),
-        // İndir
-        if (data['downloadUrl'] != null)
+        // Ä°ndir
+        if (data['base64'] != null)
           IconButton(
             icon: const Icon(Icons.download_rounded, size: 18, color: Colors.blue),
-            tooltip: 'İndir',
+            tooltip: 'Ä°ndir',
             onPressed: () => onIndir(data),
           ),
-        // Menü
+        // MenÃ¼
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert_rounded, size: 16, color: Colors.grey),
           itemBuilder: (_) => [
@@ -759,3 +736,4 @@ class _EvrakKarti extends StatelessWidget {
     );
   }
 }
+
