@@ -131,11 +131,11 @@ class FirmaIzolasyonService extends ChangeNotifier {
   /// Şoförler — firma bazlı izole
   CollectionReference<Map<String, dynamic>> get soforlerRef {
     _kontrolEt();
-    if (superAdmin) return _db.collection('soforler');
+    if (superAdmin) return _db.collection('drivers');
     return _db
         .collection('firms')
         .doc(_firmaId)
-        .collection('soforler');
+        .collection('drivers');
   }
 
   /// Araçlar — firma bazlı izole

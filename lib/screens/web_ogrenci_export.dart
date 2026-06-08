@@ -1,15 +1,20 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  TÃœM KAYIT SÄ°STEMLERÄ°NDEN GELEN Ã–ÄRENCÄ° ALANLARI
+//  (yÃ¼z yÃ¼ze, link, afiÅŸ/QR)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
 class _Sutun {
-  final String key;
-  final String baslik;
+  final String key;      // Firestore alan adÄ±
+  final String baslik;   // Excel/Word baÅŸlÄ±k
   bool secili;
   _Sutun(this.key, this.baslik, {this.secili = true});
 }
@@ -34,29 +39,33 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
 
+  // TÃ¼m olasÄ± sÃ¼tunlar - tÃ¼m kayÄ±t sistemlerinden gelen alanlar
   final List<_Sutun> _sutunlar = [
-    _Sutun('ad',           'Ad',            secili: true),
-    _Sutun('soyad',        'Soyad',         secili: true),
-    _Sutun('ogrenciTel',   'Öğrenci Tel',   secili: true),
-    _Sutun('anneTel',      'Anne Tel',      secili: true),
-    _Sutun('babaTel',      'Baba Tel',      secili: true),
-    _Sutun('adres',        'Açık Adres',    secili: true),
-    _Sutun('projeAdi',     'Proje Adı',     secili: true),
-    _Sutun('ogrenciTc',    'Öğrenci TC',    secili: false),
-    _Sutun('okulNo',       'Okul No',       secili: false),
-    _Sutun('okul',         'Okul Adı',      secili: false),
-    _Sutun('sinif',        'Sınıf',         secili: false),
-    _Sutun('veliAd',       'Veli Adı',      secili: false),
-    _Sutun('veliTc',       'Veli TC',       secili: false),
-    _Sutun('veliTel',      'Veli Tel',      secili: false),
-    _Sutun('aylikUcret',   'Aylık Ücret',   secili: false),
-    _Sutun('sozlesmeDurum','Sözleşme',      secili: false),
-    _Sutun('kayitTipi',    'Kayıt Tipi',    secili: false),
-    _Sutun('soforAd',      'Şoför',         secili: false),
-    _Sutun('bindi',        'Durum',         secili: false),
-    _Sutun('olusturma',    'Kayıt Tarihi',  secili: false),
+    // Zorunlu - her zaman seÃ§ili
+    _Sutun('ad',          'Ad',              secili: true),
+    _Sutun('soyad',       'Soyad',           secili: true),
+    _Sutun('ogrenciTel',  'Ã–ÄŸrenci Tel',     secili: true),
+    _Sutun('anneTel',     'Anne Tel',        secili: true),
+    _Sutun('babaTel',     'Baba Tel',        secili: true),
+    _Sutun('adres',       'AÃ§Ä±k Adres',      secili: true),
+    _Sutun('projeAdi',    'Proje AdÄ±',       secili: true),
+    // Ek alanlar - seÃ§ilebilir
+    _Sutun('ogrenciTc',   'Ã–ÄŸrenci TC',      secili: false),
+    _Sutun('okulNo',      'Okul No',         secili: false),
+    _Sutun('okul',        'Okul AdÄ±',        secili: false),
+    _Sutun('sinif',       'SÄ±nÄ±f',           secili: false),
+    _Sutun('veliAd',      'Veli AdÄ±',        secili: false),
+    _Sutun('veliTc',      'Veli TC',         secili: false),
+    _Sutun('veliTel',     'Veli Tel',        secili: false),
+    _Sutun('aylikUcret',  'AylÄ±k Ãœcret',     secili: false),
+    _Sutun('sozlesmeDurum','SÃ¶zleÅŸme',       secili: false),
+    _Sutun('kayitTipi',   'KayÄ±t Tipi',      secili: false),
+    _Sutun('soforAd',     'ÅofÃ¶r',           secili: false),
+    _Sutun('bindi',       'Durum',           secili: false),
+    _Sutun('olusturma',   'KayÄ±t Tarihi',    secili: false),
   ];
 
+  // Ekstra sÃ¼tunlar (admin ekler)
   final List<_Sutun> _ekstraSutunlar = [];
   final _ekstraSutunCtrl = TextEditingController();
 
@@ -90,13 +99,14 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
     });
   }
 
+  // SeÃ§ili sÃ¼tunlar
   List<_Sutun> get _seciliSutunlar =>
       [..._sutunlar, ..._ekstraSutunlar].where((s) => s.secili).toList();
 
   String _degerAl(Map<String, dynamic> ogr, String key) {
     final v = ogr[key];
-    if (v == null) { return ''; }
-    if (v is bool) { return v ? 'Evet' : 'Hayır'; }
+    if (v == null) return '';
+    if (v is bool) return v ? 'Evet' : 'HayÄ±r';
     if (v is Timestamp) {
       final dt = v.toDate();
       return '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}.${dt.year}';
@@ -104,20 +114,23 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
     return v.toString();
   }
 
-  // ── EXCEL EXPORT ──────────────────────────────────────────────
+  // â”€â”€ EXCEL EXPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _excelIndir() async {
-    if (_ogrenciler.isEmpty) { return; }
+    if (_ogrenciler.isEmpty) return;
     final excel  = Excel.createExcel();
     final sheet  = excel['Ogrenciler'];
     final secili = _seciliSutunlar;
 
+    // BaÅŸlÄ±k
     sheet.appendRow(secili.map((s) => TextCellValue(s.baslik)).toList());
+
+    // Veriler
     for (final ogr in _ogrenciler) {
       sheet.appendRow(secili.map((s) => TextCellValue(_degerAl(ogr, s.key))).toList());
     }
 
     final bytes = excel.encode();
-    if (bytes == null) { return; }
+    if (bytes == null) return;
     if (kIsWeb) {
       final blob = html.Blob([Uint8List.fromList(bytes)]);
       final url  = html.Url.createObjectUrlFromBlob(blob);
@@ -129,27 +142,35 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
     }
   }
 
-  // ── WORD/HTML EXPORT ──────────────────────────────────────────
+  // â”€â”€ WORD/HTML EXPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _wordIndir() {
-    if (_ogrenciler.isEmpty) { return; }
+    if (_ogrenciler.isEmpty) return;
     final secili = _seciliSutunlar;
     final tarih  = DateTime.now();
     final sb     = StringBuffer();
 
-    sb.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Öğrenci Listesi</title>');
-    sb.write('<style>');
-    sb.write('@page { margin: 15mm; }');
-    sb.write('body { font-family: Arial, sans-serif; font-size: 11pt; }');
-    sb.write('h1 { color: #1a3a6b; font-size: 16pt; margin: 0 0 4px; }');
-    sb.write('h2 { color: #666; font-size: 10pt; margin: 0; font-weight: normal; }');
-    sb.write('table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 9pt; }');
-    sb.write('th { background: #1a3a6b; color: white; padding: 7px 8px; text-align: left; }');
-    sb.write('td { padding: 6px 8px; border-bottom: 1px solid #e0e0e0; }');
-    sb.write('tr:nth-child(even) td { background: #f5f7fa; }');
-    sb.write('</style></head><body>');
-    sb.write('<h1>Öğrenci Listesi — Servisim360</h1>');
-    sb.write('<h2>Proje: ${widget.projeAdi} | Tarih: ${tarih.day}.${tarih.month}.${tarih.year} | Toplam: ${_ogrenciler.length} öğrenci</h2>');
-    sb.write('<table><tr><th>#</th>');
+    sb.write('''<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Ã–ÄŸrenci Listesi</title>
+<style>
+  @page { margin: 15mm; }
+  body  { font-family: Arial, sans-serif; font-size: 11pt; }
+  .header { border-bottom: 3px solid #1a3a6b; padding-bottom: 10px; margin-bottom: 16px; }
+  h1  { color: #1a3a6b; font-size: 16pt; margin: 0 0 4px; }
+  h2  { color: #666; font-size: 10pt; margin: 0; font-weight: normal; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 9pt; }
+  th  { background: #1a3a6b; color: white; padding: 7px 8px; text-align: left; }
+  td  { padding: 6px 8px; border-bottom: 1px solid #e0e0e0; }
+  tr:nth-child(even) td { background: #f5f7fa; }
+  .footer { margin-top: 20px; font-size: 9pt; color: #999; text-align: right; }
+</style></head><body>
+<div class="header">
+  <h1>&#128100; Ã–ÄŸrenci Listesi â€” Servisim360</h1>
+  <h2>Proje: ${widget.projeAdi} &nbsp;|&nbsp; 
+      Tarih: ${tarih.day.toString().padLeft(2,'0')}.${tarih.month.toString().padLeft(2,'0')}.${tarih.year} &nbsp;|&nbsp; 
+      Toplam: ${_ogrenciler.length} Ã¶ÄŸrenci</h2>
+</div>
+<table>
+<tr><th>#</th>''');
 
     for (final s in secili) {
       sb.write('<th>${s.baslik}</th>');
@@ -159,13 +180,15 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
     for (int i = 0; i < _ogrenciler.length; i++) {
       sb.write('<tr><td>${i + 1}</td>');
       for (final s in secili) {
-        final v    = _degerAl(_ogrenciler[i], s.key);
+        final v = _degerAl(_ogrenciler[i], s.key);
         final bold = s.key == 'ad' || s.key == 'soyad';
         sb.write('<td>${bold ? '<b>$v</b>' : v}</td>');
       }
       sb.write('</tr>');
     }
-    sb.write('</table></body></html>');
+    sb.write('''</table>
+<div class="footer">Servisim360 â€” ${tarih.day}.${tarih.month}.${tarih.year}</div>
+</body></html>''');
 
     if (kIsWeb) {
       final blob = html.Blob([sb.toString()], 'application/msword');
@@ -178,100 +201,87 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
     }
   }
 
-  // ── YAZDIR ────────────────────────────────────────────────────
+  // â”€â”€ YAZDIR (tarayÄ±cÄ± print) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _yazdir() {
-    if (_ogrenciler.isEmpty) { return; }
+    if (_ogrenciler.isEmpty) return;
     final secili = _seciliSutunlar;
     final tarih  = DateTime.now();
     final sb     = StringBuffer();
-
-    sb.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
-    sb.write('<style>');
-    sb.write('@page { margin: 10mm; size: A4 landscape; }');
-    sb.write('body { font-family: Arial, sans-serif; font-size: 9pt; }');
-    sb.write('h1 { color: #1a3a6b; font-size: 13pt; margin: 0 0 2px; }');
-    sb.write('h2 { color: #555; font-size: 9pt; margin: 0 0 10px; }');
-    sb.write('table { width: 100%; border-collapse: collapse; }');
-    sb.write('th { background: #1a3a6b; color: white; padding: 5px 6px; font-size: 8pt; }');
-    sb.write('td { padding: 4px 6px; border-bottom: 1px solid #ddd; font-size: 8pt; }');
-    sb.write('tr:nth-child(even) td { background: #f5f7fa; }');
-    sb.write('</style></head><body>');
-    sb.write('<h1>Öğrenci Listesi — ${widget.projeAdi}</h1>');
-    sb.write('<h2>Tarih: ${tarih.day}.${tarih.month}.${tarih.year} | Toplam: ${_ogrenciler.length} öğrenci</h2>');
-    sb.write('<table><tr><th>#</th>');
-    for (final s in secili) {
-      sb.write('<th>${s.baslik}</th>');
-    }
+    sb.write('''<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  @page { margin: 10mm; size: A4 landscape; }
+  body  { font-family: Arial, sans-serif; font-size: 9pt; }
+  h1    { color: #1a3a6b; font-size: 13pt; margin: 0 0 2px; }
+  h2    { color: #555; font-size: 9pt; margin: 0 0 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th    { background: #1a3a6b; color: white; padding: 5px 6px; font-size: 8pt; }
+  td    { padding: 4px 6px; border-bottom: 1px solid #ddd; font-size: 8pt; }
+  tr:nth-child(even) td { background: #f5f7fa; }
+</style></head><body>
+<h1>Ã–ÄŸrenci Listesi â€” ${widget.projeAdi}</h1>
+<h2>Tarih: ${tarih.day}.${tarih.month}.${tarih.year} | Toplam: ${_ogrenciler.length} Ã¶ÄŸrenci</h2>
+<table><tr><th>#</th>''');
+    for (final s in secili) sb.write('<th>${s.baslik}</th>');
     sb.write('</tr>');
     for (int i = 0; i < _ogrenciler.length; i++) {
-      sb.write('<tr><td>${i + 1}</td>');
-      for (final s in secili) {
-        sb.write('<td>${_degerAl(_ogrenciler[i], s.key)}</td>');
-      }
+      sb.write('<tr><td>${i+1}</td>');
+      for (final s in secili) sb.write('<td>${_degerAl(_ogrenciler[i], s.key)}</td>');
       sb.write('</tr>');
     }
     sb.write('</table></body></html>');
 
     if (kIsWeb) {
-      final blob = html.Blob([sb.toString()], 'text/html');
-      final url  = html.Url.createObjectUrl(blob);
-      final win  = html.window.open(url, '_blank');
-      if (win != null) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          try { (win as dynamic).print(); } catch (e) { debugPrint('print: $e'); }
-        });
-      }
+      // final win = html.window.open('', '_blank');
+      // win?.document.write(sb.toString());
+      // win?.document.close();
+      // win?.print();
     }
   }
 
-  // ── EXCEL IMPORT ──────────────────────────────────────────────
+  // â”€â”€ EXCEL IMPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _excelYukle() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom, allowedExtensions: ['xlsx', 'xls'], withData: true,
     );
-    if (result == null || result.files.first.bytes == null) { return; }
+    if (result == null || result.files.first.bytes == null) return;
 
     final excel = Excel.decodeBytes(result.files.first.bytes!);
     final sheet = excel.tables.values.first;
-    if (sheet.rows.length < 2) { return; }
+    if (sheet.rows.length < 2) return;
 
-    final basliklar = sheet.rows[0]
-        .map((c) => c?.value?.toString().toLowerCase().trim() ?? '')
-        .toList();
-
+    // BaÅŸlÄ±k satÄ±rÄ±ndan sÃ¼tun eÅŸlemesi
+    final basliklar = sheet.rows[0].map((c) => c?.value?.toString()?.toLowerCase().trim() ?? '').toList();
+    
     final Map<String, int> kolonMap = {};
     for (int i = 0; i < basliklar.length; i++) {
       final b = basliklar[i];
-      if (b.contains('ad') && !b.contains('soy') && !b.contains('veli') && !b.contains('okul')) { kolonMap['ad'] = i; }
-      if (b.contains('soyad')) { kolonMap['soyad'] = i; }
-      if (b.contains('öğrenci tel') || b.contains('ogrenci tel') ||
-          (b.contains('tel') && !b.contains('anne') && !b.contains('baba') && !b.contains('veli'))) {
-        kolonMap['ogrenciTel'] = i;
-      }
-      if (b.contains('anne')) { kolonMap['anneTel'] = i; }
-      if (b.contains('baba')) { kolonMap['babaTel'] = i; }
-      if (b.contains('adres') || b.contains('açık')) { kolonMap['adres'] = i; }
-      if (b.contains('okul') && !b.contains('no')) { kolonMap['okul'] = i; }
-      if (b.contains('okul no') || b.contains('okulno')) { kolonMap['okulNo'] = i; }
-      if (b.contains('sınıf') || b.contains('sinif')) { kolonMap['sinif'] = i; }
-      if (b.contains('veli') && b.contains('ad')) { kolonMap['veliAd'] = i; }
-      if (b.contains('veli') && b.contains('tel')) { kolonMap['veliTel'] = i; }
-      if (b.contains('tc') && b.contains('öğ')) { kolonMap['ogrenciTc'] = i; }
-      if (b.contains('tc') && b.contains('vel')) { kolonMap['veliTc'] = i; }
-      if (b.contains('ücret') || b.contains('ucret')) { kolonMap['aylikUcret'] = i; }
+      if (b.contains('ad') && !b.contains('soy') && !b.contains('veli') && !b.contains('okul')) kolonMap['ad'] = i;
+      if (b.contains('soyad')) kolonMap['soyad'] = i;
+      if (b.contains('Ã¶ÄŸrenci tel') || b.contains('ogrenci tel') || (b.contains('tel') && !b.contains('anne') && !b.contains('baba') && !b.contains('veli'))) kolonMap['ogrenciTel'] = i;
+      if (b.contains('anne')) kolonMap['anneTel'] = i;
+      if (b.contains('baba')) kolonMap['babaTel'] = i;
+      if (b.contains('adres') || b.contains('aÃ§Ä±k')) kolonMap['adres'] = i;
+      if (b.contains('okul') && !b.contains('no')) kolonMap['okul'] = i;
+      if (b.contains('okul no') || b.contains('okulno')) kolonMap['okulNo'] = i;
+      if (b.contains('sÄ±nÄ±f') || b.contains('sinif')) kolonMap['sinif'] = i;
+      if (b.contains('veli') && b.contains('ad')) kolonMap['veliAd'] = i;
+      if (b.contains('veli') && b.contains('tel')) kolonMap['veliTel'] = i;
+      if (b.contains('tc') && b.contains('Ã¶ÄŸ')) kolonMap['ogrenciTc'] = i;
+      if (b.contains('tc') && b.contains('vel')) kolonMap['veliTc'] = i;
+      if (b.contains('Ã¼cret') || b.contains('ucret')) kolonMap['aylikUcret'] = i;
     }
 
-    String val(List<dynamic> row, String key) {
+    String val(List row, String key) {
       final idx = kolonMap[key];
-      if (idx == null || idx >= row.length) { return ''; }
-      return row[idx]?.value?.toString().trim() ?? '';
+      if (idx == null || idx >= row.length) return '';
+      return row[idx]?.value?.toString()?.trim() ?? '';
     }
 
     final satirlar = <Map<String, dynamic>>[];
     for (int i = 1; i < sheet.rows.length; i++) {
       final row = sheet.rows[i];
-      final ad  = val(row, 'ad');
-      if (ad.isEmpty) { continue; }
+      final ad = val(row, 'ad');
+      if (ad.isEmpty) continue;
       final soyad = val(row, 'soyad');
       satirlar.add({
         'ad'        : ad,
@@ -299,16 +309,16 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
       });
     }
 
-    if (satirlar.isEmpty || !mounted) { return; }
+    if (satirlar.isEmpty || !mounted) return;
 
     final onay = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(children: [
           const Icon(Icons.upload_file_rounded, color: _navy),
           const SizedBox(width: 8),
-          Text('${satirlar.length} öğrenci yüklenecek'),
+          Text('${satirlar.length} Ã¶ÄŸrenci yÃ¼klenecek'),
         ]),
         content: SizedBox(
           width: 500, height: 320,
@@ -316,8 +326,7 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
             Container(
               padding: const EdgeInsets.all(10),
               margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                  color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
               child: Row(children: [
                 const Icon(Icons.folder_outlined, color: Colors.blue, size: 16),
                 const SizedBox(width: 6),
@@ -329,86 +338,66 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
               itemCount: satirlar.length > 8 ? 8 : satirlar.length,
               itemBuilder: (_, i) {
                 final s = satirlar[i];
-                return ListTile(
-                  dense: true,
-                  leading: CircleAvatar(
-                    radius: 14,
-                    backgroundColor: _navy.withValues(alpha: 0.1),
-                    child: Text('${i + 1}',
-                        style: const TextStyle(fontSize: 10, color: _navy)),
-                  ),
+                return ListTile(dense: true,
+                  leading: CircleAvatar(radius: 14, backgroundColor: _navy.withValues(alpha: 0.1),
+                      child: Text('${i+1}', style: const TextStyle(fontSize: 10, color: _navy))),
                   title: Text('${s['ad']} ${s['soyad']}',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   subtitle: Text(
-                      '📞 ${s['ogrenciTel']}  👩 ${s['anneTel']}  👨 ${s['babaTel']}\n📍 ${s['adres']}',
-                      style: const TextStyle(fontSize: 11)),
+                    'ğŸ“ ${s['ogrenciTel']}  ğŸ‘© ${s['anneTel']}  ğŸ‘¨ ${s['babaTel']}\nğŸ“ ${s['adres']}',
+                    style: const TextStyle(fontSize: 11)),
                   isThreeLine: true,
                 );
               },
             )),
             if (satirlar.length > 8)
-              Text('... ve ${satirlar.length - 8} öğrenci daha',
+              Text('... ve ${satirlar.length - 8} Ã¶ÄŸrenci daha',
                   style: TextStyle(color: Colors.grey[500], fontSize: 12)),
           ]),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('İptal'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Ä°ptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('${satirlar.length} Öğrenciyi Kaydet'),
-          ),
+            style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(_, true),
+            child: Text('${satirlar.length} Ã–ÄŸrenciyi Kaydet')),
         ],
       ),
     );
-
-    if (onay != true) { return; }
+    if (onay != true) return;
 
     setState(() => _yukleniyor = true);
     int basarili = 0;
     for (final ogr in satirlar) {
-      try {
-        await FirebaseFirestore.instance.collection('students').add(ogr);
-        basarili++;
-      } catch (e) {
-        debugPrint('Kayıt hatası: $e');
-      }
+      try { await FirebaseFirestore.instance.collection('students').add(ogr); basarili++; } catch (_) {}
     }
     setState(() => _yukleniyor = false);
     await _yukle();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$basarili öğrenci eklendi ✓'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$basarili Ã¶ÄŸrenci eklendi âœ“'),
+        backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
   }
 
-  // ── ŞABLON İNDİR ──────────────────────────────────────────────
+  // â”€â”€ ÅABLON Ä°NDÄ°R â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _sablonIndir() {
     final excel = Excel.createExcel();
     final sheet = excel['Ogrenciler'];
     sheet.appendRow([
-      TextCellValue('Ad'),           TextCellValue('Soyad'),
-      TextCellValue('Ogrenci Tel'),  TextCellValue('Anne Tel'),
-      TextCellValue('Baba Tel'),     TextCellValue('Acik Adres'),
-      TextCellValue('Okul'),         TextCellValue('Sinif'),
-      TextCellValue('Veli Adi'),     TextCellValue('Veli Tel'),
+      TextCellValue('Ad'), TextCellValue('Soyad'),
+      TextCellValue('Ogrenci Tel'), TextCellValue('Anne Tel'),
+      TextCellValue('Baba Tel'), TextCellValue('Acik Adres'),
+      TextCellValue('Okul'), TextCellValue('Sinif'),
+      TextCellValue('Veli Adi'), TextCellValue('Veli Tel'),
     ]);
     sheet.appendRow([
-      TextCellValue('Ahmet'),        TextCellValue('Yilmaz'),
-      TextCellValue('05301234567'),  TextCellValue('05321234567'),
-      TextCellValue('05331234567'),  TextCellValue('Kadikoy Mah. No:5'),
+      TextCellValue('Ahmet'), TextCellValue('Yilmaz'),
+      TextCellValue('05301234567'), TextCellValue('05321234567'),
+      TextCellValue('05331234567'), TextCellValue('Kadikoy Mah. Ataturk Cad. No:5 D:3'),
       TextCellValue('Ataturk Ilkokulu'), TextCellValue('3-A'),
       TextCellValue('Mehmet Yilmaz'), TextCellValue('05351234567'),
     ]);
     final bytes = excel.encode();
-    if (bytes == null) { return; }
+    if (bytes == null) return;
     if (kIsWeb) {
       final blob = html.Blob([Uint8List.fromList(bytes)]);
       final url  = html.Url.createObjectUrlFromBlob(blob);
@@ -419,19 +408,6 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
     }
   }
 
-  void _ekstraSutunEkle() {
-    final text = _ekstraSutunCtrl.text.trim();
-    if (text.isEmpty) { return; }
-    setState(() {
-      _ekstraSutunlar.add(_Sutun(
-        text.toLowerCase().replaceAll(' ', '_'),
-        text,
-        secili: true,
-      ));
-      _ekstraSutunCtrl.clear();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -439,7 +415,7 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
       child: SizedBox(
         width: 800, height: 600,
         child: Column(children: [
-          // BAŞLIK
+          // BAÅLIK
           Container(
             padding: const EdgeInsets.all(20),
             decoration: const BoxDecoration(
@@ -450,9 +426,9 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
               const Icon(Icons.table_chart_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Öğrenci Listesi — Dışa Aktar / İçe Aktar',
+                const Text('Ã–ÄŸrenci Listesi â€” DÄ±ÅŸa Aktar / Ä°Ã§e Aktar',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('${widget.projeAdi} • ${_ogrenciler.length} öğrenci',
+                Text('${widget.projeAdi} â€¢ ${_ogrenciler.length} Ã¶ÄŸrenci',
                     style: const TextStyle(color: Colors.white60, fontSize: 11)),
               ])),
               IconButton(
@@ -463,11 +439,11 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
           ),
 
           Expanded(child: Row(children: [
-            // SOL — Sütun seçimi
+            // SOL - SÃ¼tun seÃ§imi
             Container(
               width: 280,
-              decoration: BoxDecoration(
-                border: Border(right: const BorderSide(color: Color(0xFFEEEEEE))),
+              decoration: const BoxDecoration(
+                border: Border(right: BorderSide(color: Color(0xFFEEEEEE))),
               ),
               child: Column(children: [
                 Container(
@@ -476,13 +452,13 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
                   child: const Row(children: [
                     Icon(Icons.tune_rounded, size: 16, color: _navy),
                     SizedBox(width: 6),
-                    Text('Sütun Seç',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 13)),
+                    Text('SÃ¼tun SeÃ§', style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 13)),
                   ]),
                 ),
                 Expanded(child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   children: [
+                    // Standart sÃ¼tunlar
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       child: Text('STANDART ALANLAR',
@@ -493,17 +469,16 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
                       value: s.secili,
                       onChanged: (v) => setState(() => s.secili = v ?? false),
                       title: Text(s.baslik, style: const TextStyle(fontSize: 12)),
-                      subtitle: Text(s.key,
-                          style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      subtitle: Text(s.key, style: const TextStyle(fontSize: 10, color: Colors.grey)),
                       activeColor: _navy,
                       controlAffinity: ListTileControlAffinity.leading,
                     )),
+                    // Ekstra sÃ¼tunlar
                     if (_ekstraSutunlar.isNotEmpty) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        child: Text('EK SÜTUNLAR',
-                            style: TextStyle(
-                                fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                        child: Text('EK SÃœTUNLAR',
+                            style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
                       ),
                       ..._ekstraSutunlar.map((s) => CheckboxListTile(
                         dense: true,
@@ -518,19 +493,18 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
                         controlAffinity: ListTileControlAffinity.leading,
                       )),
                     ],
+                    // Ekstra sÃ¼tun ekle
                     Padding(
                       padding: const EdgeInsets.all(12),
                       child: Row(children: [
                         Expanded(child: TextField(
                           controller: _ekstraSutunCtrl,
                           decoration: InputDecoration(
-                            hintText: 'Sütun adı...',
+                            hintText: 'SÃ¼tun adÄ±...',
                             hintStyle: const TextStyle(fontSize: 11),
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                             isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           ),
                           style: const TextStyle(fontSize: 12),
                           onSubmitted: (_) => _ekstraSutunEkle(),
@@ -538,13 +512,9 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
                         const SizedBox(width: 6),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _turuncu,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(36, 36),
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
+                              backgroundColor: _turuncu, foregroundColor: Colors.white,
+                              minimumSize: const Size(36, 36), padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                           onPressed: _ekstraSutunEkle,
                           child: const Icon(Icons.add, size: 18),
                         ),
@@ -555,141 +525,121 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
               ]),
             ),
 
-            // SAĞ — Önizleme + Butonlar
+            // SAÄ - Ã–nizleme + Butonlar
             Expanded(child: Column(children: [
+              // Import butonlarÄ±
               Container(
                 padding: const EdgeInsets.all(12),
                 color: const Color(0xFFF8F9FA),
                 child: Row(children: [
                   const Icon(Icons.upload_file_rounded, size: 16, color: _navy),
                   const SizedBox(width: 6),
-                  const Text('İçe Aktar:',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12)),
+                  const Text('Ä°Ã§e Aktar:', style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 12)),
                   const SizedBox(width: 10),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: const BorderSide(color: Colors.green),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                        foregroundColor: Colors.green,
+                        side: const BorderSide(color: Colors.green),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     onPressed: _sablonIndir,
                     icon: const Icon(Icons.download_rounded, size: 14),
-                    label: const Text('Şablon', style: TextStyle(fontSize: 11)),
+                    label: const Text('Åablon', style: TextStyle(fontSize: 11)),
                   ),
                   const SizedBox(width: 6),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                        backgroundColor: Colors.green, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     onPressed: _yukleniyor ? null : _excelYukle,
                     icon: _yukleniyor
                         ? const SizedBox(width: 12, height: 12,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.upload_rounded, size: 14),
-                    label: const Text('Excel Yükle', style: TextStyle(fontSize: 11)),
+                    label: const Text('Excel YÃ¼kle', style: TextStyle(fontSize: 11)),
                   ),
                 ]),
               ),
 
+              // Ã–nizleme tablosu
               Expanded(child: _yukleniyor
                   ? const Center(child: CircularProgressIndicator())
                   : _ogrenciler.isEmpty
-                  ? const Center(child: Text('Öğrenci bulunamadı',
-                  style: TextStyle(color: Colors.grey)))
-                  : SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SingleChildScrollView(
-                  child: DataTable(
-                    columnSpacing: 16,
-                    headingRowColor: WidgetStateProperty.all(
-                        const Color(0xFFF0F2F5)),
-                    columns: [
-                      const DataColumn(
-                        label: Text('#',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11)),
-                      ),
-                      ..._seciliSutunlar.map((s) => DataColumn(
-                        label: Text(s.baslik,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11)),
-                      )),
-                    ],
-                    rows: _ogrenciler.take(10).toList().asMap().entries.map((e) =>
-                        DataRow(cells: [
-                          DataCell(Text('${e.key + 1}',
-                              style: const TextStyle(
-                                  fontSize: 11, color: Colors.grey))),
-                          ..._seciliSutunlar.map((s) => DataCell(
-                            Text(_degerAl(e.value, s.key),
-                                style: const TextStyle(fontSize: 11),
-                                overflow: TextOverflow.ellipsis),
-                          )),
-                        ]),
-                    ).toList(),
-                  ),
-                ),
-              )),
-
+                      ? const Center(child: Text('Ã–ÄŸrenci bulunamadÄ±', style: TextStyle(color: Colors.grey)))
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SingleChildScrollView(
+                            child: DataTable(
+                              columnSpacing: 16,
+                              headingRowColor: WidgetStateProperty.all(const Color(0xFFF0F2F5)),
+                              columns: [
+                                const DataColumn(label: Text('#', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                ..._seciliSutunlar.map((s) => DataColumn(
+                                  label: Text(s.baslik,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                                )),
+                              ],
+                              rows: _ogrenciler.take(10).toList().asMap().entries.map((e) =>
+                                DataRow(cells: [
+                                  DataCell(Text('${e.key + 1}', style: const TextStyle(fontSize: 11, color: Colors.grey))),
+                                  ..._seciliSutunlar.map((s) => DataCell(
+                                    Text(_degerAl(e.value, s.key),
+                                        style: const TextStyle(fontSize: 11),
+                                        overflow: TextOverflow.ellipsis),
+                                  )),
+                                ]),
+                              ).toList(),
+                            ),
+                          ),
+                        )),
               if (_ogrenciler.length > 10)
                 Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Text(
-                      '... ve ${_ogrenciler.length - 10} öğrenci daha (hepsi dışa aktarılır)',
+                  child: Text('... ve ${_ogrenciler.length - 10} Ã¶ÄŸrenci daha (hepsi dÄ±ÅŸa aktarÄ±lÄ±r)',
                       style: TextStyle(color: Colors.grey[500], fontSize: 11)),
                 ),
 
-              // Export butonları
+              // Export butonlarÄ±
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border(top: const BorderSide(color: Color(0xFFEEEEEE))),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
                 ),
                 child: Row(children: [
-                  Text('${_seciliSutunlar.length} sütun seçili',
+                  Text('${_seciliSutunlar.length} sÃ¼tun seÃ§ili',
                       style: TextStyle(fontSize: 11, color: Colors.grey[500])),
                   const Spacer(),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.purple,
-                      side: const BorderSide(color: Colors.purple),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                        foregroundColor: Colors.purple,
+                        side: const BorderSide(color: Colors.purple),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     onPressed: _yazdir,
                     icon: const Icon(Icons.print_rounded, size: 16),
-                    label: const Text('Yazdır', style: TextStyle(fontSize: 12)),
+                    label: const Text('YazdÄ±r', style: TextStyle(fontSize: 12)),
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                        foregroundColor: Colors.blue,
+                        side: const BorderSide(color: Colors.blue),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     onPressed: _wordIndir,
                     icon: const Icon(Icons.description_rounded, size: 16),
-                    label: const Text('Word İndir', style: TextStyle(fontSize: 12)),
+                    label: const Text('Word Ä°ndir', style: TextStyle(fontSize: 12)),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
+                        backgroundColor: Colors.green, foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     onPressed: _excelIndir,
                     icon: const Icon(Icons.table_chart_rounded, size: 16),
-                    label: const Text('Excel İndir', style: TextStyle(fontSize: 12)),
+                    label: const Text('Excel Ä°ndir', style: TextStyle(fontSize: 12)),
                   ),
                 ]),
               ),
@@ -699,4 +649,18 @@ class _WebOgrenciExportDialogState extends State<WebOgrenciExportDialog> {
       ),
     );
   }
+
+  void _ekstraSutunEkle() {
+    final text = _ekstraSutunCtrl.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _ekstraSutunlar.add(_Sutun(
+        text.toLowerCase().replaceAll(' ', '_'),
+        text,
+        secili: true,
+      ));
+      _ekstraSutunCtrl.clear();
+    });
+  }
 }
+
