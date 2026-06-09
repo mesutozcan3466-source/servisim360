@@ -41,7 +41,7 @@ class _TopluYukleScreenState extends State<TopluYukleScreen>
 
   Future<void> _baslat() async {
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId = SessionService.instance.aktifProjeld ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
   }
 
   @override

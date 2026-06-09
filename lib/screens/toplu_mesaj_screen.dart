@@ -44,7 +44,7 @@ class _TopluMesajScreenState extends State<TopluMesajScreen>
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
     _firmaId  = await SessionService.instance.firmaIdAl();
-    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeId  = SessionService.instance.aktifProjeId  ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (_firmaId == null) { setState(() => _yukleniyor = false); return; }
 

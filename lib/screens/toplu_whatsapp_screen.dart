@@ -65,7 +65,7 @@ class _TopluWhatsappScreenState extends State<TopluWhatsappScreen>
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
     try {
-      final projeId = SessionService.instance.aktifProjeld ?? '';
+      final projeId = SessionService.instance.aktifProjeId ?? '';
       final firmaId = await SessionService.instance.firmaIdAl() ?? '';
       var q = projeId.isNotEmpty
           ? FirebaseFirestore.instance.collection('parents').where('projeId', isEqualTo: projeId)

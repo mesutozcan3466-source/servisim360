@@ -109,7 +109,7 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
     _projeler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
 
     // Aktif proje varsa onu ön seç
-    final aktifId = SessionService.instance.aktifProjeld ?? '';
+    final aktifId = SessionService.instance.aktifProjeId ?? '';
     if (aktifId.isNotEmpty) {
       final aktif = _projeler.firstWhere(
           (p) => p['id'] == aktifId, orElse: () => {});

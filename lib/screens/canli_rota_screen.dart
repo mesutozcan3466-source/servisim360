@@ -55,7 +55,7 @@ class _CanliRotaScreenState extends State<CanliRotaScreen> {
 
   Future<void> _init() async {
     _firmaId  = await SessionService.instance.firmaIdAl();
-    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeId  = SessionService.instance.aktifProjeId  ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     final uid = FirebaseAuth.instance.currentUser?.uid;
 

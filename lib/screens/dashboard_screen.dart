@@ -66,7 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .collection('firms').doc(firmaId).get();
       firmaAd = fd.data()?['firmaAdi'] ?? fd.data()?['ad'] ?? '';
     }
-    final projeId = SessionService.instance.aktifProjeld  ?? '';
+    final projeId = SessionService.instance.aktifProjeId  ?? '';
     final projeAd = SessionService.instance.aktifProjeAdi ?? '';
     if (firmaId.isNotEmpty) await _istatistikYukle(firmaId, projeId);
     if (mounted) setState(() {

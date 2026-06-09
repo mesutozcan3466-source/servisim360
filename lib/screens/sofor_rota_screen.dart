@@ -60,7 +60,7 @@ class _SoforRotaScreenState extends State<SoforRotaScreen>
 
   Future<void> _yukle() async {
     _firmaId  = await SessionService.instance.firmaldAl();
-    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeId  = SessionService.instance.aktifProjeId  ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
 
     try {

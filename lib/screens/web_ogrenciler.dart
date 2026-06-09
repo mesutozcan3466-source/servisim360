@@ -33,7 +33,7 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
   Future<void> _yukle() async {
     final firmaId = await SessionService.instance.firmaIdAl() ?? '';
     _firmaId = firmaId;
-    final projeId = SessionService.instance.aktifProjeld ?? '';
+    final projeId = SessionService.instance.aktifProjeId ?? '';
     if (firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
 
     try {

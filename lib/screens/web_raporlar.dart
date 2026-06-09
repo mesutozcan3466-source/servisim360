@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'ai_widget.dart';
 import 'package:flutter/services.dart';
-import 'package:excel/excel.dart' hide Border;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/session_service.dart';
 
 class WebRaporlar extends StatefulWidget {
-  const WebRaporlar({super.key});
+  final String projeId;
+  const WebRaporlar({super.key, this.projeId = ''});
   @override
   State<WebRaporlar> createState() => _WebRaporlarState();
 }
@@ -27,7 +26,7 @@ class _WebRaporlarState extends State<WebRaporlar> {
 
   Future<void> _yukle() async {
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    final projeId = SessionService.instance.aktifProjeld ?? '';
+    final projeId = widget.projeId.isNotEmpty ? widget.projeId : (SessionService.instance.aktifProjeId ?? '');
     if (_firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
     try {
       final now = DateTime.now();
@@ -102,8 +101,6 @@ class _WebRaporlarState extends State<WebRaporlar> {
           Text('Raporu Dışa Aktar'),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _disaBtn(Icons.table_chart_outlined,     Colors.green,  'Excel Aktar',      _excelaAktar),
-          const SizedBox(height: 8),
           _disaBtn(Icons.people_outlined,          Colors.blue,   'Öğrenci Listesi',    _ogrenciListesiKopyala),
           const SizedBox(height: 8),
           _disaBtn(Icons.directions_car_outlined,  _navy,         'Şoför Listesi',      _soforListesiKopyala),
@@ -112,8 +109,7 @@ class _WebRaporlarState extends State<WebRaporlar> {
           const SizedBox(height: 8),
           _disaBtn(Icons.bar_chart_outlined,       Colors.green,  'Genel Özet',         _genelOzetKopyala),
         ]),
-        actions: [
-          AiAsistanButonu(ekranAdi: 'Raporlar'),TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat'))],
       ),
     );
   }
@@ -136,36 +132,6 @@ class _WebRaporlarState extends State<WebRaporlar> {
           ]),
         ),
       );
-
-  Future<void> _excelaAktar() async {
-    try {
-      final excel = Excel.createExcel();
-      final sheet = excel['Öğrenciler'];
-      sheet.appendRow([
-        TextCellValue('No'), TextCellValue('Ad Soyad'),
-        TextCellValue('Veli'), TextCellValue('Tel'),
-        TextCellValue('Adres'), TextCellValue('Servis'),
-      ]);
-      final snap = await FirebaseFirestore.instance
-          .collection('students').where('firmaId', isEqualTo: _firmaId)
-          .orderBy('ad').get();
-      for (var i = 0; i < snap.docs.length; i++) {
-        final d = snap.docs[i].data();
-        sheet.appendRow([
-          IntCellValue(i + 1),
-          TextCellValue('${d['ad'] ?? ''} ${d['soyad'] ?? ''}'.trim()),
-          TextCellValue(d['veliAd'] ?? ''),
-          TextCellValue(d['veliTel'] ?? ''),
-          TextCellValue(d['adres'] ?? ''),
-          TextCellValue(d['surucuId'] != null ? 'Atandı' : 'Atanmadı'),
-        ]);
-      }
-      final bytes = excel.encode();
-      if (bytes != null) {
-        _snack('Excel hazırlandı (${snap.docs.length} kayıt)');
-      }
-    } catch (e) { _snack('Excel hatası: $e', hata: true); }
-  }
 
   Future<void> _ogrenciListesiKopyala() async {
     try {

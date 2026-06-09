@@ -26,7 +26,7 @@ class _WebDashboardState extends State<WebDashboard> {
 
   Future<void> _yukle() async {
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId = SessionService.instance.aktifProjeld ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
     if (_firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
 
     try {

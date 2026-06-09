@@ -25,7 +25,7 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
   void initState() {
     super.initState();
     SessionService.instance.firmaIdAl().then((id) {
-      _projeId  = SessionService.instance.aktifProjeld  ?? '';
+      _projeId  = SessionService.instance.aktifProjeId  ?? '';
       _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
       if (mounted) setState(() => _firmaId = id);
     });

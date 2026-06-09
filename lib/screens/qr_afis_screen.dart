@@ -35,7 +35,7 @@ class _QrAfisScreenState extends State<QrAfisScreen> {
       setState(() => _yukleniyor = false);
       return;
     }
-    final projeId = SessionService.instance.aktifProjeld ?? '';
+    final projeId = SessionService.instance.aktifProjeId ?? '';
     _projeAdi     = SessionService.instance.aktifProjeAdi ?? '';
 
     final firmaDoc = await FirebaseFirestore.instance.collection('firms').doc(firmaId).get();
@@ -63,7 +63,7 @@ class _QrAfisScreenState extends State<QrAfisScreen> {
     setState(() => _olusturuluyor = true);
     try {
       final firmaId = await SessionService.instance.firmaIdAl() ?? '';
-      final projeId = SessionService.instance.aktifProjeld ?? '';
+      final projeId = SessionService.instance.aktifProjeId ?? '';
       final bitis   = DateTime.now().add(const Duration(days: 365)); // 1 yıl geçerli
 
       final docRef = await FirebaseFirestore.instance.collection('kayit_linkleri').add({

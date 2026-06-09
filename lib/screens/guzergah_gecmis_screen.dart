@@ -32,7 +32,7 @@ class _GuzergahGecmisScreenState extends State<GuzergahGecmisScreen> {
 
   Future<void> _yukle() async {
     _firmaId  = await SessionService.instance.firmaIdAl();
-    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeId  = SessionService.instance.aktifProjeId  ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (_firmaId == null) return;
 

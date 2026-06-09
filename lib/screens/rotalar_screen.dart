@@ -55,7 +55,7 @@ class _RotalarScreenState extends State<RotalarScreen>
     if (_firmaId == null) { setState(() => _yukleniyor = false); return; }
 
     final db = FirebaseFirestore.instance;
-    final projeId = SessionService.instance.aktifProjeld ?? '';
+    final projeId = SessionService.instance.aktifProjeId ?? '';
 
     try {
       var surQuery = db.collection('drivers').where('firmaId', isEqualTo: _firmaId);

@@ -99,7 +99,7 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         if (data != null && !data.containsKey('uid')) {
           try { await driverDoc.reference.update({'uid': user.uid}); } catch (_) {}
         }
-        _aktifProjeId  = SessionService.instance.aktifProjeld ?? _driverDoc['aktifProjeId']  as String?;
+        _aktifProjeId  = SessionService.instance.aktifProjeId ?? _driverDoc['aktifProjeId']  as String?;
         _aktifProjeAdi = SessionService.instance.aktifProjeAdi ?? _driverDoc['aktifProjeAdi'] as String?;
         await _projeleriYukle();
         await _ogrencileriYukle();

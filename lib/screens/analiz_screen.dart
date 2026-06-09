@@ -430,7 +430,7 @@ class _AnalizScreenState extends State<AnalizScreen>
       // Routes boşsa drivers + students bazlı hesapla
       final driverSnap = await db.collection('drivers')
           .where('firmaId', isEqualTo: _firmaId).get();
-      final projeId = SessionService.instance.aktifProjeld ?? '';
+      final projeId = SessionService.instance.aktifProjeId ?? '';
 
       final liste = <_RotaVeri>[];
       for (final dDoc in driverSnap.docs) {

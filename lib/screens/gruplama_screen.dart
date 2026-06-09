@@ -92,7 +92,7 @@ class _GruplamaScreenState extends State<GruplamaScreen>
       _firmaId = _firmaId.isEmpty
           ? (await SessionService.instance.firmaIdAl() ?? '')
           : _firmaId;
-      _projeId = SessionService.instance.aktifProjeld ?? '';
+      _projeId = SessionService.instance.aktifProjeId ?? '';
 
       if (_firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
 

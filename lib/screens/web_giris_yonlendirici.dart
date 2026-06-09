@@ -2,24 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
-import 'web_super_admin.dart';
-import 'web_admin_panel.dart';
-import 'web_veli_panel.dart';
-import 'web_sofor_panel.dart';
 import 'veli_basvuru_form_screen.dart';
 
 // ════════════════════════════════════════════════════════════════
-// WEB GİRİŞ YÖNLENDİRİCİ
-// URL'ye göre doğru ekranı açar:
-//   /                 → Login veya rol paneli
-//   /kayit/LINK_ID    → Veli kayıt formu (giriş gerekmez)
-//   /basvuru/LINK_ID  → Veli kayıt formu (giriş gerekmez)
+// WEB GİRİŞ YÖNLENDİRİCİ — route tabanlı, import çakışması yok
 // ════════════════════════════════════════════════════════════════
 class WebGirisYonlendirici extends StatefulWidget {
   const WebGirisYonlendirici({super.key});
   @override
-  State<WebGirisYonlendirici> createState() =>
-      _WebGirisYonlendiriciState();
+  State<WebGirisYonlendirici> createState() => _WebGirisYonlendiriciState();
 }
 
 class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
@@ -35,7 +26,6 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
   }
 
   Future<void> _baslat() async {
-    // Web URL'sinden link kontrolü
     final linkId = _urldenLinkId();
     if (linkId != null && linkId.isNotEmpty) {
       if (mounted) {
@@ -47,40 +37,26 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
     await _rolKontrol();
   }
 
-  // Web URL'sinden linkId çıkar
-  // servisim360.web.app/kayit/ABC123
-  // servisim360.web.app/#/kayit/ABC123
   String? _urldenLinkId() {
     try {
-      // ignore: undefined_prefixed_name
-      // flutter web'de Uri.base kullanılır
       final uri = Uri.base;
       final segments = uri.pathSegments;
-
-      // /kayit/LINK_ID veya /basvuru/LINK_ID
       if (segments.length >= 2 &&
           (segments[0] == 'kayit' || segments[0] == 'basvuru')) {
         return segments[1];
       }
-
-      // Hash routing: /#/kayit/LINK_ID
       final fragment = uri.fragment;
       if (fragment.isNotEmpty) {
-        final fSegments = fragment.split('/').where((s) => s.isNotEmpty).toList();
-        if (fSegments.length >= 2 &&
-            (fSegments[0] == 'kayit' || fSegments[0] == 'basvuru')) {
-          return fSegments[1];
+        final fSeg = fragment.split('/').where((s) => s.isNotEmpty).toList();
+        if (fSeg.length >= 2 &&
+            (fSeg[0] == 'kayit' || fSeg[0] == 'basvuru')) {
+          return fSeg[1];
         }
       }
-
-      // Query param: ?linkId=ABC123
-      final linkId = uri.queryParameters['linkId'] ??
-                     uri.queryParameters['id']     ??
-                     uri.queryParameters['link'];
-      return linkId;
-    } catch (_) {
-      return null;
-    }
+      return uri.queryParameters['linkId'] ??
+          uri.queryParameters['id']     ??
+          uri.queryParameters['link'];
+    } catch (_) { return null; }
   }
 
   Future<void> _rolKontrol() async {
@@ -92,10 +68,9 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(user.uid).get();
-      final rol     = doc.data()?['rol'] as String? ?? '';
+      final rol     = doc.data()?['rol']     as String? ?? '';
       final firmaId = doc.data()?['firmaId'] as String? ?? '';
 
-      // Session'a firmaId yaz
       if (firmaId.isNotEmpty) {
         SessionService.instance.cachedFirmaIdSet(firmaId);
       }
@@ -103,24 +78,17 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
       if (!mounted) return;
 
       if (_superAdminMi(rol)) {
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebSuperAdminSayfasi()));
+        Navigator.pushReplacementNamed(context, '/web_panel');
       } else if (_firmaAdminMi(rol)) {
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebAdminPanel()));
-      } else if (rol == 'sofor') {
-        // Şoför web paneline girebilir (sadece liste görünümü)
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebSoforPanel()));
+        Navigator.pushReplacementNamed(context, '/web_admin');
+      } else if (rol == 'sofor' || rol == 'bireyselSofor') {
+        Navigator.pushReplacementNamed(context, '/web_sofor');
       } else if (rol == 'veli') {
-        // Veli web paneline girebilir
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebVeliPanel()));
+        Navigator.pushReplacementNamed(context, '/web_veli_panel');
+      } else if (rol == 'personel' || rol == 'staff') {
+        Navigator.pushReplacementNamed(context, '/personel_panel');
       } else {
-        setState(() {
-          _yukleniyor  = false;
-          _hataMesaj   = rol;
-        });
+        setState(() { _yukleniyor = false; _hataMesaj = rol; });
       }
     } catch (e) {
       setState(() { _yukleniyor = false; _hataMesaj = 'error'; });
@@ -131,7 +99,7 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
       r == 'superAdmin' || r == 'superadmin' || r == 'super_admin';
   bool _firmaAdminMi(String r) =>
       r == 'firmaAdmin' || r == 'admin' || r == 'kolejAdmin' ||
-      r == 'firma_admin' || r == 'sekreter';
+          r == 'firma_admin' || r == 'sekreter';
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +138,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
 
   final _emailCtrl = TextEditingController();
   final _sifreCtrl = TextEditingController();
-  bool    _yukleniyor = false;
+  bool    _yukleniyor  = false;
   bool    _sifreGoster = false;
   String? _hata;
 
@@ -204,35 +172,31 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
       if (!mounted) return;
 
       if (_superAdminMi(rol)) {
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebSuperAdminSayfasi()));
+        Navigator.pushReplacementNamed(context, '/web_panel');
       } else if (_firmaAdminMi(rol)) {
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebAdminPanel()));
-      } else if (rol == 'sofor') {
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebSoforPanel()));
+        Navigator.pushReplacementNamed(context, '/web_admin');
+      } else if (rol == 'sofor' || rol == 'bireyselSofor') {
+        Navigator.pushReplacementNamed(context, '/web_sofor');
       } else if (rol == 'veli') {
-        Navigator.pushReplacement(context, MaterialPageRoute(
-            builder: (_) => const WebVeliPanel()));
+        Navigator.pushReplacementNamed(context, '/web_veli_panel');
+      } else if (rol == 'personel' || rol == 'staff') {
+        Navigator.pushReplacementNamed(context, '/personel_panel');
       } else {
         await FirebaseAuth.instance.signOut();
         setState(() {
-          _hata = rol.isEmpty
-              ? 'Hesap bulunamadi.'
-              : 'Bu rol web panelini kullanamaz.';
+          _hata = rol.isEmpty ? 'Hesap bulunamadi.' : 'Bu rol web panelini kullanamaz.';
           _yukleniyor = false;
         });
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _hata = switch (e.code) {
-          'user-not-found'  => 'E-posta adresi bulunamadi.',
-          'wrong-password'  => 'Sifre yanlis.',
-          'invalid-email'   => 'Gecersiz e-posta adresi.',
-          'user-disabled'   => 'Hesap devre disi birakildi.',
+          'user-not-found'    => 'E-posta adresi bulunamadi.',
+          'wrong-password'    => 'Sifre yanlis.',
+          'invalid-email'     => 'Gecersiz e-posta adresi.',
+          'user-disabled'     => 'Hesap devre disi birakildi.',
           'too-many-requests' => 'Cok fazla deneme. Lutfen bekleyin.',
-          _                 => 'Giris hatasi: ${e.message}',
+          _                   => 'Giris hatasi: ${e.message}',
         };
         _yukleniyor = false;
       });
@@ -245,13 +209,11 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
       r == 'superAdmin' || r == 'superadmin' || r == 'super_admin';
   bool _firmaAdminMi(String r) =>
       r == 'firmaAdmin' || r == 'admin' || r == 'kolejAdmin' ||
-      r == 'firma_admin' || r == 'sekreter';
+          r == 'firma_admin' || r == 'sekreter';
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    final darGenis = w > 600;
-
+    final darGenis = MediaQuery.of(context).size.width > 600;
     return Scaffold(
       backgroundColor: _navy,
       body: Center(
@@ -266,12 +228,9 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
               borderRadius: BorderRadius.circular(darGenis ? 24 : 20),
               boxShadow: [BoxShadow(
                   color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20))],
+                  blurRadius: 40, offset: const Offset(0, 20))],
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-
-              // Logo
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
@@ -287,11 +246,9 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
               const SizedBox(height: 18),
               const Text('Servisim360', style: TextStyle(
                   fontSize: 26, fontWeight: FontWeight.bold, color: _navy)),
-              const Text('Yonetim Paneli', style: TextStyle(
-                  color: Colors.grey, fontSize: 14)),
+              const Text('Yonetim Paneli',
+                  style: TextStyle(color: Colors.grey, fontSize: 14)),
               const SizedBox(height: 32),
-
-              // Email
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
@@ -304,8 +261,6 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                 ),
               ),
               const SizedBox(height: 14),
-
-              // Şifre
               TextField(
                 controller: _sifreCtrl,
                 obscureText: !_sifreGoster,
@@ -325,8 +280,6 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                       borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-
-              // Hata
               if (_hata != null) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -337,8 +290,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                       border: Border.all(
                           color: Colors.red.withValues(alpha: 0.3))),
                   child: Row(children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.red, size: 18),
+                    const Icon(Icons.error_outline, color: Colors.red, size: 18),
                     const SizedBox(width: 8),
                     Expanded(child: Text(_hata!, style: const TextStyle(
                         color: Colors.red, fontSize: 13))),
@@ -346,29 +298,24 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                 ),
               ],
               const SizedBox(height: 22),
-
-              // Giriş butonu
               SizedBox(
                 width: double.infinity, height: 52,
                 child: ElevatedButton(
                   onPressed: _yukleniyor ? null : _girisYap,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _navy,
-                    foregroundColor: Colors.white,
+                    backgroundColor: _navy, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _yukleniyor
                       ? const SizedBox(width: 22, height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
                       : const Text('Giris Yap', style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
+                      fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Alt bilgi
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -386,7 +333,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                   _rolBilgiSatir(Icons.admin_panel_settings_outlined,
                       'Firma Admin', 'Tam yonetim paneli', _navy),
                   _rolBilgiSatir(Icons.directions_bus_outlined,
-                      'Sofor', 'Ogrenci listesi, devamsizlik', Colors.teal),
+                      'Sofor', 'Servis paneli', Colors.teal),
                   _rolBilgiSatir(Icons.family_restroom_outlined,
                       'Veli', 'Canli takip, bildirimler', _turuncu),
                 ]),
@@ -406,8 +353,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
         const SizedBox(width: 6),
         Text('$rol: ', style: TextStyle(
             fontSize: 11, color: renk, fontWeight: FontWeight.bold)),
-        Text(acik, style: const TextStyle(
-            fontSize: 11, color: Colors.grey)),
+        Text(acik, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ]),
     );
   }
@@ -440,18 +386,17 @@ class _YanlisRolEkrani extends StatelessWidget {
                 fontSize: 22, fontWeight: FontWeight.bold, color: _navy)),
             const SizedBox(height: 12),
             Text(
-              rol.isEmpty
-                  ? 'Rol bilgisi tanimli degil. Yoneticinizle iletisime gecin.'
-                  : '"$rol" rolu icin ozel bir panel tanimli degil.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                rol.isEmpty
+                    ? 'Rol bilgisi tanimli degil. Yoneticinizle iletisime gecin.'
+                    : '"$rol" rolu icin panel tanimli degil.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();
                 if (context.mounted) {
-                  Navigator.pushReplacement(context, MaterialPageRoute(
-                      builder: (_) => const WebGirisYonlendirici()));
+                  Navigator.pushReplacementNamed(context, '/login');
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: _navy),

@@ -61,7 +61,7 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
     _sistemAktif = doc.data()?['plakaTanimaAktif'] ?? false;
 
     // Aktif proje
-    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeId  = SessionService.instance.aktifProjeId  ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
 
     // Projedeki araçları yükle

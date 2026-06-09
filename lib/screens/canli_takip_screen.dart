@@ -146,7 +146,7 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
     }
 
     _firmaId  = await SessionService.instance.firmaldAl();
-    _projeId  = SessionService.instance.aktifProjeld  ?? '';
+    _projeId  = SessionService.instance.aktifProjeId  ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
 
     try {

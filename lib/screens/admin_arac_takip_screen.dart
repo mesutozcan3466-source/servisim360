@@ -62,7 +62,7 @@ class _AdminAracTakipScreenState extends State<AdminAracTakipScreen> {
 
   Future<void> _init() async {
     _firmaId = await SessionService.instance.firmaIdAl();
-    _projeId = SessionService.instance.aktifProjeld;
+    _projeId = SessionService.instance.aktifProjeId;
     await _ogrencileriYukle();
     _soforleriDinle();
   }

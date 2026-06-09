@@ -1,4 +1,4 @@
-﻿// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
 // â•‘  DOSYA: lib/screens/arsiv_screen.dart                       â•‘
 // â•‘  Servisim360 â€” Evrak & Belge YÃ¶netim Sistemi                â•‘
 // â•‘  v4 â€” Kategorili, Otomatik, KalÄ±cÄ± Silme Yok               â•‘
@@ -74,7 +74,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId = SessionService.instance.aktifProjeld ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
     if (mounted) setState(() => _yukleniyor = false);
   }
 

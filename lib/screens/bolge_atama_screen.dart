@@ -63,7 +63,7 @@ class _BolgeAtamaScreenState extends State<BolgeAtamaScreen>
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId = SessionService.instance.aktifProjeld ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
     try {
       final sSnap = await FirebaseFirestore.instance
           .collection('drivers').where('firmaId', isEqualTo: _firmaId).get();

@@ -1,4 +1,4 @@
-﻿// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
 // â•‘  DOSYA: lib/screens/proje_sec_screen.dart
 // â•‘  PROJE: servisim360
 // â•‘  DÃœZELTME: Proje oluÅŸturduktan sonra seÃ§im ekranÄ±na dÃ¶n
@@ -235,7 +235,7 @@ class _ProjeSecScreenState extends State<ProjeSecScreen> {
                     ..._projeler.map((proje) => _ProjeKarti(
                       proje: proje,
                       onTap: () => _projeAc(proje),
-                      secili: SessionService.instance.aktifProjeld == proje['id'],
+                      secili: SessionService.instance.aktifProjeId == proje['id'],
                     )),
                   ],
 

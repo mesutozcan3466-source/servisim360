@@ -47,7 +47,7 @@ class _WebBelgeTanimaState extends State<WebBelgeTanima> {
 
   Future<void> _init() async {
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId = SessionService.instance.aktifProjeld ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
   }
 
   // ── DOSYA SEÇ ────────────────────────────────────────────────

@@ -155,7 +155,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
     _firmaId  = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId  = SessionService.instance.aktifProjeld ?? '';
+    _projeId  = SessionService.instance.aktifProjeId ?? '';
     _projeAdi = SessionService.instance.aktifProjeAdi ?? '';
     if (_firmaId.isEmpty) { setState(() => _yukleniyor = false); return; }
 

@@ -52,7 +52,7 @@ class _OgrenciPaneliScreenState extends State<OgrenciPaneliScreen> {
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
     _firmaId = await SessionService.instance.firmaIdAl() ?? '';
-    _projeId = SessionService.instance.aktifProjeld ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
     try {
       // Şoförler
       final sSnap = await FirebaseFirestore.instance
