@@ -22,8 +22,8 @@ class GlobalAiAsistanWrapper extends StatefulWidget {
   const GlobalAiAsistanWrapper({
     super.key,
     required this.child,
-    required this.firmaId,
-    required this.firmaAd,
+    this.firmaId = '',
+    this.firmaAd = '',
   });
 
   @override

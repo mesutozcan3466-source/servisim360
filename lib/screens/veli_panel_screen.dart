@@ -75,7 +75,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         _ozelBildirimGoster(
           '🏫 Okula Ulaştı',
           '${data['ogrenciAd'] ?? 'Öğrenci'} '
-          '${data['girisSaatiStr'] ?? ''} saatinde okula ulaştı.',
+              '${data['girisSaatiStr'] ?? ''} saatinde okula ulaştı.',
           Colors.green,
         );
         doc.reference.update({'bildirimGonderildi': true});
@@ -187,9 +187,9 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         SizedBox(width: 8),         Text('Servis Yaklasiyor!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
       ]),       content: Text('Servis yaklasik $mesafe metre uzakta. Cocugunuzu hazirlayin!'),
       actions: [
-          AiAsistanButonu(ekranAdi: 'Veli Paneli'),ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-          onPressed: () => Navigator.pop(context),           child: const Text('Tamam', style: TextStyle(color: Colors.white)))],
+        AiAsistanButonu(ekranAdi: 'Veli Paneli'),ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () => Navigator.pop(context),           child: const Text('Tamam', style: TextStyle(color: Colors.white)))],
     ));
   }
 
@@ -357,9 +357,9 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
               decoration: BoxDecoration(color: renk.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10)),
               child: Icon(
-                renk == Colors.green
-                    ? Icons.school_outlined : Icons.directions_bus_outlined,
-                color: renk, size: 22)),
+                  renk == Colors.green
+                      ? Icons.school_outlined : Icons.directions_bus_outlined,
+                  color: renk, size: 22)),
           const SizedBox(width: 10),
           Expanded(child: Text(baslik,
               style: TextStyle(color: renk, fontWeight: FontWeight.bold,
@@ -369,12 +369,12 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
             style: const TextStyle(fontSize: 13, height: 1.5)),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: renk, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            onPressed: () => Navigator.pop(_),
-            child: const Text('Tamam')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: renk, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              onPressed: () => Navigator.pop(_),
+              child: const Text('Tamam')),
         ],
       ),
     );
@@ -417,6 +417,75 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
           onPressed: () => Navigator.pop(context),           child: const Text('Tamam', style: TextStyle(color: Colors.white)))],
     ));
+  }
+
+
+  // ──────────────────────────────────────────────────────────────
+  // ÜCRET BİLGİSİ DİYALOGU
+  // ──────────────────────────────────────────────────────────────
+  void _ucretBilgisiGoster() {
+    final ogr = _ogrenci;
+    if (ogr == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.payments_outlined, color: Color(0xFF1a3a6b)),
+          SizedBox(width: 10),
+          Text('Ucret Bilgisi', style: TextStyle(fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          if ((ogr['fiyat'] ?? ogr['ucret'] ?? 0) != 0) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Column(children: [
+                Text('${ogr['ad'] ?? 'Ogrenci'} icin aylik servis ucreti',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 8),
+                Text('${ogr['fiyat'] ?? ogr['ucret']} TL',
+                    style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.bold, color: Colors.teal)),
+                const Text('/ ay', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              ]),
+            ),
+          ] else
+            const Text('Ucret bilgisi henuz tanimlanmamis.',
+                style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 12),
+          if ((ogr['sozlesmeOnay'] ?? false) == true)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Row(children: [
+                Icon(Icons.check_circle_outline, color: Colors.green, size: 16),
+                SizedBox(width: 8),
+                Text('Sozlesme onaylandi', style: TextStyle(color: Colors.green)),
+              ]),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Row(children: [
+                Icon(Icons.pending_outlined, color: Colors.orange, size: 16),
+                SizedBox(width: 8),
+                Text('Sozlesme bekleniyor', style: TextStyle(color: Colors.orange)),
+              ]),
+            ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
+        ],
+      ),
+    );
   }
 
   void _devamsizlikBildir() {
@@ -550,11 +619,30 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
 
         // 2. 4 ANA BUTON
 
-        Row(children: [             Expanded(child: _AnaButon(ikon: Icons.location_on, etiket: 'Servis Nerede?', renk: Colors.blue,
-            onTap: () => setState(() => _haritaAcik = true))),
-          const SizedBox(width: 10),             Expanded(child: _AnaButon(ikon: Icons.event_busy, etiket: 'Bugun Gelmeyecek', renk: Colors.orange, onTap: _devamsizlikBildir)),
-          const SizedBox(width: 10),             Expanded(child: _AnaButon(ikon: Icons.notifications, etiket: 'Bildirim ler', renk: _navy,                 onTap: () => Navigator.pushNamed(context, '/bildirimler'))),
-          const SizedBox(width: 10),             Expanded(child: _AnaButon(ikon: Icons.message, etiket: 'Iletisim', renk: const Color(0xFF25D366), onTap: _soforeWhatsapp)),
+        Row(children: [
+          Expanded(child: _AnaButon(ikon: Icons.location_on, etiket: 'Servis Nerede?', renk: Colors.blue,
+              onTap: () => setState(() => _haritaAcik = true))),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.event_busy, etiket: 'Bugun Gelmeyecek', renk: Colors.orange, onTap: _devamsizlikBildir)),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.notifications, etiket: 'Bildirimler', renk: _navy,
+              onTap: () => Navigator.pushNamed(context, '/bildirimler'))),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.message, etiket: 'Iletisim', renk: const Color(0xFF25D366), onTap: _soforeWhatsapp)),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _AnaButon(ikon: Icons.description_outlined, etiket: 'Sozlesmem', renk: Colors.purple,
+              onTap: () => Navigator.pushNamed(context, '/veli_sozlesme'))),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.payments_outlined, etiket: 'Ucret Bilgisi', renk: Colors.teal,
+              onTap: () => _ucretBilgisiGoster())),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.history_outlined, etiket: 'Servis Gecmisi', renk: Colors.indigo,
+              onTap: () => Navigator.pushNamed(context, '/gecmis'))),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.qr_code_outlined, etiket: 'QR Kodum', renk: Colors.brown,
+              onTap: () => Navigator.pushNamed(context, '/qr_okut'))),
         ]),
         const SizedBox(height: 16),
 

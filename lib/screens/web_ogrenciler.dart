@@ -449,8 +449,8 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                         await _yukle();
                         if (context.mounted) {
                           _veliGirisDialog(
-                            veliCtrl.text.trim(), telCtrl.text.trim(),
-                            kulAdi, geciciSif, adCtrl.text.trim());
+                              veliCtrl.text.trim(), telCtrl.text.trim(),
+                              kulAdi, geciciSif, adCtrl.text.trim());
                         }
                       } catch (e) {
                         setSt(() => yukleniyor = false);
@@ -462,8 +462,8 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                     },
                     icon: yukleniyor
                         ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.save_rounded),
                     label: Text(yukleniyor ? 'Kaydediliyor...' : 'Kaydet & Veli Hesabı Oluştur',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
@@ -500,31 +500,31 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
         ),
         actions: [
           OutlinedButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Kopyala'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: mesaj));
-              Navigator.pop(_);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Kopyalandı!'), backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating));
-            }),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Kopyala'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: mesaj));
+                Navigator.pop(_);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Kopyalandı!'), backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating));
+              }),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
-                foregroundColor: Colors.white),
-            onPressed: () async {
-              Navigator.pop(_);
-              final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
-              final url = Uri.parse(
-                  'https://wa.me/90\$temiz?text=\${Uri.encodeComponent(mesaj)}');
-              if (await canLaunchUrl(url)) {
-                launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-            icon: const Icon(Icons.send_rounded, size: 16),
-            label: const Text('WhatsApp',
-                style: TextStyle(fontWeight: FontWeight.bold))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(_);
+                final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
+                final url = Uri.parse(
+                    'https://wa.me/90\$temiz?text=\${Uri.encodeComponent(mesaj)}');
+                if (await canLaunchUrl(url)) {
+                  launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('WhatsApp',
+                  style: TextStyle(fontWeight: FontWeight.bold))),
           TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat')),
         ],
       ),
@@ -612,88 +612,279 @@ class _OgrenciDuzenleDialog extends StatefulWidget {
 }
 
 class _OgrenciDuzenleDialogState extends State<_OgrenciDuzenleDialog> {
-  static const _navy = Color(0xFF1a3a6b);
-  late TextEditingController _adCtrl, _telCtrl, _adresCtrl;
-  String _surucuId = '';
-  String _durum    = 'onayli';
+  static const _navy    = Color(0xFF1a3a6b);
+  static const _turuncu = Color(0xFFFF8C00);
+
+  late TextEditingController _adCtrl, _telCtrl, _adresCtrl, _sinifCtrl, _okulCtrl;
+  String  _surucuId  = '';
+  String  _durum     = 'onayli';
+  String? _projeId;
+  String? _servisId;
+  bool    _sabahKullan = true;
+  bool    _aksamKullan = true;
+
+  List<Map<String, dynamic>> _projeler  = [];
+  List<Map<String, dynamic>> _servisler = [];
 
   @override
   void initState() {
     super.initState();
-    _adCtrl    = TextEditingController(text: widget.ogr['ad'] ?? '');
-    _telCtrl   = TextEditingController(text: widget.ogr['veliTel'] ?? '');
-    _adresCtrl = TextEditingController(text: widget.ogr['adres'] ?? '');
-    _surucuId  = (widget.ogr['surucuId'] ?? widget.ogr['soforId'] ?? '').toString();
-    _durum     = widget.ogr['durum'] as String? ?? 'onayli';
+    final o = widget.ogr;
+    _adCtrl    = TextEditingController(text: o['ad']      ?? '');
+    _telCtrl   = TextEditingController(text: o['veliTel'] ?? o['anneTelefon'] ?? '');
+    _adresCtrl = TextEditingController(text: o['adres']   ?? o['sabahAdres'] ?? '');
+    _sinifCtrl = TextEditingController(text: o['sinif']   ?? '');
+    _okulCtrl  = TextEditingController(text: o['okul']    ?? '');
+    _surucuId  = (o['surucuId'] ?? o['soforId'] ?? '').toString();
+    _durum     = o['durum']    as String? ?? 'onayli';
+    _projeId   = o['projeId']  as String?;
+    _servisId  = o['servisId'] as String?;
+    _sabahKullan = o['sabahKullan'] as bool? ?? o['morningEnabled'] as bool? ?? true;
+    _aksamKullan = o['aksamKullan'] as bool? ?? o['eveningEnabled'] as bool? ?? true;
+    if (_projeId?.isEmpty ?? true) _projeId = null;
+    if (_servisId?.isEmpty ?? true) _servisId = null;
+    _projeleriYukle();
   }
 
   @override
   void dispose() {
     _adCtrl.dispose(); _telCtrl.dispose(); _adresCtrl.dispose();
+    _sinifCtrl.dispose(); _okulCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _projeleriYukle() async {
+    final firmaId = widget.ogr['firmaId'] as String? ?? '';
+    if (firmaId.isEmpty) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('projects')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('durum', isEqualTo: 'aktif')
+          .get();
+      if (mounted) setState(() {
+        _projeler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      });
+      if (_projeId != null) await _servisleriYukle(_projeId!);
+    } catch (_) {}
+  }
+
+  Future<void> _servisleriYukle(String projeId) async {
+    final firmaId = widget.ogr['firmaId'] as String? ?? '';
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('drivers')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('projeId', isEqualTo: projeId)
+          .get();
+      if (mounted) setState(() {
+        _servisler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      });
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    title: const Text('Ogrenci Duzenle',
-        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: _navy)),
-    content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
-      _Alan(_adCtrl, 'Ad Soyad', Icons.person_outline),
-      const SizedBox(height: 10),
-      _Alan(_telCtrl, 'Veli Telefon', Icons.phone_outlined,
-          tip: TextInputType.phone),
-      const SizedBox(height: 10),
-      _Alan(_adresCtrl, 'Adres', Icons.location_on_outlined),
-      const SizedBox(height: 10),
-      DropdownButtonFormField<String>(
-        value: _surucuId.isEmpty ? null : _surucuId,
-        decoration: const InputDecoration(
-            labelText: 'Servis Atama',
-            prefixIcon: Icon(Icons.directions_bus_outlined, color: _navy),
-            border: OutlineInputBorder()),
-        items: [
-          const DropdownMenuItem(value: null, child: Text('Atanmamis')),
-          ...widget.soforler.map((s) => DropdownMenuItem(
-              value: s['id'] as String,
-              child: Text(s['ad'] as String? ?? 'Sofor'))),
-        ],
-        onChanged: (v) => setState(() => _surucuId = v ?? ''),
-      ),
-      const SizedBox(height: 10),
-      DropdownButtonFormField<String>(
-        value: _durum,
-        decoration: const InputDecoration(
-            labelText: 'Durum',
-            prefixIcon: Icon(Icons.verified_outlined, color: _navy),
-            border: OutlineInputBorder()),
-        items: const [
-          DropdownMenuItem(value: 'onayli',     child: Text('Onayli')),
-          DropdownMenuItem(value: 'beklemede',  child: Text('Beklemede')),
-          DropdownMenuItem(value: 'pasif',      child: Text('Pasif')),
-        ],
-        onChanged: (v) => setState(() => _durum = v ?? 'onayli'),
-      ),
-    ])),
-    actions: [
-      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Iptal')),
-      ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
-        onPressed: () {
-          Navigator.pop(context);
-          widget.onKaydet({
-            'ad':       _adCtrl.text.trim(),
-            'veliTel':  _telCtrl.text.trim(),
-            'adres':    _adresCtrl.text.trim(),
-            'surucuId': _surucuId,
-            'soforId':  _surucuId,
-            'durum':    _durum,
-          });
-        },
-        child: const Text('Kaydet'),
-      ),
-    ],
+    contentPadding: EdgeInsets.zero,
+    content: SizedBox(
+      width: 460,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Başlık
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+              color: _navy,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+          child: Row(children: [
+            CircleAvatar(
+              radius: 18, backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: Text(
+                  (widget.ogr['ad'] as String? ?? '?').isNotEmpty
+                      ? (widget.ogr['ad'] as String)[0].toUpperCase() : '?',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(widget.ogr['ad'] as String? ?? 'Öğrenci',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            IconButton(icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                onPressed: () => Navigator.pop(context),
+                padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+          ]),
+        ),
+        // Form
+        Flexible(child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(children: [
+            // Bağlantı bilgileri (sadece göster)
+            if ((widget.ogr['veliAd'] ?? widget.ogr['veliId'] ?? '').isNotEmpty)
+              _infoBant('Bağlı Veli', widget.ogr['veliAd'] ?? widget.ogr['veliId'],
+                  Icons.family_restroom_outlined, Colors.purple),
+            if (_surucuId.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _infoBant('Bağlı Şoför',
+                  widget.soforler.firstWhere((s) => s['id'] == _surucuId,
+                      orElse: () => {'ad': _surucuId})['ad'] ?? _surucuId,
+                  Icons.person_outlined, Colors.blue),
+            ],
+            const SizedBox(height: 12),
+
+            // Ad, okul, sınıf
+            _Alan(_adCtrl, 'Ad Soyad *', Icons.person_outline),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: _Alan(_okulCtrl, 'Okul', Icons.school_outlined)),
+              const SizedBox(width: 10),
+              Expanded(child: _Alan(_sinifCtrl, 'Sınıf', Icons.class_outlined)),
+            ]),
+            const SizedBox(height: 10),
+            _Alan(_telCtrl, 'Veli Telefon', Icons.phone_outlined, tip: TextInputType.phone),
+            const SizedBox(height: 10),
+            _Alan(_adresCtrl, 'Adres', Icons.location_on_outlined),
+            const SizedBox(height: 14),
+
+            // Proje seçimi
+            DropdownButtonFormField<String?>(
+              value: _projeId,
+              decoration: InputDecoration(
+                  labelText: 'Proje',
+                  prefixIcon: const Icon(Icons.folder_outlined, color: _navy, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Proje seç...')),
+                ..._projeler.map((p) => DropdownMenuItem<String?>(
+                    value: p['id'] as String,
+                    child: Text(p['projeAd'] as String? ?? 'Proje'))),
+              ],
+              onChanged: (v) {
+                setState(() { _projeId = v; _servisId = null; _servisler = []; });
+                if (v != null) _servisleriYukle(v);
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Servis/Şoför seçimi
+            DropdownButtonFormField<String?>(
+              value: _servisId,
+              decoration: InputDecoration(
+                  labelText: 'Servise Ata',
+                  prefixIcon: const Icon(Icons.directions_bus_outlined, color: _navy, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Atanmamış')),
+                ..._servisler.map((s) => DropdownMenuItem<String?>(
+                    value: s['id'] as String,
+                    child: Text('${s['ad'] ?? 'Şoför'} — ${s['aracPlaka'] ?? ''}'))),
+                // Eski şoförler listesi de göster
+                ...widget.soforler.where((s) =>
+                !_servisler.any((ss) => ss['id'] == s['id'])).map((s) =>
+                    DropdownMenuItem<String?>(
+                        value: s['id'] as String,
+                        child: Text(s['ad'] as String? ?? 'Şoför'))),
+              ],
+              onChanged: (v) => setState(() { _servisId = v; _surucuId = v ?? ''; }),
+            ),
+            const SizedBox(height: 14),
+
+            // Sabah/akşam kullanım
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                  color: Colors.grey[50], borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade200)),
+              child: Column(children: [
+                Row(children: [
+                  const Icon(Icons.wb_sunny_outlined, size: 16, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Sabah Servisi', style: TextStyle(fontSize: 13))),
+                  Switch(value: _sabahKullan,
+                      onChanged: (v) => setState(() => _sabahKullan = v),
+                      activeColor: _turuncu),
+                ]),
+                Row(children: [
+                  const Icon(Icons.nights_stay_outlined, size: 16, color: Colors.indigo),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Akşam Servisi', style: TextStyle(fontSize: 13))),
+                  Switch(value: _aksamKullan,
+                      onChanged: (v) => setState(() => _aksamKullan = v),
+                      activeColor: _turuncu),
+                ]),
+              ]),
+            ),
+            const SizedBox(height: 10),
+
+            // Durum
+            DropdownButtonFormField<String>(
+              value: _durum,
+              decoration: InputDecoration(
+                  labelText: 'Durum',
+                  prefixIcon: const Icon(Icons.verified_outlined, color: _navy, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true),
+              items: const [
+                DropdownMenuItem(value: 'onayli',    child: Text('Onaylı')),
+                DropdownMenuItem(value: 'beklemede', child: Text('Beklemede')),
+                DropdownMenuItem(value: 'pasif',     child: Text('Pasif')),
+              ],
+              onChanged: (v) => setState(() => _durum = v ?? 'onayli'),
+            ),
+          ]),
+        )),
+        // Kaydet
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: SizedBox(
+            width: double.infinity, height: 44,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () {
+                Navigator.pop(context);
+                widget.onKaydet({
+                  'ad'          : _adCtrl.text.trim(),
+                  'okul'        : _okulCtrl.text.trim(),
+                  'sinif'       : _sinifCtrl.text.trim(),
+                  'veliTel'     : _telCtrl.text.trim(),
+                  'anneTelefon' : _telCtrl.text.trim(),
+                  'adres'       : _adresCtrl.text.trim(),
+                  'sabahAdres'  : _adresCtrl.text.trim(),
+                  'surucuId'    : _surucuId,
+                  'soforId'     : _surucuId,
+                  'servisId'    : _servisId ?? '',
+                  'projeId'     : _projeId ?? '',
+                  'durum'       : _durum,
+                  'sabahKullan' : _sabahKullan,
+                  'aksamKullan' : _aksamKullan,
+                  'morningEnabled': _sabahKullan,
+                  'eveningEnabled': _aksamKullan,
+                });
+              },
+              icon: const Icon(Icons.save_outlined, size: 16),
+              label: const Text('Kaydet', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ),
+      ]),
+    ),
   );
+
+  Widget _infoBant(String label, String deger, IconData ikon, Color renk) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+            color: renk.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: renk.withValues(alpha: 0.2))),
+        child: Row(children: [
+          Icon(ikon, size: 14, color: renk),
+          const SizedBox(width: 8),
+          Text('$label: ', style: TextStyle(fontSize: 12, color: renk, fontWeight: FontWeight.bold)),
+          Expanded(child: Text(deger, style: TextStyle(fontSize: 12, color: renk))),
+        ]),
+      );
 }
 
 class _Alan extends StatelessWidget {

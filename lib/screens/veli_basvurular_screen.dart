@@ -475,10 +475,10 @@ class _BasvuruKarti extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b),
-                foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(_, true),
-            child: const Text('Kaydet')),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b),
+                  foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(_, true),
+              child: const Text('Kaydet')),
         ],
       ),
     );

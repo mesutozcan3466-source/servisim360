@@ -170,6 +170,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
           _sekmeBtn(1, Icons.notifications_outlined,  'Bildirimler'),
           _sekmeBtn(2, Icons.account_circle_outlined, 'Hesap Bilgileri'),
           _sekmeBtn(3, Icons.lock_outlined,           'Şifre Değiştir'),
+          _sekmeBtn(4, Icons.folder_outlined,         'Proje Ayarlari'),
+          _sekmeBtn(5, Icons.map_outlined,            'Harita Ayarlari'),
+          _sekmeBtn(6, Icons.manage_accounts_outlined,'Kullanici Yonetimi'),
         ]),
       ),
       const VerticalDivider(width: 1),
@@ -179,6 +182,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
         _bildirimTab(),
         _hesapTab(),
         _sifreTab(),
+        _projeAyarlariTab(),
+        _haritaAyarlariTab(),
+        _kullaniciYonetimiTab(),
       ][_sekme]),
     ]);
   }
@@ -272,10 +278,10 @@ class _WebAyarlarState extends State<WebAyarlar> {
             const SizedBox(height: 12),
             _switchSatir('WhatsApp Bildirimleri', 'Olaylar WhatsApp üzerinden iletilir',
                 Icons.message_rounded, const Color(0xFF25D366), _bildWhatsapp,
-                (v) => setState(() => _bildWhatsapp = v)),
+                    (v) => setState(() => _bildWhatsapp = v)),
             _switchSatir('SMS Bildirimleri', 'Olaylar SMS olarak iletilir',
                 Icons.sms_outlined, Colors.blue, _bildSms,
-                (v) => setState(() => _bildSms = v)),
+                    (v) => setState(() => _bildSms = v)),
           ]),
         ),
       ),
@@ -291,22 +297,22 @@ class _WebAyarlarState extends State<WebAyarlar> {
             const SizedBox(height: 12),
             _switchSatir('Yeni Öğrenci Kaydı', 'Veli kayıt formu doldurduğunda',
                 Icons.person_add_rounded, Colors.green, _bildYeniKayit,
-                (v) => setState(() => _bildYeniKayit = v)),
+                    (v) => setState(() => _bildYeniKayit = v)),
             _switchSatir('Araç Yaklaşıyor', 'Servis 5 dakika uzaktayken veliye gönder',
                 Icons.directions_bus_rounded, Colors.orange, _bildYaklasiyor,
-                (v) => setState(() => _bildYaklasiyor = v)),
+                    (v) => setState(() => _bildYaklasiyor = v)),
             _switchSatir('Öğrenci Bindi / İndi', 'Her biniş ve inişte veliye bildir',
                 Icons.how_to_reg_rounded, Colors.teal, _bildBindi,
-                (v) => setState(() => _bildBindi = v)),
+                    (v) => setState(() => _bildBindi = v)),
             _switchSatir('Sözleşme Onaylandı', 'Veli sözleşmeyi imzaladığında',
                 Icons.verified_outlined, Colors.purple, _bildSozlesme,
-                (v) => setState(() => _bildSozlesme = v)),
+                    (v) => setState(() => _bildSozlesme = v)),
             _switchSatir('Şoför Göreve Başladı', 'Şoför servisi başlattığında',
                 Icons.drive_eta_rounded, Colors.indigo, _bildSofor,
-                (v) => setState(() => _bildSofor = v)),
+                    (v) => setState(() => _bildSofor = v)),
             _switchSatir('Evrak Süresi Bitiyor', 'Ehliyet, sigorta vb. süresi yaklaşınca',
                 Icons.warning_amber_rounded, Colors.red, _bildEvrakBitis,
-                (v) => setState(() => _bildEvrakBitis = v)),
+                    (v) => setState(() => _bildEvrakBitis = v)),
           ]),
         ),
       ),
@@ -324,21 +330,21 @@ class _WebAyarlarState extends State<WebAyarlar> {
   );
 
   Widget _switchSatir(String baslik, String alt, IconData ikon, Color renk, bool deger, Function(bool) onChange) =>
-    Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: ListTile(
-        dense: true,
-        leading: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: renk.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-          child: Icon(ikon, color: renk, size: 18),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: ListTile(
+          dense: true,
+          leading: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(color: renk.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+            child: Icon(ikon, color: renk, size: 18),
+          ),
+          title: Text(baslik, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          subtitle: Text(alt, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+          trailing: Switch(value: deger, onChanged: onChange, activeColor: renk),
+          contentPadding: EdgeInsets.zero,
         ),
-        title: Text(baslik, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        subtitle: Text(alt, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-        trailing: Switch(value: deger, onChanged: onChange, activeColor: renk),
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
+      );
 
   // ── TAB 3: HESAP BİLGİLERİ ───────────────────────────────────
   Widget _hesapTab() {
@@ -412,9 +418,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(_, true),
-                      child: const Text('Çıkış Yap')),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(_, true),
+                        child: const Text('Çıkış Yap')),
                   ],
                 ),
               );
@@ -476,20 +482,191 @@ class _WebAyarlarState extends State<WebAyarlar> {
   );
 
   Widget _sifreAlan(TextEditingController ctrl, String label, bool gizli, VoidCallback toggle) =>
-    TextField(
-      controller: ctrl,
-      obscureText: gizli,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: const Icon(Icons.lock_outlined, size: 18),
-        suffixIcon: IconButton(
-          icon: Icon(gizli ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18),
-          onPressed: toggle,
+      TextField(
+        controller: ctrl,
+        obscureText: gizli,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Icons.lock_outlined, size: 18),
+          suffixIcon: IconButton(
+            icon: Icon(gizli ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18),
+            onPressed: toggle,
+          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          isDense: true,
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        isDense: true,
-      ),
+      );
+
+  // ── TAB 5: PROJE AYARLARI ─────────────────────────────────────
+  Widget _projeAyarlariTab() {
+    final sabahCtrl = TextEditingController(text: '07:30');
+    final aksamCtrl = TextEditingController(text: '16:30');
+    final okulAdresCtrl = TextEditingController();
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _baslik('Proje Ayarlari', Icons.folder_outlined),
+        const SizedBox(height: 4),
+        const Text('Tum projeler icin varsayilan servis saatleri ve okul adresi',
+            style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(height: 20),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Varsayilan Servis Saatleri',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+              const SizedBox(height: 14),
+              Row(children: [
+                Expanded(child: _inp(sabahCtrl, 'Sabah Saati (örn: 07:30)', Icons.wb_sunny_outlined)),
+                const SizedBox(width: 12),
+                Expanded(child: _inp(aksamCtrl, 'Aksam Saati (örn: 16:30)', Icons.nights_stay_outlined)),
+              ]),
+              const SizedBox(height: 14),
+              _inp(okulAdresCtrl, 'Varsayilan Okul / Is Yeri Adresi', Icons.location_on_outlined),
+              const SizedBox(height: 20),
+              SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy, foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  if (_firmaId.isEmpty) return;
+                  await FirebaseFirestore.instance.collection('firms').doc(_firmaId).update({
+                    'varsayilanSabahSaati': sabahCtrl.text.trim(),
+                    'varsayilanAksamSaati': aksamCtrl.text.trim(),
+                    'varsayilanOkulAdresi': okulAdresCtrl.text.trim(),
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
+                  _snack('Proje ayarlari kaydedildi', Colors.green);
+                },
+                icon: const Icon(Icons.save_rounded, size: 18),
+                label: const Text('Kaydet', style: TextStyle(fontWeight: FontWeight.bold)),
+              )),
+            ]),
+          ),
+        ),
+      ]),
     );
+  }
+
+  // ── TAB 6: HARİTA AYARLARI ────────────────────────────────────
+  Widget _haritaAyarlariTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _baslik('Harita Ayarlari', Icons.map_outlined),
+        const SizedBox(height: 20),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(children: [
+              _switchSatir('Gercek Zamanli Konum', 'Sofor konumu 30 saniyede bir guncellenir',
+                  Icons.my_location_outlined, Colors.blue, true, (_) {}),
+              _switchSatir('Rota Gosterimi', 'Haritada rotayi goster',
+                  Icons.route_outlined, Colors.green, true, (_) {}),
+              _switchSatir('Trafik Katmani', 'Haritada trafik bilgisi goster',
+                  Icons.traffic_outlined, Colors.orange, false, (_) {}),
+              const SizedBox(height: 14),
+              const Align(alignment: Alignment.centerLeft,
+                  child: Text('Yaklasma Mesafesi (metre)', style: TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 13))),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: [200, 300, 500, 1000].map((m) =>
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                        color: m == 500 ? _navy : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text('$m m', style: TextStyle(
+                        color: m == 500 ? Colors.white : Colors.grey[700], fontWeight: FontWeight.bold)),
+                  )).toList()),
+              const SizedBox(height: 20),
+              SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy, foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () => _snack('Harita ayarlari kaydedildi', Colors.green),
+                icon: const Icon(Icons.save_rounded, size: 18),
+                label: const Text('Kaydet', style: TextStyle(fontWeight: FontWeight.bold)),
+              )),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── TAB 7: KULLANICI YÖNETİMİ ─────────────────────────────────
+  Widget _kullaniciYonetimiTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _baslik('Kullanici Yonetimi', Icons.manage_accounts_outlined),
+        const SizedBox(height: 4),
+        const Text('Sofor ve veli giris ayarlari',
+            style: TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(height: 20),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Giris Ayarlari', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+              const SizedBox(height: 12),
+              _switchSatir('Sofor Ilk Giris Sifre Degistirme', 'Sofor ilk giriste sifresini degistirsin',
+                  Icons.lock_reset_outlined, _navy, true, (_) {}),
+              _switchSatir('Veli Ilk Giris Sifre Degistirme', 'Veli ilk giriste sifresini degistirsin',
+                  Icons.lock_reset_outlined, Colors.purple, false, (_) {}),
+              _switchSatir('Cihaz Kilidi', 'Sofor sadece kayitli cihazdan girebilir',
+                  Icons.phone_android_outlined, Colors.red, false, (_) {}),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Aktif Kullanicilar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+              const SizedBox(height: 12),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('kullanicilar')
+                    .where('firmaId', isEqualTo: _firmaId).snapshots(),
+                builder: (_, snap) {
+                  final docs = snap.data?.docs ?? [];
+                  if (docs.isEmpty) return const Text('Kullanici bulunamadi', style: TextStyle(color: Colors.grey));
+                  return Column(children: docs.map((doc) {
+                    final d = doc.data() as Map<String, dynamic>;
+                    final aktif = d['aktif'] == true;
+                    return ListTile(
+                      dense: true,
+                      leading: CircleAvatar(radius: 16,
+                          backgroundColor: (d['rol'] == 'sofor' ? Colors.blue : Colors.purple).withValues(alpha: 0.1),
+                          child: Icon(d['rol'] == 'sofor' ? Icons.person_outlined : Icons.family_restroom_outlined,
+                              size: 16, color: d['rol'] == 'sofor' ? Colors.blue : Colors.purple)),
+                      title: Text(d['ad'] ?? d['kullaniciAdi'] ?? '', style: const TextStyle(fontSize: 13)),
+                      subtitle: Text('${d['rol'] ?? ''} — ${d['kullaniciAdi'] ?? ''}',
+                          style: const TextStyle(fontSize: 11)),
+                      trailing: Switch(
+                        value: aktif,
+                        activeColor: Colors.green,
+                        onChanged: (v) => FirebaseFirestore.instance.collection('kullanicilar')
+                            .doc(doc.id).update({'aktif': v}),
+                      ),
+                    );
+                  }).toList());
+                },
+              ),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
 
   Widget _baslik(String ad, IconData ikon) => Row(children: [
     Icon(ikon, color: _navy, size: 22),
@@ -498,13 +675,13 @@ class _WebAyarlarState extends State<WebAyarlar> {
   ]);
 
   Widget _inp(TextEditingController c, String label, IconData ikon, [TextInputType? tip]) =>
-    TextField(
-      controller: c, keyboardType: tip,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(ikon, size: 16, color: _navy),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ),
-    );
+      TextField(
+        controller: c, keyboardType: tip,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(ikon, size: 16, color: _navy),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+      );
 }

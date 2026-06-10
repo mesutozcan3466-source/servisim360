@@ -45,41 +45,41 @@ class HazirMadde {
 // ── Varsayılan madde havuzu ────────────────────────────────────
 List<HazirMadde> varsayilanMaddeler() => [
   HazirMadde(id: 'odeme', kategori: 'Ödeme', aktif: true,
-    baslik: 'Ödeme Şartları',
-    icerik: 'Servis ücreti her ayın 1-5. günleri arasında ödenecektir. Gecikme halinde aylık %2 faiz uygulanır.'),
+      baslik: 'Ödeme Şartları',
+      icerik: 'Servis ücreti her ayın 1-5. günleri arasında ödenecektir. Gecikme halinde aylık %2 faiz uygulanır.'),
   HazirMadde(id: 'adres', kategori: 'Servis',
-    baslik: 'Adres Değişikliği',
-    icerik: 'Adres değişikliği en az 3 iş günü öncesinden bildirilmelidir. Güzergah dışı adresler için ek ücret talep edilebilir.'),
+      baslik: 'Adres Değişikliği',
+      icerik: 'Adres değişikliği en az 3 iş günü öncesinden bildirilmelidir. Güzergah dışı adresler için ek ücret talep edilebilir.'),
   HazirMadde(id: 'kural', kategori: 'Servis', aktif: true,
-    baslik: 'Servis Kullanım Kuralları',
-    icerik: 'Öğrenci servis saatinden en az 5 dakika önce belirlenen durakta hazır bulunmalıdır. Servis 2 dakikadan fazla beklemez.'),
+      baslik: 'Servis Kullanım Kuralları',
+      icerik: 'Öğrenci servis saatinden en az 5 dakika önce belirlenen durakta hazır bulunmalıdır. Servis 2 dakikadan fazla beklemez.'),
   HazirMadde(id: 'devamsiz', kategori: 'Servis',
-    baslik: 'Devamsızlık Kuralları',
-    icerik: 'Devamsızlık durumunda ücret iadesi yapılmaz. Uzun süreli devamsızlık için firma ile görüşülmelidir.'),
+      baslik: 'Devamsızlık Kuralları',
+      icerik: 'Devamsızlık durumunda ücret iadesi yapılmaz. Uzun süreli devamsızlık için firma ile görüşülmelidir.'),
   HazirMadde(id: 'bugun', kategori: 'Servis', aktif: true,
-    baslik: 'Bugün Gelmeyecek Bildirimi',
-    icerik: 'Öğrencinin servise binmeyeceği günlerde en geç servis saatinden 30 dakika önce uygulama üzerinden bildirim yapılmalıdır.'),
+      baslik: 'Bugün Gelmeyecek Bildirimi',
+      icerik: 'Öğrencinin servise binmeyeceği günlerde en geç servis saatinden 30 dakika önce uygulama üzerinden bildirim yapılmalıdır.'),
   HazirMadde(id: 'iptal', kategori: 'Sözleşme',
-    baslik: 'İptal ve Ayrılma Şartları',
-    icerik: 'Sözleşme feshi en az 15 gün önceden yazılı olarak bildirilmelidir. Peşin ödemelerin iadesi prorate hesaplanır.'),
+      baslik: 'İptal ve Ayrılma Şartları',
+      icerik: 'Sözleşme feshi en az 15 gün önceden yazılı olarak bildirilmelidir. Peşin ödemelerin iadesi prorate hesaplanır.'),
   HazirMadde(id: 'kvkk', kategori: 'Yasal', aktif: true, zorunlu: true,
-    baslik: 'KVKK Aydınlatma Metni',
-    icerik: '6698 sayılı KVKK kapsamında kişisel verileriniz yalnızca servis hizmetinin yürütülmesi amacıyla işlenmektedir. Verileriniz üçüncü kişilerle paylaşılmaz.'),
+      baslik: 'KVKK Aydınlatma Metni',
+      icerik: '6698 sayılı KVKK kapsamında kişisel verileriniz yalnızca servis hizmetinin yürütülmesi amacıyla işlenmektedir. Verileriniz üçüncü kişilerle paylaşılmaz.'),
   HazirMadde(id: 'takip', kategori: 'Yasal', aktif: true,
-    baslik: 'Canlı Takip Bilgilendirmesi',
-    icerik: 'Servis aracı Servisim360 uygulaması aracılığıyla gerçek zamanlı takip edilebilir. Konum verisi yalnızca yetkili veliler tarafından görüntülenebilir.'),
+      baslik: 'Canlı Takip Bilgilendirmesi',
+      icerik: 'Servis aracı Servisim360 uygulaması aracılığıyla gerçek zamanlı takip edilebilir. Konum verisi yalnızca yetkili veliler tarafından görüntülenebilir.'),
   HazirMadde(id: 'bildirim', kategori: 'Yasal',
-    baslik: 'Bildirim Sistemi Kullanımı',
-    icerik: 'Servis bildirimleri (yaklaşıyor, geldi, bindi vb.) uygulama üzerinden anlık olarak iletilecektir. Bildirimleri kapatmanız durumunda sorumluluk veliye aittir.'),
+      baslik: 'Bildirim Sistemi Kullanımı',
+      icerik: 'Servis bildirimleri (yaklaşıyor, geldi, bindi vb.) uygulama üzerinden anlık olarak iletilecektir. Bildirimleri kapatmanız durumunda sorumluluk veliye aittir.'),
   HazirMadde(id: 'acil', kategori: 'Güvenlik', aktif: true,
-    baslik: 'Acil Durum Kuralları',
-    icerik: 'Araç içi acil durumlarda şoför yetkililidir. Veli acil durum bildirimini uygulamadan anlık olarak alacaktır. Firma 112 ve ilgili birimleri derhal bilgilendirir.'),
+      baslik: 'Acil Durum Kuralları',
+      icerik: 'Araç içi acil durumlarda şoför yetkililidir. Veli acil durum bildirimini uygulamadan anlık olarak alacaktır. Firma 112 ve ilgili birimleri derhal bilgilendirir.'),
   HazirMadde(id: 'kemer', kategori: 'Güvenlik', aktif: true, zorunlu: true,
-    baslik: 'Emniyet Kemeri Zorunluluğu',
-    icerik: 'Araç içinde emniyet kemeri takılması zorunludur. Uymayan öğrenciler servisten çıkarılabilir.'),
+      baslik: 'Emniyet Kemeri Zorunluluğu',
+      icerik: 'Araç içinde emniyet kemeri takılması zorunludur. Uymayan öğrenciler servisten çıkarılabilir.'),
   HazirMadde(id: 'firma_ozel', kategori: 'Firma',
-    baslik: 'Firma Özel Kuralları',
-    icerik: 'Firma tarafından belirlenen ek kurallar geçerlidir ve veli tarafından kabul edilmiş sayılır.'),
+      baslik: 'Firma Özel Kuralları',
+      icerik: 'Firma tarafından belirlenen ek kurallar geçerlidir ve veli tarafından kabul edilmiş sayılır.'),
 ];
 
 // ════════════════════════════════════════════════════════════════
@@ -311,12 +311,12 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(controller: _tab, children: [
-              _sablonlarTab(),
-              _hazirMaddelerTab(),
-              _firmaBilgileriTab(),
-              _onizlemeTab(),
-              _pdfGonderTab(),
-            ]),
+        _sablonlarTab(),
+        _hazirMaddelerTab(),
+        _firmaBilgileriTab(),
+        _onizlemeTab(),
+        _pdfGonderTab(),
+      ]),
     );
   }
 
@@ -344,11 +344,11 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
                   color: _projeFiltresi ? Colors.white : Colors.grey, size: 14),
               const SizedBox(width: 6),
               Text(
-                _projeAdi.isNotEmpty ? _projeAdi : 'Bu Proje',
-                style: TextStyle(
-                    color: _projeFiltresi ? Colors.white : Colors.grey,
-                    fontWeight: FontWeight.bold, fontSize: 12),
-                overflow: TextOverflow.ellipsis),
+                  _projeAdi.isNotEmpty ? _projeAdi : 'Bu Proje',
+                  style: TextStyle(
+                      color: _projeFiltresi ? Colors.white : Colors.grey,
+                      fontWeight: FontWeight.bold, fontSize: 12),
+                  overflow: TextOverflow.ellipsis),
             ]),
           ),
         )),
@@ -388,9 +388,9 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
             const Icon(Icons.info_outline, color: Colors.blue, size: 12),
             const SizedBox(width: 6),
             Expanded(child: Text(
-              '"$_projeAdi" projesine ait şablonlar gösteriliyor. '
-              'Firma Geneli butonuna gecerek tum sablonlari goruntuleyebilir ve projeye atayabilirsiniz.',
-              style: const TextStyle(fontSize: 10, color: Colors.blue))),
+                '"$_projeAdi" projesine ait şablonlar gösteriliyor. '
+                    'Firma Geneli butonuna gecerek tum sablonlari goruntuleyebilir ve projeye atayabilirsiniz.',
+                style: const TextStyle(fontSize: 10, color: Colors.blue))),
           ]),
         ),
       ),
@@ -402,125 +402,125 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
       child: Row(children: [
         Expanded(child: _sablonlar.isEmpty
             ? const Text('Henüz şablon oluşturulmadı',
-                style: TextStyle(color: Colors.grey))
+            style: TextStyle(color: Colors.grey))
             : DropdownButtonFormField<String>(
-                value: _seciliSablonId,
-                decoration: const InputDecoration(
-                    labelText: 'Aktif Şablon',
-                    prefixIcon: Icon(Icons.folder_outlined),
-                    border: OutlineInputBorder(), isDense: true),
-                items: _sablonlar.map((s) => DropdownMenuItem(
-                  value: s['id'] as String,
-                  child: Text(s['ad'] ?? ''),
-                )).toList(),
-                onChanged: (v) async {
-                  setState(() => _seciliSablonId = v);
-                  if (v != null) await _sablonYukle(v);
-                },
-              )),
+          value: _seciliSablonId,
+          decoration: const InputDecoration(
+              labelText: 'Aktif Şablon',
+              prefixIcon: Icon(Icons.folder_outlined),
+              border: OutlineInputBorder(), isDense: true),
+          items: _sablonlar.map((s) => DropdownMenuItem(
+            value: s['id'] as String,
+            child: Text(s['ad'] ?? ''),
+          )).toList(),
+          onChanged: (v) async {
+            setState(() => _seciliSablonId = v);
+            if (v != null) await _sablonYukle(v);
+          },
+        )),
         const SizedBox(width: 12),
         ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _turuncu, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-          onPressed: _yeniSablonDialog,
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('Yeni Şablon')),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _turuncu, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: _yeniSablonDialog,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Yeni Şablon')),
       ]),
     ),
 
     Expanded(child: _sablonlar.isEmpty
         ? _bosEkran(
-            Icons.folder_outlined, 'Henüz şablon oluşturulmadı',
-            'Farklı projeler için ayrı sözleşmeler oluşturun',
-            buton: 'İlk Şablonu Oluştur', onTap: _yeniSablonDialog)
+        Icons.folder_outlined, 'Henüz şablon oluşturulmadı',
+        'Farklı projeler için ayrı sözleşmeler oluşturun',
+        buton: 'İlk Şablonu Oluştur', onTap: _yeniSablonDialog)
         : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _sablonlar.length,
-            itemBuilder: (_, i) {
-              final s = _sablonlar[i];
-              final secili = s['id'] == _seciliSablonId;
-              final maddeSayi = (s['maddeler'] as List? ?? [])
-                  .where((m) => m['aktif'] == true).length;
-              final ozelSayi = (s['ozelMaddeler'] as List? ?? []).length;
+      padding: const EdgeInsets.all(16),
+      itemCount: _sablonlar.length,
+      itemBuilder: (_, i) {
+        final s = _sablonlar[i];
+        final secili = s['id'] == _seciliSablonId;
+        final maddeSayi = (s['maddeler'] as List? ?? [])
+            .where((m) => m['aktif'] == true).length;
+        final ozelSayi = (s['ozelMaddeler'] as List? ?? []).length;
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: secili
-                        ? const BorderSide(color: _navy, width: 2)
-                        : BorderSide.none),
-                elevation: secili ? 3 : 1,
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                        color: _navy.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10)),
-                    child: Icon(Icons.description_outlined,
-                        color: secili ? _turuncu : _navy, size: 22),
-                  ),
-                  title: Text(s['ad'] ?? '',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: secili ? _navy : Colors.black87)),
-                  subtitle: Wrap(spacing: 8, children: [
-                    _chip('$maddeSayi hazır madde', Colors.blue),
-                    if (ozelSayi > 0) _chip('$ozelSayi özel madde', _turuncu),
-                    if (secili) _chip('Aktif', Colors.green),
-                  ]),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (secili) const Icon(Icons.check_circle_rounded,
-                        color: _navy, size: 20),
-                    PopupMenuButton<String>(
-                      onSelected: (v) async {
-                        if (v == 'sil') {
-                          await FirebaseFirestore.instance
-                              .collection('firms').doc(_firmaId)
-                              .collection('sozlesme_sablonlar')
-                              .doc(s['id']).delete();
-                          setState(() {
-                            if (_seciliSablonId == s['id']) _seciliSablonId = null;
-                          });
-                          await _yukle();
-                        }
-                        if (v == 'kopyala') await _sablonKopyala(s);
-                        if (v == 'projeAta') await _sabloniProjeyeAta(s);
-                      },
-                      itemBuilder: (_) => [
-                        if (_projeId.isNotEmpty)
-                          PopupMenuItem(value: 'projeAta',
-                              child: Row(children: [
-                                const Icon(Icons.folder_outlined, color: Colors.green, size: 16),
-                                const SizedBox(width: 8),
-                                Text('"$_projeAdi" projesine ata',
-                                    style: const TextStyle(color: Colors.green, fontSize: 13)),
-                              ])),
-                        const PopupMenuItem(value: 'kopyala',
-                            child: Row(children: [
-                              Icon(Icons.copy_outlined, color: Colors.blue, size: 16),
-                              SizedBox(width: 8), Text('Kopyala'),
-                            ])),
-                        const PopupMenuItem(value: 'sil',
-                            child: Row(children: [
-                              Icon(Icons.delete_outlined, color: Colors.red, size: 16),
-                              SizedBox(width: 8),
-                              Text('Sil', style: TextStyle(color: Colors.red)),
-                            ])),
-                      ],
-                    ),
-                  ]),
-                  onTap: () async {
-                    setState(() => _seciliSablonId = s['id']);
-                    await _sablonYukle(s['id']);
-                  },
-                ),
-              );
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: secili
+                  ? const BorderSide(color: _navy, width: 2)
+                  : BorderSide.none),
+          elevation: secili ? 3 : 1,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 8),
+            leading: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: _navy.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.description_outlined,
+                  color: secili ? _turuncu : _navy, size: 22),
+            ),
+            title: Text(s['ad'] ?? '',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: secili ? _navy : Colors.black87)),
+            subtitle: Wrap(spacing: 8, children: [
+              _chip('$maddeSayi hazır madde', Colors.blue),
+              if (ozelSayi > 0) _chip('$ozelSayi özel madde', _turuncu),
+              if (secili) _chip('Aktif', Colors.green),
+            ]),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (secili) const Icon(Icons.check_circle_rounded,
+                  color: _navy, size: 20),
+              PopupMenuButton<String>(
+                onSelected: (v) async {
+                  if (v == 'sil') {
+                    await FirebaseFirestore.instance
+                        .collection('firms').doc(_firmaId)
+                        .collection('sozlesme_sablonlar')
+                        .doc(s['id']).delete();
+                    setState(() {
+                      if (_seciliSablonId == s['id']) _seciliSablonId = null;
+                    });
+                    await _yukle();
+                  }
+                  if (v == 'kopyala') await _sablonKopyala(s);
+                  if (v == 'projeAta') await _sabloniProjeyeAta(s);
+                },
+                itemBuilder: (_) => [
+                  if (_projeId.isNotEmpty)
+                    PopupMenuItem(value: 'projeAta',
+                        child: Row(children: [
+                          const Icon(Icons.folder_outlined, color: Colors.green, size: 16),
+                          const SizedBox(width: 8),
+                          Text('"$_projeAdi" projesine ata',
+                              style: const TextStyle(color: Colors.green, fontSize: 13)),
+                        ])),
+                  const PopupMenuItem(value: 'kopyala',
+                      child: Row(children: [
+                        Icon(Icons.copy_outlined, color: Colors.blue, size: 16),
+                        SizedBox(width: 8), Text('Kopyala'),
+                      ])),
+                  const PopupMenuItem(value: 'sil',
+                      child: Row(children: [
+                        Icon(Icons.delete_outlined, color: Colors.red, size: 16),
+                        SizedBox(width: 8),
+                        Text('Sil', style: TextStyle(color: Colors.red)),
+                      ])),
+                ],
+              ),
+            ]),
+            onTap: () async {
+              setState(() => _seciliSablonId = s['id']);
+              await _sablonYukle(s['id']);
             },
-          )),
+          ),
+        );
+      },
+    )),
   ]);
 
   void _yeniSablonDialog() {
@@ -570,34 +570,34 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white),
-            onPressed: () async {
-              if (adCtrl.text.trim().isEmpty) return;
-              final now = FieldValue.serverTimestamp();
-              final ref = await FirebaseFirestore.instance
-                  .collection('firms').doc(_firmaId)
-                  .collection('sozlesme_sablonlar').add({
-                'ad'          : adCtrl.text.trim(),
-                'maddeler'    : varsayilanMaddeler()
-                    .where((m) => m.aktif || m.zorunlu)
-                    .map((m) => m.toMap()).toList(),
-                'ozelMaddeler': [],
-                'olusturma'   : now, 'updatedAt': now,
-              });
-              if (projeYeAta && _projeId.isNotEmpty) {
-                await FirebaseFirestore.instance
-                    .collection('projects').doc(_projeId).update({
-                  'sozlesmeSablonId': ref.id,
-                  'sozlesmeSablonAd': adCtrl.text.trim(),
-                  'updatedAt'       : now,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white),
+              onPressed: () async {
+                if (adCtrl.text.trim().isEmpty) return;
+                final now = FieldValue.serverTimestamp();
+                final ref = await FirebaseFirestore.instance
+                    .collection('firms').doc(_firmaId)
+                    .collection('sozlesme_sablonlar').add({
+                  'ad'          : adCtrl.text.trim(),
+                  'maddeler'    : varsayilanMaddeler()
+                      .where((m) => m.aktif || m.zorunlu)
+                      .map((m) => m.toMap()).toList(),
+                  'ozelMaddeler': [],
+                  'olusturma'   : now, 'updatedAt': now,
                 });
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-              setState(() => _seciliSablonId = ref.id);
-              await _yukle();
-            },
-            child: const Text('Oluştur')),
+                if (projeYeAta && _projeId.isNotEmpty) {
+                  await FirebaseFirestore.instance
+                      .collection('projects').doc(_projeId).update({
+                    'sozlesmeSablonId': ref.id,
+                    'sozlesmeSablonAd': adCtrl.text.trim(),
+                    'updatedAt'       : now,
+                  });
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                setState(() => _seciliSablonId = ref.id);
+                await _yukle();
+              },
+              child: const Text('Oluştur')),
         ],
       )),
     );
@@ -647,10 +647,10 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
       padding: const EdgeInsets.all(16),
       children: [
         _bilgiKutusu(
-          'Aktif maddeler sözleşmeye dahil edilir. '
-          'Zorunlu maddeler kapatılamaz. '
-          'En altta özel madde ekleyebilirsiniz.',
-          Colors.blue),
+            'Aktif maddeler sözleşmeye dahil edilir. '
+                'Zorunlu maddeler kapatılamaz. '
+                'En altta özel madde ekleyebilirsiniz.',
+            Colors.blue),
         const SizedBox(height: 16),
 
         ...kategoriler.entries.map((kat) => Column(
@@ -688,14 +688,14 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
                           color: m.aktif ? Colors.black87 : Colors.grey))),
                       if (m.zorunlu)
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(6)),
-                          child: const Text('Zorunlu',
-                              style: TextStyle(fontSize: 10, color: Colors.red,
-                                  fontWeight: FontWeight.bold))),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(6)),
+                            child: const Text('Zorunlu',
+                                style: TextStyle(fontSize: 10, color: Colors.red,
+                                    fontWeight: FontWeight.bold))),
                     ]),
                     const SizedBox(height: 4),
                     Text(m.icerik, style: TextStyle(
@@ -718,9 +718,9 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
               fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
           const Spacer(),
           TextButton.icon(
-            onPressed: () => _ozelMaddeDialog(),
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Madde Ekle')),
+              onPressed: () => _ozelMaddeDialog(),
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('Madde Ekle')),
         ]),
         const SizedBox(height: 8),
 
@@ -755,11 +755,11 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
                     style: const TextStyle(fontSize: 12)),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.blue),
-                    onPressed: () => _ozelMaddeDialog(duzenle: m, index: i)),
+                      icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.blue),
+                      onPressed: () => _ozelMaddeDialog(duzenle: m, index: i)),
                   IconButton(
-                    icon: const Icon(Icons.delete_outlined, size: 16, color: Colors.red),
-                    onPressed: () => setState(() => _ozelMaddeler.removeAt(i))),
+                      icon: const Icon(Icons.delete_outlined, size: 16, color: Colors.red),
+                      onPressed: () => setState(() => _ozelMaddeler.removeAt(i))),
                 ]),
               ),
             );
@@ -789,19 +789,19 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
         actions: [
           TextButton(onPressed: () => Navigator.pop(_), child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white),
-            onPressed: () {
-              if (baslikCtrl.text.trim().isEmpty) return;
-              final madde = {'baslik': baslikCtrl.text.trim(),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white),
+              onPressed: () {
+                if (baslikCtrl.text.trim().isEmpty) return;
+                final madde = {'baslik': baslikCtrl.text.trim(),
                   'icerik': icerikCtrl.text.trim()};
-              setState(() {
-                if (index != null) _ozelMaddeler[index] = madde;
-                else _ozelMaddeler.add(madde);
-              });
-              Navigator.pop(_);
-            },
-            child: const Text('Kaydet')),
+                setState(() {
+                  if (index != null) _ozelMaddeler[index] = madde;
+                  else _ozelMaddeler.add(madde);
+                });
+                Navigator.pop(_);
+              },
+              child: const Text('Kaydet')),
         ],
       ),
     );
@@ -812,116 +812,116 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   // ════════════════════════════════════════════════════════════════
   Widget _firmaBilgileriTab() {
     return SingleChildScrollView(
-    padding: const EdgeInsets.all(20),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Sözleşme türü
-      const Text('Sözleşme Türü', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, children: [
-        _turChip('ogrenci', '🎓 Öğrenci'), _turChip('personel', '💼 Personel'),
-        _turChip('turizm', '✈️ Turizm'), _turChip('ozel', '🚐 Özel'),
-      ]),
-      const SizedBox(height: 16),
-      if (_ogrenciler.isNotEmpty) DropdownButtonFormField<String>(
-        value: _seciliOgrenci?['id'] as String?,
-        decoration: InputDecoration(labelText: 'Öğrenci Seç (Değişkenleri Doldurur)',
-            prefixIcon: const Icon(Icons.person_outlined),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
-        items: _ogrenciler.map((o) => DropdownMenuItem(
-          value: o['id'] as String,
-          child: Text('${o['ad'] ?? ''} ${o['soyad'] ?? ''}'.trim(), overflow: TextOverflow.ellipsis),
-        )).toList(),
-        onChanged: (v) {
-          final ogr = _ogrenciler.firstWhere((o) => o['id'] == v, orElse: () => {});
-          if (ogr.isNotEmpty) setState(() {
-            _seciliOgrenci = ogr;
-            _degiskenler['OGRENCI_ADI'] = '${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}'.trim();
-            _degiskenler['VELI_ADI']    = ogr['veliAd'] ?? '';
-            _degiskenler['ADRES']       = ogr['adres'] ?? '';
-            _degiskenler['ANNE_TEL']    = ogr['anneTel'] ?? '';
-            _degiskenler['BABA_TEL']    = ogr['babaTel'] ?? '';
-            _degiskenler['OKUL_ADI']    = ogr['okul'] ?? '';
-            _degiskenler['SINIF']       = ogr['sinif'] ?? '';
-          });
-        },
-      ),
-      const SizedBox(height: 16),
-      const Divider(),
-      const SizedBox(height: 8),
-      _bilgiKutusu('Bu bilgiler PDF sözleşmede otomatik kullanılır.', Colors.blue),
-      const SizedBox(height: 16),
-
-      Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Firma Bilgileri', style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
-            const SizedBox(height: 16),
-            _formSatir('Firma Adı *', _firmaAdCtrl, Icons.business_outlined),
-            const SizedBox(height: 12),
-            _formSatir('Yetkili Adı *', _yetkiliCtrl, Icons.person_outlined),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _formSatir('Telefon', _firmaTelaCtrl,
-                  Icons.phone_outlined, tip: TextInputType.phone)),
-              const SizedBox(width: 12),
-              Expanded(child: _formSatir('E-Posta', _firmaEmailCtrl,
-                  Icons.email_outlined, tip: TextInputType.emailAddress)),
-            ]),
-            const SizedBox(height: 12),
-            _formSatir('Adres', _firmaAdresCtrl, Icons.location_on_outlined),
-            const SizedBox(height: 12),
-            _formSatir('Vergi No / Vergi Dairesi', _vergiCtrl,
-                Icons.receipt_outlined),
-          ]),
+      padding: const EdgeInsets.all(20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Sözleşme türü
+        const Text('Sözleşme Türü', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, children: [
+          _turChip('ogrenci', '🎓 Öğrenci'), _turChip('personel', '💼 Personel'),
+          _turChip('turizm', '✈️ Turizm'), _turChip('ozel', '🚐 Özel'),
+        ]),
+        const SizedBox(height: 16),
+        if (_ogrenciler.isNotEmpty) DropdownButtonFormField<String>(
+          value: _seciliOgrenci?['id'] as String?,
+          decoration: InputDecoration(labelText: 'Öğrenci Seç (Değişkenleri Doldurur)',
+              prefixIcon: const Icon(Icons.person_outlined),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
+          items: _ogrenciler.map((o) => DropdownMenuItem(
+            value: o['id'] as String,
+            child: Text('${o['ad'] ?? ''} ${o['soyad'] ?? ''}'.trim(), overflow: TextOverflow.ellipsis),
+          )).toList(),
+          onChanged: (v) {
+            final ogr = _ogrenciler.firstWhere((o) => o['id'] == v, orElse: () => {});
+            if (ogr.isNotEmpty) setState(() {
+              _seciliOgrenci = ogr;
+              _degiskenler['OGRENCI_ADI'] = '${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}'.trim();
+              _degiskenler['VELI_ADI']    = ogr['veliAd'] ?? '';
+              _degiskenler['ADRES']       = ogr['adres'] ?? '';
+              _degiskenler['ANNE_TEL']    = ogr['anneTel'] ?? '';
+              _degiskenler['BABA_TEL']    = ogr['babaTel'] ?? '';
+              _degiskenler['OKUL_ADI']    = ogr['okul'] ?? '';
+              _degiskenler['SINIF']       = ogr['sinif'] ?? '';
+            });
+          },
         ),
-      ),
-      const SizedBox(height: 16),
+        const SizedBox(height: 16),
+        const Divider(),
+        const SizedBox(height: 8),
+        _bilgiKutusu('Bu bilgiler PDF sözleşmede otomatik kullanılır.', Colors.blue),
+        const SizedBox(height: 16),
 
-      // Veli onay maddeleri
-      Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Veli Onay Maddeleri', style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
-            const SizedBox(height: 4),
-            const Text('Velinin kayıt sırasında onaylaması gereken maddeler',
-                style: TextStyle(color: Colors.grey, fontSize: 12)),
-            const SizedBox(height: 16),
-            ...[
-              'Sözleşmeyi okudum, anladım ve kabul ediyorum.',
-              'Servis ücretini ve ödeme koşullarını kabul ediyorum.',
-              'KVKK aydınlatma metnini okudum ve kabul ediyorum.',
-              'Verdiğim bilgilerin doğruluğunu beyan ediyorum.',
-              'Dijital onayımın fiziksel imza ile aynı hukuki geçerliliğe sahip olduğunu kabul ediyorum.',
-            ].map((m) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
-                const SizedBox(width: 10),
-                Expanded(child: Text(m, style: const TextStyle(fontSize: 13))),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Firma Bilgileri', style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
+              const SizedBox(height: 16),
+              _formSatir('Firma Adı *', _firmaAdCtrl, Icons.business_outlined),
+              const SizedBox(height: 12),
+              _formSatir('Yetkili Adı *', _yetkiliCtrl, Icons.person_outlined),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: _formSatir('Telefon', _firmaTelaCtrl,
+                    Icons.phone_outlined, tip: TextInputType.phone)),
+                const SizedBox(width: 12),
+                Expanded(child: _formSatir('E-Posta', _firmaEmailCtrl,
+                    Icons.email_outlined, tip: TextInputType.emailAddress)),
               ]),
-            )),
-          ]),
+              const SizedBox(height: 12),
+              _formSatir('Adres', _firmaAdresCtrl, Icons.location_on_outlined),
+              const SizedBox(height: 12),
+              _formSatir('Vergi No / Vergi Dairesi', _vergiCtrl,
+                  Icons.receipt_outlined),
+            ]),
+          ),
         ),
-      ),
-      const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
-      SizedBox(width: double.infinity, child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-            backgroundColor: _navy, foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-        onPressed: _firmaBilgiKaydet,
-        icon: const Icon(Icons.save_rounded),
-        label: const Text('Firma Bilgilerini Kaydet',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-      )),
-    ]),
+        // Veli onay maddeleri
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Veli Onay Maddeleri', style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
+              const SizedBox(height: 4),
+              const Text('Velinin kayıt sırasında onaylaması gereken maddeler',
+                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const SizedBox(height: 16),
+              ...[
+                'Sözleşmeyi okudum, anladım ve kabul ediyorum.',
+                'Servis ücretini ve ödeme koşullarını kabul ediyorum.',
+                'KVKK aydınlatma metnini okudum ve kabul ediyorum.',
+                'Verdiğim bilgilerin doğruluğunu beyan ediyorum.',
+                'Dijital onayımın fiziksel imza ile aynı hukuki geçerliliğe sahip olduğunu kabul ediyorum.',
+              ].map((m) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 16),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(m, style: const TextStyle(fontSize: 13))),
+                ]),
+              )),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        SizedBox(width: double.infinity, child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: _navy, foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          onPressed: _firmaBilgiKaydet,
+          icon: const Icon(Icons.save_rounded),
+          label: const Text('Firma Bilgilerini Kaydet',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        )),
+      ]),
     );
   }
 
@@ -933,7 +933,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
             prefixIcon: Icon(icon, size: 18, color: _navy),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             isDense: true, contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 12),
+              horizontal: 12, vertical: 12),
           ));
 
   // ════════════════════════════════════════════════════════════════
@@ -944,7 +944,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
 
     final aktifMaddeler = _hazirMaddeler.where((m) => m.aktif).toList();
     final sablonAd = _sablonlar.firstWhere(
-        (s) => s['id'] == _seciliSablonId, orElse: () => {})['ad'] ?? '';
+            (s) => s['id'] == _seciliSablonId, orElse: () => {})['ad'] ?? '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -983,10 +983,10 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
               textAlign: TextAlign.center),
           const SizedBox(height: 4),
           const Text(
-            'İşbu sözleşme, aşağıdaki taraflar arasında '
-            'akdedilmiş olup belirtilen hüküm ve koşulları kapsar.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-            textAlign: TextAlign.center),
+              'İşbu sözleşme, aşağıdaki taraflar arasında '
+                  'akdedilmiş olup belirtilen hüküm ve koşulları kapsar.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center),
           const SizedBox(height: 20),
 
           // Öğrenci & Veli Bilgi Formu (Örnek)
@@ -1105,10 +1105,10 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         _bilgiKutusu(
-          'PDF oluşturmak için önce veli kayıt formunda sözleşme '
-          'onaylandıktan sonra sistem otomatik PDF oluşturur. '
-          'Buradan şablonu test edebilir ve paylaşabilirsiniz.',
-          Colors.blue),
+            'PDF oluşturmak için önce veli kayıt formunda sözleşme '
+                'onaylandıktan sonra sistem otomatik PDF oluşturur. '
+                'Buradan şablonu test edebilir ve paylaşabilirsiniz.',
+            Colors.blue),
         const SizedBox(height: 20),
 
         // PDF içerik özeti
@@ -1121,7 +1121,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
                   fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
               const SizedBox(height: 14),
               _pdfIcerikSatir(Icons.business_outlined, 'Firma Bilgileri',
-                  _firmaAdCtrl.text.isNotEmpty ? '✓' : 'Eksik', 
+                  _firmaAdCtrl.text.isNotEmpty ? '✓' : 'Eksik',
                   _firmaAdCtrl.text.isNotEmpty ? Colors.green : Colors.orange),
               _pdfIcerikSatir(Icons.person_outlined, 'Öğrenci & Veli Bilgileri',
                   'Kayıt sırasında doldurulur', Colors.blue),
@@ -1153,41 +1153,41 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
               const SizedBox(height: 14),
 
               _gonderimBtn(
-                Icons.picture_as_pdf_outlined, Colors.red, 'PDF Oluştur & İndir',
-                'Sözleşmeyi PDF olarak oluşturur ve paylaşır',
-                () => _pdfOlustur()),
+                  Icons.picture_as_pdf_outlined, Colors.red, 'PDF Oluştur & İndir',
+                  'Sözleşmeyi PDF olarak oluşturur ve paylaşır',
+                      () => _pdfOlustur()),
               const SizedBox(height: 10),
               _gonderimBtn(
-                Icons.print_outlined, Colors.grey, 'Yazdır',
-                'Sözleşmeyi tarayıcı yazdırma menüsüyle yazdır',
-                () async {
-                  final mesaj = 'Yazdırmak için: Önizleme sekmesine geçin, '
-                      'ardından tarayıcıda Ctrl+P (Windows) veya Cmd+P (Mac) tuşlayın.';
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(mesaj),
-                      duration: const Duration(seconds: 4),
-                      behavior: SnackBarBehavior.floating));
-                }),
+                  Icons.print_outlined, Colors.grey, 'Yazdır',
+                  'Sözleşmeyi tarayıcı yazdırma menüsüyle yazdır',
+                      () async {
+                    final mesaj = 'Yazdırmak için: Önizleme sekmesine geçin, '
+                        'ardından tarayıcıda Ctrl+P (Windows) veya Cmd+P (Mac) tuşlayın.';
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(mesaj),
+                        duration: const Duration(seconds: 4),
+                        behavior: SnackBarBehavior.floating));
+                  }),
               const SizedBox(height: 10),
               _gonderimBtn(
-                Icons.copy_outlined, Colors.blue, 'Metni Kopyala',
-                'Tüm sözleşme metnini panoya kopyalar',
-                () => _metniKopyala()),
+                  Icons.copy_outlined, Colors.blue, 'Metni Kopyala',
+                  'Tüm sözleşme metnini panoya kopyalar',
+                      () => _metniKopyala()),
               const SizedBox(height: 10),
               _gonderimBtn(
-                Icons.message_outlined, const Color(0xFF25D366), 'WhatsApp ile Gönder',
-                'Sözleşme linkini WhatsApp\'tan ilet',
-                () => _whatsappGonder()),
+                  Icons.message_outlined, const Color(0xFF25D366), 'WhatsApp ile Gönder',
+                  'Sözleşme linkini WhatsApp\'tan ilet',
+                      () => _whatsappGonder()),
               const SizedBox(height: 10),
               _gonderimBtn(
-                Icons.link_outlined, _turuncu, 'Kayıt Linki Oluştur',
-                'Veliye gönderilecek kayıt formu linki',
-                () => Navigator.pushNamed(context, '/kayit_link')),
+                  Icons.link_outlined, _turuncu, 'Kayıt Linki Oluştur',
+                  'Veliye gönderilecek kayıt formu linki',
+                      () => Navigator.pushNamed(context, '/kayit_link')),
               const SizedBox(height: 10),
               _gonderimBtn(
-                Icons.visibility_outlined, _navy, 'Veli Panelinde Göster',
-                'Onaylanmış sözleşmeleri görüntüle',
-                () => Navigator.pushNamed(context, '/veli_basvurular')),
+                  Icons.visibility_outlined, _navy, 'Veli Panelinde Göster',
+                  'Onaylanmış sözleşmeleri görüntüle',
+                      () => Navigator.pushNamed(context, '/veli_basvurular')),
             ]),
           ),
         ),
@@ -1229,11 +1229,11 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              Text(baslik, style: const TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 14)),
-              Text(aciklama, style: TextStyle(
-                  color: Colors.grey[600], fontSize: 12)),
-            ])),
+                  Text(baslik, style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(aciklama, style: TextStyle(
+                      color: Colors.grey[600], fontSize: 12)),
+                ])),
             Icon(Icons.arrow_forward_ios_rounded, color: renk, size: 14),
           ]),
         ),
@@ -1272,7 +1272,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   void _metniKopyala() {
     final aktifler = _hazirMaddeler.where((m) => m.aktif).toList();
     final sablonAd = _sablonlar.firstWhere(
-        (s) => s['id'] == _seciliSablonId, orElse: () => {})['ad'] ?? '';
+            (s) => s['id'] == _seciliSablonId, orElse: () => {})['ad'] ?? '';
     final buf = StringBuffer();
     buf.writeln('${_firmaAdCtrl.text.toUpperCase()} HİZMET SÖZLEŞMESİ');
     buf.writeln('$sablonAd');
@@ -1292,7 +1292,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
 
   void _whatsappGonder() async {
     final sablonAd = _sablonlar.firstWhere(
-        (s) => s['id'] == _seciliSablonId, orElse: () => {})['ad'] ?? '';
+            (s) => s['id'] == _seciliSablonId, orElse: () => {})['ad'] ?? '';
     final mesaj = '${_firmaAdCtrl.text} - $sablonAd Hizmet Sözleşmesi\n'
         'Kayıt formunuza aşağıdaki linkten ulaşabilirsiniz.';
     final url = Uri.parse(
@@ -1304,19 +1304,19 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
 
   // ── Yardımcılar ───────────────────────────────────────────────
   Widget _secinizUyarisi() => Center(child: Column(
-    mainAxisSize: MainAxisSize.min, children: [
-      Icon(Icons.folder_outlined, size: 72, color: Colors.grey[300]),
-      const SizedBox(height: 12),
-      const Text('Önce Şablonlar sekmesinden bir şablon seçin',
-          style: TextStyle(color: Colors.grey, fontSize: 15)),
-      const SizedBox(height: 16),
-      ElevatedButton.icon(
+      mainAxisSize: MainAxisSize.min, children: [
+    Icon(Icons.folder_outlined, size: 72, color: Colors.grey[300]),
+    const SizedBox(height: 12),
+    const Text('Önce Şablonlar sekmesinden bir şablon seçin',
+        style: TextStyle(color: Colors.grey, fontSize: 15)),
+    const SizedBox(height: 16),
+    ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
             backgroundColor: _turuncu, foregroundColor: Colors.white),
         onPressed: () => _tab.animateTo(0),
         icon: const Icon(Icons.folder_outlined),
         label: const Text('Şablonlara Git')),
-    ]));
+  ]));
 
   Widget _bosEkran(IconData icon, String baslik, String alt,
       {String? buton, VoidCallback? onTap}) =>
@@ -1331,13 +1331,13 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
         if (buton != null && onTap != null) ...[
           const SizedBox(height: 20),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _turuncu, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-            onPressed: onTap,
-            icon: const Icon(Icons.add_rounded),
-            label: Text(buton, style: const TextStyle(fontWeight: FontWeight.bold))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _turuncu, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12))),
+              onPressed: onTap,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(buton, style: const TextStyle(fontWeight: FontWeight.bold))),
         ],
       ]));
 
@@ -1435,8 +1435,8 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
                   Expanded(child: Text('${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}',
                       style: const TextStyle(fontWeight: FontWeight.bold))),
                   Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Text(durum, style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold))),
+                      decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text(durum, style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold))),
                 ]),
                 const SizedBox(height: 10),
                 Row(children: steps.expand((s) {
@@ -1496,12 +1496,12 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
                     : durum == 'onaylandi' ? Colors.green
                     : durum == 'gonderildi' ? Colors.blue : Colors.grey;
                 return ListTile(dense: true,
-                  leading: const Icon(Icons.description_outlined, size: 16),
-                  title: Text('${s['yil'] ?? ''} — ${s['sozlesmeTipi'] ?? 'ogrenci'}',
-                      style: const TextStyle(fontSize: 13)),
-                  trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: dc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Text(durum, style: TextStyle(fontSize: 10, color: dc, fontWeight: FontWeight.bold))));
+                    leading: const Icon(Icons.description_outlined, size: 16),
+                    title: Text('${s['yil'] ?? ''} — ${s['sozlesmeTipi'] ?? 'ogrenci'}',
+                        style: const TextStyle(fontSize: 13)),
+                    trailing: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: dc.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                        child: Text(durum, style: TextStyle(fontSize: 10, color: dc, fontWeight: FontWeight.bold))));
               }).toList(),
             ),
           );

@@ -67,7 +67,7 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
           stream: FirebaseFirestore.instance
               .collection('students')
               .where('firmaId', isEqualTo: _firmaId)
-          .where('projeId', isEqualTo: _projeId)
+              .where('projeId', isEqualTo: _projeId)
               .orderBy('ad')
               .snapshots(),
           builder: (_, snap) {
@@ -116,11 +116,31 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
                         if (v == 'sil') {
                           await FirebaseFirestore.instance
                               .collection('students').doc(docId).delete();
+                        } else if (v == 'servise_ata') {
+                          _serviseAtaDialog(context, docId, data);
+                        } else if (v == 'detay') {
+                          _ogrenciDetayDialog(context, docId, data);
                         }
                       },
                       itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'detay',
+                            child: Row(children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('Detay Gör'),
+                            ])),
+                        PopupMenuItem(value: 'servise_ata',
+                            child: Row(children: [
+                              Icon(Icons.directions_bus_outlined, size: 16, color: Color(0xFF1a3a6b)),
+                              SizedBox(width: 8),
+                              Text('Servise Ata'),
+                            ])),
                         PopupMenuItem(value: 'sil',
-                            child: Text('Sil', style: TextStyle(color: Colors.red))),
+                            child: Row(children: [
+                              Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Sil', style: TextStyle(color: Colors.red)),
+                            ])),
                       ],
                     ),
                   ]),
@@ -131,6 +151,127 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
         )),
       ]),
     );
+  }
+
+
+  // ── Öğrenci Detay Dialog ──────────────────────────────────────
+  void _ogrenciDetayDialog(BuildContext context, String docId, Map<String, dynamic> data) {
+    final navy = const Color(0xFF1a3a6b);
+    showDialog(context: context, builder: (_) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: EdgeInsets.zero,
+      content: SizedBox(width: 340, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: navy,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16))),
+            child: Row(children: [
+              CircleAvatar(radius: 18, backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  child: Text((data['ad'] ?? '?')[0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 10),
+              Expanded(child: Text(data['ad'] ?? 'Öğrenci',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+              IconButton(icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                  onPressed: () => Navigator.pop(_), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+            ])),
+        Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+          _detaySatir('Adres', data['adres'] ?? data['sabahAdres'] ?? '-', Icons.location_on_outlined, navy),
+          _detaySatir('Veli', data['veliAd'] ?? '-', Icons.family_restroom_outlined, Colors.purple),
+          _detaySatir('Telefon', data['veliTel'] ?? data['anneTelefon'] ?? '-', Icons.phone_outlined, Colors.green),
+          _detaySatir('Servis', data['soforAd'] ?? data['servisAd'] ?? (data['surucuId']?.isNotEmpty == true ? 'Atanmış' : 'Atanmamış'),
+              Icons.directions_bus_outlined, data['surucuId']?.isNotEmpty == true ? Colors.blue : Colors.orange),
+          _detaySatir('Proje', data['projeAd'] ?? data['projeId'] ?? '-', Icons.folder_outlined, Colors.teal),
+          _detaySatir('Durum', data['durum'] ?? 'onayli', Icons.verified_outlined, Colors.green),
+        ])),
+        Padding(padding: const EdgeInsets.fromLTRB(16,0,16,16), child: Row(children: [
+          Expanded(child: OutlinedButton(
+              onPressed: () { Navigator.pop(_); _serviseAtaDialog(context, docId, data); },
+              child: const Text('Servise Ata'))),
+          const SizedBox(width: 10),
+          Expanded(child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: navy, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(_),
+              child: const Text('Kapat'))),
+        ])),
+      ])),
+    ));
+  }
+
+  Widget _detaySatir(String label, String deger, IconData ikon, Color renk) =>
+      Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(children: [
+        Icon(ikon, size: 15, color: renk),
+        const SizedBox(width: 8),
+        Text('$label: ', style: TextStyle(fontSize: 12, color: renk, fontWeight: FontWeight.bold)),
+        Expanded(child: Text(deger, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
+      ]));
+
+  // ── Servise Ata Dialog ────────────────────────────────────────
+  void _serviseAtaDialog(BuildContext context, String docId, Map<String, dynamic> data) {
+    String? seciliSoforId = data['surucuId'] as String?;
+    List<Map<String,dynamic>> soforler = [];
+    bool yukleniyor = true;
+
+    showDialog(context: context, builder: (_) => StatefulBuilder(
+      builder: (ctx, setS) {
+        // Şoförleri yükle
+        if (yukleniyor) {
+          FirebaseFirestore.instance.collection('drivers')
+              .where('firmaId', isEqualTo: _firmaId)
+              .get().then((snap) {
+            soforler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+            setS(() => yukleniyor = false);
+          });
+        }
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Servise Ata', style: TextStyle(color: Color(0xFF1a3a6b), fontWeight: FontWeight.bold)),
+          content: SizedBox(width: 300, child: yukleniyor
+              ? const Center(child: CircularProgressIndicator())
+              : Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Öğrenci: ${data['ad'] ?? ''}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String?>(
+              value: seciliSoforId?.isEmpty == true ? null : seciliSoforId,
+              decoration: const InputDecoration(
+                  labelText: 'Servis / Şoför',
+                  prefixIcon: Icon(Icons.directions_bus_outlined, size: 18, color: Color(0xFF1a3a6b)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+                  isDense: true),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Atanmamış')),
+                ...soforler.map((s) => DropdownMenuItem<String?>(
+                    value: s['id'] as String,
+                    child: Text('${s['ad'] ?? 'Şoför'}  •  ${s['aracPlaka'] ?? ''}'))),
+              ],
+              onChanged: (v) => setS(() => seciliSoforId = v),
+            ),
+          ])),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
+              onPressed: () async {
+                final secilenSofor = soforler.firstWhere(
+                        (s) => s['id'] == seciliSoforId, orElse: () => {});
+                await FirebaseFirestore.instance.collection('students').doc(docId).update({
+                  'surucuId': seciliSoforId ?? '',
+                  'soforId':  seciliSoforId ?? '',
+                  'soforAd':  secilenSofor['ad'] ?? '',
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Servis atama güncellendi'),
+                        backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+              },
+              child: const Text('Ata'),
+            ),
+          ],
+        );
+      },
+    ));
   }
 
   // Rastgele 6 haneli şifre üret
@@ -228,7 +369,7 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
                       SizedBox(width: 8),
                       Expanded(child: Text(
                         'Kayıt sonrası veli hesabı otomatik oluşturulur. '
-                        'Kullanıcı adı telefon numarası, şifre otomatik üretilir.',
+                            'Kullanıcı adı telefon numarası, şifre otomatik üretilir.',
                         style: TextStyle(fontSize: 11, color: Colors.green),
                       )),
                     ]),
@@ -342,7 +483,7 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
                     },
                     icon: yukleniyor
                         ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.save_rounded),
                     label: Text(yukleniyor ? 'Kaydediliyor...' : 'Kaydet & Veli Hesabı Oluştur',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -385,31 +526,31 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
         ]),
         actions: [
           OutlinedButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Kopyala'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: mesaj));
-              Navigator.pop(_);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Kopyalandı!'),
-                  backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating));
-            }),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Kopyala'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: mesaj));
+                Navigator.pop(_);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Kopyalandı!'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating));
+              }),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
-                foregroundColor: Colors.white),
-            onPressed: () async {
-              Navigator.pop(_);
-              final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
-              final url = Uri.parse(
-                  'https://wa.me/90\$temiz?text=\${Uri.encodeComponent(mesaj)}');
-              if (await canLaunchUrl(url)) {
-                launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-            icon: const Icon(Icons.send_rounded, size: 16),
-            label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(_);
+                final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
+                final url = Uri.parse(
+                    'https://wa.me/90\$temiz?text=\${Uri.encodeComponent(mesaj)}');
+                if (await canLaunchUrl(url)) {
+                  launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold))),
           TextButton(onPressed: () => Navigator.pop(_), child: const Text('Kapat')),
         ],
       ),
@@ -428,3 +569,4 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
         ),
       );
 }
+

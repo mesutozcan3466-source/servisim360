@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'yardim_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -710,7 +710,34 @@ class _ServisBolmeScreenState extends State<ServisBolmeScreen>
                     Text(s['ad'] ?? 'Sofor', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     Text('${s['aracPlaka'] ?? ''}  •  ${atananlar.length}/$kapasite kisi',
                         style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                    if ((s['projeAd'] ?? '').isNotEmpty)
+                      Text(s['projeAd'], style: const TextStyle(fontSize: 10, color: Colors.blue)),
+                    if ((s['sabahServisSaati'] ?? s['morningStartTime'] ?? '').isNotEmpty)
+                      Text('Sabah: ${s['sabahServisSaati'] ?? s['morningStartTime']}  Akşam: ${s['aksamServisSaati'] ?? s['eveningStartTime'] ?? '-'}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                   ])),
+                  // Üç nokta menüsü
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_outlined, color: Colors.grey, size: 18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'duzenle',
+                          child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 8), Text('Düzenle', style: TextStyle(fontSize: 13))])),
+                      const PopupMenuItem(value: 'proje_ata',
+                          child: Row(children: [Icon(Icons.folder_outlined, size: 16), SizedBox(width: 8), Text('Projeye Ata', style: TextStyle(fontSize: 13))])),
+                      const PopupMenuItem(value: 'sofor_degistir',
+                          child: Row(children: [Icon(Icons.swap_horiz_outlined, size: 16), SizedBox(width: 8), Text('Şoförü Değiştir', style: TextStyle(fontSize: 13))])),
+                      PopupMenuItem(value: s['aktif'] == false ? 'aktif' : 'pasif',
+                          child: Row(children: [
+                            Icon(s['aktif'] == false ? Icons.play_circle_outline : Icons.pause_circle_outline, size: 16),
+                            const SizedBox(width: 8),
+                            Text(s['aktif'] == false ? 'Aktife Al' : 'Pasife Al', style: const TextStyle(fontSize: 13)),
+                          ])),
+                      const PopupMenuItem(value: 'sil',
+                          child: Row(children: [Icon(Icons.delete_outline, size: 16, color: Colors.red), SizedBox(width: 8), Text('Sil', style: TextStyle(fontSize: 13, color: Colors.red))])),
+                    ],
+                    onSelected: (val) => _servisMenuIslem(s, val),
+                  ),
                   // Doluluk çubuğu
                   SizedBox(width: 60, child: Column(children: [
                     ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(
@@ -797,6 +824,316 @@ class _ServisBolmeScreenState extends State<ServisBolmeScreen>
       ],
     );
   }
+
+  // ── Servis Menü İşlemleri ────────────────────────────────────
+  void _servisMenuIslem(Map<String, dynamic> s, String islem) {
+    switch (islem) {
+      case 'duzenle':      _servisDuzenleDialog(s);  break;
+      case 'proje_ata':    _servisProjeAtaDialog(s); break;
+      case 'sofor_degistir': _soforDegistirDialog(s); break;
+      case 'pasif':        _servisDurumDegistir(s, false); break;
+      case 'aktif':        _servisDurumDegistir(s, true);  break;
+      case 'sil':          _servisSilOnay(s); break;
+    }
+  }
+
+  Future<void> _servisDurumDegistir(Map<String, dynamic> s, bool aktif) async {
+    await FirebaseFirestore.instance.collection('drivers').doc(s['id']).update({
+      'aktif': aktif, 'aktifMi': aktif,
+    });
+    _yukle();
+    _snack(aktif ? 'Servis aktife alındı' : 'Servis pasife alındı',
+        aktif ? Colors.green : Colors.orange);
+  }
+
+  Future<void> _servisSilOnay(Map<String, dynamic> s) async {
+    final onay = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Servisi Sil'),
+        content: Text('"${s['ad'] ?? 'Servis'}" silinecek. Bu işlem geri alınamaz.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red,
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+    if (onay != true) return;
+    await FirebaseFirestore.instance.collection('drivers').doc(s['id']).delete();
+    _yukle();
+    _snack('Servis silindi', Colors.red);
+  }
+
+  void _servisDuzenleDialog(Map<String, dynamic> s) {
+    final adCtrl     = TextEditingController(text: s['ad'] ?? '');
+    final plakaCtrl  = TextEditingController(text: s['aracPlaka'] ?? s['plaka'] ?? '');
+    final sabahCtrl  = TextEditingController(text: s['sabahServisSaati'] ?? s['morningStartTime'] ?? '');
+    final aksamCtrl  = TextEditingController(text: s['aksamServisSaati'] ?? s['eveningStartTime'] ?? '');
+    final kapCtrl    = TextEditingController(text: s['kapasite']?.toString() ?? '17');
+    bool autoStart   = s['autoStartEnabled'] as bool? ?? false;
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: EdgeInsets.zero,
+          content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(color: _navy,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+              child: Row(children: [
+                const Icon(Icons.edit_outlined, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                const Expanded(child: Text('Servis Düzenle',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                IconButton(icon: const Icon(Icons.close, color: Colors.white54, size: 16),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+              ]),
+            ),
+            Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+              _duzenleAlan(adCtrl, 'Şoför / Servis Adı', Icons.person_outline),
+              const SizedBox(height: 10),
+              _duzenleAlan(plakaCtrl, 'Araç Plakası', Icons.airport_shuttle_outlined),
+              const SizedBox(height: 10),
+              _duzenleAlan(kapCtrl, 'Kapasite', Icons.people_outline,
+                  tip: TextInputType.number),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: _duzenleAlan(sabahCtrl, 'Sabah Saati',
+                    Icons.wb_sunny_outlined, hint: '07:30')),
+                const SizedBox(width: 10),
+                Expanded(child: _duzenleAlan(aksamCtrl, 'Akşam Saati',
+                    Icons.nights_stay_outlined, hint: '16:30')),
+              ]),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade200)),
+                child: Row(children: [
+                  const Icon(Icons.auto_mode_outlined, color: _navy, size: 16),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Otomatik Başlatma',
+                      style: TextStyle(fontSize: 13))),
+                  Switch(value: autoStart,
+                      onChanged: (v) => setD(() => autoStart = v),
+                      activeColor: const Color(0xFFFF8C00)),
+                ]),
+              ),
+            ])),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: SizedBox(width: double.infinity, height: 44,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: _navy,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10))),
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('drivers')
+                        .doc(s['id']).update({
+                      'ad'               : adCtrl.text.trim(),
+                      'aracPlaka'        : plakaCtrl.text.trim(),
+                      'plaka'            : plakaCtrl.text.trim(),
+                      'kapasite'         : int.tryParse(kapCtrl.text) ?? 17,
+                      'sabahServisSaati' : sabahCtrl.text.trim(),
+                      'morningStartTime' : sabahCtrl.text.trim(),
+                      'aksamServisSaati' : aksamCtrl.text.trim(),
+                      'eveningStartTime' : aksamCtrl.text.trim(),
+                      'autoStartEnabled' : autoStart,
+                    });
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    _yukle();
+                    _snack('Servis güncellendi ✓', Colors.green);
+                  },
+                  icon: const Icon(Icons.save_outlined, size: 16),
+                  label: const Text('Kaydet',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ])),
+        ),
+      ),
+    );
+  }
+
+  Widget _duzenleAlan(TextEditingController ctrl, String label, IconData ikon,
+      {String? hint, TextInputType? tip}) =>
+      TextField(
+        controller: ctrl,
+        keyboardType: tip,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          prefixIcon: Icon(ikon, color: _navy, size: 18),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+      );
+
+  Future<void> _servisProjeAtaDialog(Map<String, dynamic> s) async {
+    String? secilenProjeId = s['projeId'] as String?;
+    if (secilenProjeId?.isEmpty ?? true) secilenProjeId = null;
+
+    final projeler = <Map<String, dynamic>>[];
+    try {
+      final snap = await FirebaseFirestore.instance.collection('projects')
+          .where('firmaId', isEqualTo: _firmaId)
+          .where('durum', isEqualTo: 'aktif').get();
+      projeler.addAll(snap.docs.map((d) => {'id': d.id, ...d.data()}));
+    } catch (_) {}
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.folder_outlined, color: _navy),
+          SizedBox(width: 8),
+          Text('Projeye Ata', style: TextStyle(fontSize: 15)),
+        ]),
+        content: SizedBox(width: 360, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          RadioListTile<String?>(
+            value: null, groupValue: secilenProjeId,
+            onChanged: (v) => setD(() => secilenProjeId = v),
+            title: const Text('Projesiz (Boşta)'),
+            activeColor: _navy,
+          ),
+          ...projeler.map((p) => RadioListTile<String?>(
+            value: p['id'] as String,
+            groupValue: secilenProjeId,
+            onChanged: (v) => setD(() => secilenProjeId = v),
+            title: Text(p['projeAd'] as String? ?? 'Proje'),
+            activeColor: _navy,
+          )),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
+            onPressed: () async {
+              final projeAd = secilenProjeId != null
+                  ? projeler.firstWhere((p) => p['id'] == secilenProjeId,
+                  orElse: () => {})['projeAd'] ?? '' : '';
+              await FirebaseFirestore.instance.collection('drivers').doc(s['id']).update({
+                'projeId' : secilenProjeId ?? '',
+                'projeAd' : projeAd,
+                'durum'   : secilenProjeId != null ? 'projeye_dahil' : 'bosta',
+              });
+              if (ctx.mounted) Navigator.pop(ctx);
+              _yukle();
+              _snack('Proje atandı ✓', Colors.green);
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      )),
+    );
+  }
+
+  Future<void> _soforDegistirDialog(Map<String, dynamic> s) async {
+    final adCtrl   = TextEditingController(text: s['ad'] ?? '');
+    final telCtrl  = TextEditingController(text: s['telefon'] ?? '');
+    final kulCtrl  = TextEditingController(text: s['kullaniciAdi'] ?? '');
+    final sifCtrl  = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: EdgeInsets.zero,
+        content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(color: _navy,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+            child: const Row(children: [
+              Icon(Icons.swap_horiz_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Şoförü Değiştir',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Row(children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                SizedBox(width: 8),
+                Expanded(child: Text(
+                    'Mevcut şoförün bilgilerini değiştiriyorsunuz. '
+                        'Servis geçmişi ve öğrenciler korunur.',
+                    style: TextStyle(fontSize: 11, color: Colors.orange))),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            _duzenleAlan(adCtrl, 'Yeni Şoför Adı', Icons.person_outline),
+            const SizedBox(height: 10),
+            _duzenleAlan(telCtrl, 'Telefon', Icons.phone_outlined,
+                tip: TextInputType.phone),
+            const SizedBox(height: 10),
+            _duzenleAlan(kulCtrl, 'Kullanıcı Adı', Icons.person_pin_outlined),
+            const SizedBox(height: 10),
+            _duzenleAlan(sifCtrl, 'Yeni Şifre (boş = değiştirme)', Icons.lock_outline),
+          ])),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: SizedBox(width: double.infinity, height: 44,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: _navy,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10))),
+                onPressed: () async {
+                  final guncelleme = <String, dynamic>{
+                    'ad'          : adCtrl.text.trim(),
+                    'telefon'     : telCtrl.text.trim(),
+                    'kullaniciAdi': kulCtrl.text.trim(),
+                  };
+                  if (sifCtrl.text.trim().isNotEmpty) {
+                    guncelleme['geciciSifre'] = sifCtrl.text.trim();
+                    guncelleme['sifre']       = sifCtrl.text.trim();
+                  }
+                  await FirebaseFirestore.instance.collection('drivers')
+                      .doc(s['id']).update(guncelleme);
+                  // kullanicilar koleksiyonunu da güncelle
+                  await FirebaseFirestore.instance.collection('kullanicilar')
+                      .doc(s['id']).update({
+                    'ad'          : adCtrl.text.trim(),
+                    'telefon'     : telCtrl.text.trim(),
+                    'kullaniciAdi': kulCtrl.text.trim(),
+                    if (sifCtrl.text.trim().isNotEmpty) 'sifre': sifCtrl.text.trim(),
+                  });
+                  if (context.mounted) Navigator.pop(context);
+                  _yukle();
+                  _snack('Şoför bilgileri güncellendi ✓', Colors.green);
+                },
+                icon: const Icon(Icons.save_outlined, size: 16),
+                label: const Text('Güncelle', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+        ])),
+      ),
+    );
+  }
+
 
   void _soforHaritaOdakla(String surucuId) {
     final ogrenciler = _ogrenciler.where((o) =>

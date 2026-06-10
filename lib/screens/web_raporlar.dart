@@ -17,6 +17,7 @@ class _WebRaporlarState extends State<WebRaporlar> {
 
   bool _yukleniyor = true;
   int _ogrenciSayi = 0, _soforSayi = 0, _devamsizlikSayi = 0, _aktifServis = 0;
+  int _atanmamisSayi = 0, _konumsuzSayi = 0;
   Map<String, int> _gunlukDevamsizlik = {};
   Map<String, int> _soforDoluluk = {};
   String _firmaId = '';
@@ -49,6 +50,22 @@ class _WebRaporlarState extends State<WebRaporlar> {
       _soforSayi      = results[1].count ?? 0;
       _devamsizlikSayi = results[2].count ?? 0;
       _aktifServis    = results[3].count ?? 0;
+
+      // Atanmamis ve konumsuz ogrenciler
+      try {
+        var atQ = FirebaseFirestore.instance.collection('students')
+            .where('firmaId', isEqualTo: _firmaId).where('surucuId', isEqualTo: '');
+        var konQ = FirebaseFirestore.instance.collection('students')
+            .where('firmaId', isEqualTo: _firmaId).where('konumVar', isEqualTo: false);
+        if (projeId.isNotEmpty) {
+          atQ = atQ.where('projeId', isEqualTo: projeId);
+          konQ = konQ.where('projeId', isEqualTo: projeId);
+        }
+        final atSnap  = await atQ.count().get();
+        final konSnap = await konQ.count().get();
+        _atanmamisSayi = atSnap.count ?? 0;
+        _konumsuzSayi  = konSnap.count ?? 0;
+      } catch (_) {}
 
       // Son 7 gün devamsızlık
       final devSnap = await FirebaseFirestore.instance.collection('absence_requests')
@@ -195,7 +212,7 @@ class _WebRaporlarState extends State<WebRaporlar> {
             ? (d['tarih'] as Timestamp).toDate()
             : DateTime.now();
         final tip = d['tip'] == 'sabah' ? 'Sadece Sabah' :
-                    d['tip'] == 'aksam' ? 'Sadece Akşam' : 'Tüm Gün';
+        d['tip'] == 'aksam' ? 'Sadece Akşam' : 'Tüm Gün';
         buf.writeln('• ${d['ogrenciAd'] ?? '-'} — $tip (${t.day}.${t.month}.${t.year})');
       }
       await Clipboard.setData(ClipboardData(text: buf.toString()));
@@ -251,24 +268,24 @@ class _WebRaporlarState extends State<WebRaporlar> {
               fontSize: 20, fontWeight: FontWeight.bold, color: _navy)),
           const Spacer(),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: _disaAktarDialog,
-            icon: const Icon(Icons.download_outlined, size: 16),
-            label: const Text('Dışa Aktar', style: TextStyle(fontWeight: FontWeight.bold))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: _disaAktarDialog,
+              icon: const Icon(Icons.download_outlined, size: 16),
+              label: const Text('Dışa Aktar', style: TextStyle(fontWeight: FontWeight.bold))),
           const SizedBox(width: 8),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: _navy,
-                side: const BorderSide(color: _navy),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () { setState(() => _yukleniyor = true); _yukle(); },
-            icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: const Text('Yenile')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: _navy,
+                  side: const BorderSide(color: _navy),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () { setState(() => _yukleniyor = true); _yukle(); },
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Yenile')),
         ]),
         const SizedBox(height: 16),
 
@@ -281,6 +298,12 @@ class _WebRaporlarState extends State<WebRaporlar> {
           _RaporKart('Aktif Servis', '$_aktifServis', Icons.my_location_outlined, Colors.green),
           const SizedBox(width: 14),
           _RaporKart('Toplam Devamsizlik', '$_devamsizlikSayi', Icons.event_busy_outlined, Colors.red),
+          const SizedBox(width: 14),
+          _RaporKart('Atanmamis Ogr.', '$_atanmamisSayi', Icons.person_off_outlined,
+              _atanmamisSayi > 0 ? Colors.deepOrange : Colors.grey),
+          const SizedBox(width: 14),
+          _RaporKart('Konumsuz Ogr.', '$_konumsuzSayi', Icons.location_off_outlined,
+              _konumsuzSayi > 0 ? Colors.red : Colors.grey),
         ]),
 
         const SizedBox(height: 20),

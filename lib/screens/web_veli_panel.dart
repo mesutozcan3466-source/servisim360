@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,6 +23,10 @@ class _WebVeliPanelState extends State<WebVeliPanel> {
   String _veliAd   = '';
   bool _servisAktif = false;
   String _durumMesaji = 'Servis bekleniyor...';
+  double _fiyat = 0;
+  bool _sozlesmeOnay = false;
+  String _projeAd = '';
+  String _ogrenciId = '';
 
   @override
   void initState() { super.initState(); _yukle(); }
@@ -70,6 +73,15 @@ class _WebVeliPanelState extends State<WebVeliPanel> {
             _durumMesaji = _servisAktif ? 'Servis yolda' : 'Servis beklemede';
           }
         }
+      }
+    } catch (_) {}
+    // Fiyat ve sözleşme bilgisi
+    try {
+      if (_ogrenci != null) {
+        _fiyat = (_ogrenci!['fiyat'] ?? _ogrenci!['ucret'] ?? 0).toDouble();
+        _sozlesmeOnay = _ogrenci!['sozlesmeOnay'] == true;
+        _projeAd = _ogrenci!['projeAd'] ?? '';
+        _ogrenciId = _ogrenci!['id'] ?? '';
       }
     } catch (_) {}
     if (mounted) setState(() => _yukleniyor = false);
@@ -193,28 +205,150 @@ class _WebVeliPanelState extends State<WebVeliPanel> {
                 Text('Devamsizlik Bildir', style: TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1a3a6b))),
               ]),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: _navy,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12)),
-                  icon: const Icon(Icons.event_busy_outlined, size: 16),
-                  label: const Text('Bugunku Devamsizlik'),
-                  onPressed: () => _devamsizlikBildir('bugun'),
-                )),
-                const SizedBox(width: 12),
-                Expanded(child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(foregroundColor: _navy,
-                      side: const BorderSide(color: Color(0xFF1a3a6b)),
-                      padding: const EdgeInsets.symmetric(vertical: 12)),
-                  icon: const Icon(Icons.calendar_month_outlined, size: 16),
-                  label: const Text('Tarih Sec'),
-                  onPressed: () => _devamsizlikBildir('tarih'),
-                )),
+              const SizedBox(height: 4),
+              const Text('Bugunkü veya ilerleyen gun icin devamsizlik bildirin.',
+                  style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const SizedBox(height: 14),
+              Wrap(spacing: 10, runSpacing: 10, children: [
+                _DevBtn(Icons.event_busy_outlined, 'Bugun Gelmeyecek', const Color(0xFF1a3a6b), () => _devamsizlikBildir('bugun')),
+                _DevBtn(Icons.wb_sunny_outlined, 'Sabah Gelmeyecek', Colors.orange, () => _devamsizlikBildir('sabah')),
+                _DevBtn(Icons.nights_stay_outlined, 'Aksam Gelmeyecek', Colors.indigo, () => _devamsizlikBildir('aksam')),
+                _DevBtn(Icons.calendar_month_outlined, 'Tarih Sec', Colors.teal, () => _devamsizlikBildir('tarih')),
               ]),
             ]),
           ),
+
+          const SizedBox(height: 16),
+
+          // Ücret ve sözleşme bilgisi
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Ücret kartı
+            Expanded(child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [
+                  Icon(Icons.payments_outlined, color: Colors.teal, size: 16),
+                  SizedBox(width: 6),
+                  Text('Ucret Bilgisi', style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 13)),
+                ]),
+                const SizedBox(height: 12),
+                if (_fiyat > 0) ...[
+                  Text('${_fiyat.toStringAsFixed(0)} TL',
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.teal)),
+                  const Text('/ aylik', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                ] else
+                  const Text('Henuz belirlenmedi', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 8),
+                Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: (_sozlesmeOnay ? Colors.green : Colors.orange).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Text(_sozlesmeOnay ? '✓ Sozlesme Onaylandi' : '⏳ Sozlesme Bekleniyor',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
+                            color: _sozlesmeOnay ? Colors.green : Colors.orange))),
+              ]),
+            )),
+            const SizedBox(width: 16),
+            // Proje/servis bilgisi
+            Expanded(child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [
+                  Icon(Icons.folder_outlined, color: Color(0xFF1a3a6b), size: 16),
+                  SizedBox(width: 6),
+                  Text('Servis Bilgisi', style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Color(0xFF1a3a6b), fontSize: 13)),
+                ]),
+                const SizedBox(height: 12),
+                if (_projeAd.isNotEmpty) ...[
+                  Text(_projeAd, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  const SizedBox(height: 4),
+                ],
+                if (_sofor != null) ...[
+                  Text(_sofor!['ad'] ?? '', style: const TextStyle(fontSize: 13)),
+                  Text(_sofor!['aracPlaka'] ?? '', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  if ((_sofor!['sabahSaati'] ?? '').isNotEmpty)
+                    Padding(padding: const EdgeInsets.only(top: 4),
+                        child: Row(children: [
+                          const Icon(Icons.wb_sunny_outlined, size: 12, color: Colors.orange),
+                          const SizedBox(width: 4),
+                          Text(_sofor!['sabahSaati'], style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                          const SizedBox(width: 8),
+                          if ((_sofor!['aksamSaati'] ?? '').isNotEmpty) ...[
+                            const Icon(Icons.nights_stay_outlined, size: 12, color: Colors.indigo),
+                            const SizedBox(width: 4),
+                            Text(_sofor!['aksamSaati'], style: const TextStyle(fontSize: 11, color: Colors.indigo)),
+                          ],
+                        ])),
+                ],
+              ]),
+            )),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // Servis geçmişi - son devamsızlıklar
+          if (_ogrenciId.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [
+                  Icon(Icons.history_outlined, color: Color(0xFF1a3a6b), size: 18),
+                  SizedBox(width: 8),
+                  Text('Devamsizlik Gecmisi', style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1a3a6b))),
+                ]),
+                const SizedBox(height: 12),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('absence_requests')
+                      .where('ogrenciId', isEqualTo: _ogrenciId)
+                      .orderBy('tarih', descending: true).limit(5).snapshots(),
+                  builder: (_, snap) {
+                    final docs = snap.data?.docs ?? [];
+                    if (docs.isEmpty) return const Text('Devamsizlik kaydi yok.',
+                        style: TextStyle(color: Colors.grey, fontSize: 13));
+                    return Column(children: docs.map((doc) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      final durum = d['durum'] ?? 'bildirildi';
+                      final renk = durum == 'onaylandi' ? Colors.green : durum == 'reddedildi' ? Colors.red : Colors.orange;
+                      final tarih = d['tarih'] is Timestamp
+                          ? (d['tarih'] as Timestamp).toDate()
+                          : DateTime.now();
+                      return Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(color: renk.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: renk.withValues(alpha: 0.2))),
+                          child: Row(children: [
+                            Icon(Icons.event_busy_outlined, color: renk, size: 14),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(d['aciklama'] ?? 'Devamsizlik',
+                                style: const TextStyle(fontSize: 12))),
+                            Text('${tarih.day}.${tarih.month}.${tarih.year}',
+                                style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                            const SizedBox(width: 6),
+                            Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: renk.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4)),
+                                child: Text(durum, style: TextStyle(fontSize: 10, color: renk, fontWeight: FontWeight.bold))),
+                          ]));
+                    }).toList());
+                  },
+                ),
+              ]),
+            ),
 
           const SizedBox(height: 16),
 
@@ -284,6 +418,9 @@ class _WebVeliPanelState extends State<WebVeliPanel> {
       if (secilen == null) return;
       tarih = secilen;
     }
+    final aciklama = tip == 'sabah' ? 'Sadece sabah gelmeyecek (web)' :
+    tip == 'aksam' ? 'Sadece aksam gelmeyecek (web)' :
+    'Bugun hic gelmeyecek (web)';
     try {
       await FirebaseFirestore.instance.collection('absence_requests').add({
         'ogrenciId': _ogrenci!['id'],
@@ -292,7 +429,9 @@ class _WebVeliPanelState extends State<WebVeliPanel> {
         'surucuId':  _ogrenci!['surucuId'] ?? '',
         'firmaId':   _firmaId,
         'tarih':     Timestamp.fromDate(tarih),
-        'aciklama':  'Veli bildirimi (web)',
+        'aciklama':  aciklama,
+        'tip':       tip == 'tarih' ? 'bugun' : tip,
+        'durum':     'bildirildi',
         'okundu':    false,
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -365,5 +504,24 @@ class _BilgiKarti extends StatelessWidget {
         )).toList()),
       ],
     ]),
+  );
+}
+
+class _DevBtn extends StatelessWidget {
+  final IconData ikon; final String etiket; final Color renk; final VoidCallback onTap;
+  const _DevBtn(this.ikon, this.etiket, this.renk, this.onTap);
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(color: renk.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: renk.withValues(alpha: 0.25))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(ikon, size: 16, color: renk),
+          const SizedBox(width: 6),
+          Text(etiket, style: TextStyle(fontSize: 12, color: renk, fontWeight: FontWeight.w600)),
+        ])),
   );
 }

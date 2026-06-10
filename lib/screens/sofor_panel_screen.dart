@@ -32,6 +32,7 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
 
   Map<String, dynamic> _soforData  = {};
   Map<String, dynamic> _driverDoc  = {};
+  Map<String, dynamic> _servisDoc  = {};  // services koleksiyonundan
   List<Map<String, dynamic>> _ogrenciler = [];
   bool   _yukleniyor       = true;
   bool   _servisAktif      = false;
@@ -164,6 +165,17 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     } catch (e) {
       debugPrint('Ogrenci yukle hata: $e');
     }
+    // services koleksiyonundan servis bilgisi yükle
+    try {
+      final servisId = _driverDoc['servisId'] as String? ?? '';
+      if (servisId.isNotEmpty) {
+        final sDoc = await FirebaseFirestore.instance
+            .collection('services').doc(servisId).get();
+        if (sDoc.exists && mounted) {
+          setState(() => _servisDoc = sDoc.data() ?? {});
+        }
+      }
+    } catch (_) {}
   }
 
   // ── ÇOKLU GÖREV SEÇİM EKRANI ────────────────────────────────
@@ -188,11 +200,11 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
                 style: const TextStyle(color: Colors.white,
                     fontWeight: FontWeight.bold, fontSize: 16))),
             IconButton(
-              icon: const Icon(Icons.logout_outlined, color: Colors.white54),
-              onPressed: () async {
-                await SessionService.instance.cikisYap();
-                if (mounted) Navigator.pushReplacementNamed(context, '/login');
-              }),
+                icon: const Icon(Icons.logout_outlined, color: Colors.white54),
+                onPressed: () async {
+                  await SessionService.instance.cikisYap();
+                  if (mounted) Navigator.pushReplacementNamed(context, '/login');
+                }),
           ]),
           const Spacer(),
 
@@ -550,8 +562,8 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
               Icon(Icons.info_outline, color: Colors.blue, size: 14),
               SizedBox(width: 6),
               Expanded(child: Text(
-                'Google Maps açarak trafik durumunu kontrol edebilirsiniz.',
-                style: TextStyle(fontSize: 11, color: Colors.blue))),
+                  'Google Maps açarak trafik durumunu kontrol edebilirsiniz.',
+                  style: TextStyle(fontSize: 11, color: Colors.blue))),
             ]),
           ),
         ]),
@@ -560,16 +572,16 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
               onPressed: () => Navigator.pop(_),
               child: const Text('Kapat')),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            onPressed: () {
-              Navigator.pop(_);
-              _navigasyonAc(); // Navigasyonu doğrudan aç
-            },
-            icon: const Icon(Icons.navigation_outlined, size: 16),
-            label: const Text('Navigasyonu Aç')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              onPressed: () {
+                Navigator.pop(_);
+                _navigasyonAc(); // Navigasyonu doğrudan aç
+              },
+              icon: const Icon(Icons.navigation_outlined, size: 16),
+              label: const Text('Navigasyonu Aç')),
         ],
       ),
     );

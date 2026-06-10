@@ -595,17 +595,17 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
                             color: navy.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6)),
                         child: Text(
-                          '${(d['kmBaslangic'] as num?)?.toInt() ?? 0}–'
-                          '${(d['kmBitis'] as num?)?.toInt() ?? 0} km',
-                          style: const TextStyle(fontWeight: FontWeight.bold,
-                              color: navy, fontSize: 12)),
+                            '${(d['kmBaslangic'] as num?)?.toInt() ?? 0}–'
+                                '${(d['kmBitis'] as num?)?.toInt() ?? 0} km',
+                            style: const TextStyle(fontWeight: FontWeight.bold,
+                                color: navy, fontSize: 12)),
                       ),
                       title: Text('${(d['ucret'] as num?)?.toInt() ?? 0} TL / ay',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            color: Colors.red, size: 18),
-                        onPressed: () => doc.reference.delete()),
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.red, size: 18),
+                          onPressed: () => doc.reference.delete()),
                     ),
                   );
                 }).toList());

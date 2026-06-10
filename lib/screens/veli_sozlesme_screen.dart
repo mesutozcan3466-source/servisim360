@@ -815,40 +815,40 @@ ${ayar['kvkk'] ?? 'Kişisel verileriniz KVKK kapsamında işlenmektedir.'}
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
           child: dinamikMaddeler.isEmpty
-              // Eski statik metin — geriye dönük uyum
+          // Eski statik metin — geriye dönük uyum
               ? Text(_sozlesmeMetniVarsayilan,
-                  style: const TextStyle(fontSize: 13, height: 1.7, color: Colors.black87))
-              // Dinamik madde listesi
+              style: const TextStyle(fontSize: 13, height: 1.7, color: Colors.black87))
+          // Dinamik madde listesi
               : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('$firmaAd HİZMET SÖZLEŞMESİ',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15, color: _navy)),
-                  const SizedBox(height: 4),
-                  Text('Bu sözleşme, taraflar arasında akdedilmiş olup '
-                      'aşağıdaki hüküm ve koşulları kapsamaktadır.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  const Divider(height: 24),
-                  ...dinamikMaddeler.asMap().entries.map((e) {
-                    final i = e.key + 1;
-                    final m = e.value;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Text('MADDE $i — ${(m['baslik'] ?? '').toUpperCase()}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12, color: _navy)),
-                        const SizedBox(height: 4),
-                        Text(m['icerik'] ?? '',
-                            style: const TextStyle(
-                                fontSize: 13, height: 1.6)),
-                      ]),
-                    );
-                  }),
-                ]),
+            Text('$firmaAd HİZMET SÖZLEŞMESİ',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15, color: _navy)),
+            const SizedBox(height: 4),
+            Text('Bu sözleşme, taraflar arasında akdedilmiş olup '
+                'aşağıdaki hüküm ve koşulları kapsamaktadır.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const Divider(height: 24),
+            ...dinamikMaddeler.asMap().entries.map((e) {
+              final i = e.key + 1;
+              final m = e.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('MADDE $i — ${(m['baslik'] ?? '').toUpperCase()}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12, color: _navy)),
+                      const SizedBox(height: 4),
+                      Text(m['icerik'] ?? '',
+                          style: const TextStyle(
+                              fontSize: 13, height: 1.6)),
+                    ]),
+              );
+            }),
+          ]),
         ),
       )),
     ]);

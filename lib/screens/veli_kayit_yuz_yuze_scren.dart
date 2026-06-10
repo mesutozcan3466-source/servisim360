@@ -112,7 +112,7 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
     final aktifId = SessionService.instance.aktifProjeId ?? '';
     if (aktifId.isNotEmpty) {
       final aktif = _projeler.firstWhere(
-          (p) => p['id'] == aktifId, orElse: () => {});
+              (p) => p['id'] == aktifId, orElse: () => {});
       if (aktif.isNotEmpty) {
         _seciliProjeId  = aktifId;
         _seciliProjeAdi = aktif['projeAd'] ?? aktif['ad'] ?? '';
@@ -181,14 +181,14 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
 
   bool get _formGecerli =>
       _veliAdCtrl.text.trim().isNotEmpty &&
-      _babaTelCtrl.text.trim().isNotEmpty &&
-      _ogrAdCtrl.text.trim().isNotEmpty &&
-      _adresCtrl.text.trim().isNotEmpty &&
-      _okulAdiCtrl.text.trim().isNotEmpty;
+          _babaTelCtrl.text.trim().isNotEmpty &&
+          _ogrAdCtrl.text.trim().isNotEmpty &&
+          _adresCtrl.text.trim().isNotEmpty &&
+          _okulAdiCtrl.text.trim().isNotEmpty;
 
   bool get _onaylarTam =>
       _sozlesmeOnay && _ucretOnay && _kvkkOnay &&
-      _dogruOnay && _dijitalOnay && _imzaTamamlandi;
+          _dogruOnay && _dijitalOnay && _imzaTamamlandi;
 
   Future<void> _kaydet() async {
     setState(() => _yukleniyor = true);
@@ -300,15 +300,15 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
         title: Text(_adimBasligi(), style: const TextStyle(fontWeight: FontWeight.bold)),
         leading: _adim > 0 && _adim < 4
             ? IconButton(icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => setState(() => _adim--))
+            onPressed: () => setState(() => _adim--))
             : null,
         bottom: _adim > 0 && _adim < 4
             ? PreferredSize(
-                preferredSize: const Size.fromHeight(6),
-                child: LinearProgressIndicator(
-                    value: _adim / 3,
-                    backgroundColor: Colors.white24,
-                    valueColor: const AlwaysStoppedAnimation(_orange)))
+            preferredSize: const Size.fromHeight(6),
+            child: LinearProgressIndicator(
+                value: _adim / 3,
+                backgroundColor: Colors.white24,
+                valueColor: const AlwaysStoppedAnimation(_orange)))
             : null,
       ),
       body: IndexedStack(index: _adim, children: [
@@ -348,11 +348,11 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
             style: TextStyle(fontSize: 13, color: Colors.grey)),
         const SizedBox(height: 20),
         ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _navy, foregroundColor: Colors.white),
-          onPressed: () => Navigator.pushNamed(context, '/projeler'),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Proje Oluştur')),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _navy, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pushNamed(context, '/projeler'),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Proje Oluştur')),
       ]));
     }
 
@@ -539,8 +539,8 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
             Icon(Icons.warning_amber_outlined, color: Colors.orange, size: 16),
             SizedBox(width: 8),
             Expanded(child: Text(
-              'Bu adres için fiyat bulunamadı. Fiyat Yönetimi\'nden mahalle bazlı fiyat ekleyin.',
-              style: TextStyle(fontSize: 11, color: Colors.orange))),
+                'Bu adres için fiyat bulunamadı. Fiyat Yönetimi\'nden mahalle bazlı fiyat ekleyin.',
+                style: TextStyle(fontSize: 11, color: Colors.orange))),
           ]),
         ),
       ],
@@ -608,9 +608,9 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
           // Şablon maddeleri
           if (_sablonMaddeleri.isEmpty && _ozelMaddeler.isEmpty)
             const Text(
-              'Bu proje için sözleşme şablonu atanmamış. '
-              'Projeler → Sözleşme sekmesinden şablon seçin.',
-              style: TextStyle(color: Colors.orange, fontSize: 12))
+                'Bu proje için sözleşme şablonu atanmamış. '
+                    'Projeler → Sözleşme sekmesinden şablon seçin.',
+                style: TextStyle(color: Colors.orange, fontSize: 12))
           else ...[
             ..._sablonMaddeleri.asMap().entries.map((e) =>
                 _sozlesmeMaddesi(e.key + 1, e.value['baslik'] ?? '',
@@ -639,7 +639,7 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         onPressed: (_sozlesmeOnay && _ucretOnay && _kvkkOnay &&
-                _dogruOnay && _dijitalOnay)
+            _dogruOnay && _dijitalOnay)
             ? () => setState(() => _adim = 3)
             : null,
         icon: const Icon(Icons.draw_outlined),
@@ -727,12 +727,12 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-            Text(
-              '${_veliAdCtrl.text.trim()} ${_veliSoyadCtrl.text.trim()}'.trim(),
-              style: const TextStyle(fontWeight: FontWeight.bold, color: _navy)),
-            Text('Öğrenci: ${_ogrAdCtrl.text.trim()}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-          ])),
+                Text(
+                    '${_veliAdCtrl.text.trim()} ${_veliSoyadCtrl.text.trim()}'.trim(),
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: _navy)),
+                Text('Öğrenci: ${_ogrAdCtrl.text.trim()}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ])),
         ]),
       ),
       const SizedBox(height: 20),
@@ -762,20 +762,20 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
                   width: _imzaTamamlandi ? 2 : 1)),
           child: Column(children: [
             Icon(
-              _imzaTamamlandi ? Icons.verified_outlined : Icons.draw_outlined,
-              color: _imzaTamamlandi ? Colors.green : Colors.grey,
-              size: 48),
+                _imzaTamamlandi ? Icons.verified_outlined : Icons.draw_outlined,
+                color: _imzaTamamlandi ? Colors.green : Colors.grey,
+                size: 48),
             const SizedBox(height: 12),
             Text(
-              _imzaTamamlandi ? 'İmza Alındı ✓' : 'Dijital İmza Al',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold, fontSize: 16,
-                  color: _imzaTamamlandi ? Colors.green : Colors.grey[700])),
+                _imzaTamamlandi ? 'İmza Alındı ✓' : 'Dijital İmza Al',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16,
+                    color: _imzaTamamlandi ? Colors.green : Colors.grey[700])),
             Text(
-              _imzaTamamlandi
-                  ? 'Parmak izi veya yazılı imza kaydedildi'
-                  : 'Tıklayarak imza ekranını açın',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                _imzaTamamlandi
+                    ? 'Parmak izi veya yazılı imza kaydedildi'
+                    : 'Tıklayarak imza ekranını açın',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500])),
           ]),
         ),
       ),
@@ -790,7 +790,7 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
         onPressed: _imzaTamamlandi && !_yukleniyor ? _kaydet : null,
         icon: _yukleniyor
             ? const SizedBox(width: 18, height: 18,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
             : const Icon(Icons.save_rounded),
         label: Text(_yukleniyor ? 'Kaydediliyor...' : 'Kaydı Tamamla',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -813,11 +813,11 @@ class _VeliKayitYuzYuzeScreenState extends State<VeliKayitYuzYuzeScreen> {
               color: Color(0xFF1a3a6b))),
       const SizedBox(height: 12),
       Text(
-        '$_kayitliOgrAd sisteme eklendi.\n'
-        '$_kayitliVeliAd velisi olarak kaydedildi.\n'
-        'Kullanıcı adı: ${_babaTelCtrl.text.trim()}',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.grey[600], height: 1.6)),
+          '$_kayitliOgrAd sisteme eklendi.\n'
+              '$_kayitliVeliAd velisi olarak kaydedildi.\n'
+              'Kullanıcı adı: ${_babaTelCtrl.text.trim()}',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey[600], height: 1.6)),
       const SizedBox(height: 32),
 
       SizedBox(width: double.infinity, child: ElevatedButton.icon(

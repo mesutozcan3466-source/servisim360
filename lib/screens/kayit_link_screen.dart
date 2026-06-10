@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/session_service.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'ai_widget.dart';
 import 'yardim_widget.dart';
 import 'package:flutter/services.dart';
@@ -170,6 +170,39 @@ class _KayitLinkScreenState extends State<KayitLinkScreen> {
             if (_olusturulanLink != null) ...[
               const SizedBox(height: 24),
               _linkKarti(),
+              const SizedBox(height: 16),
+              // QR Kod Kartı
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
+                ),
+                child: Column(children: [
+                  const Row(children: [
+                    Icon(Icons.qr_code_outlined, color: Color(0xFF1a3a6b), size: 18),
+                    SizedBox(width: 8),
+                    Text('QR Karekod', style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1a3a6b), fontSize: 14)),
+                  ]),
+                  const SizedBox(height: 14),
+                  QrImageView(
+                    data: _olusturulanLink ?? '',
+                    version: QrVersions.auto,
+                    size: 200,
+                    backgroundColor: Colors.white,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                      'Veliler bu kodu okutarak kayit formuna ulasir. '
+                          'Okul panosuna asabilir veya WhatsApp ile gonderebilirsiniz.',
+                      style: TextStyle(color: Colors.grey, fontSize: 11),
+                      textAlign: TextAlign.center),
+                ]),
+              ),
               const SizedBox(height: 16),
               _aksiyonSatiri(),
             ],
