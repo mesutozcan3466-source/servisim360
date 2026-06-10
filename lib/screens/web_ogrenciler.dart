@@ -253,7 +253,13 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold,
                             color: durum == 'onayli' ? Colors.green : Colors.orange)),
                   )),
-                  SizedBox(width: 80, child: Row(children: [
+                  SizedBox(width: 110, child: Row(children: [
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, size: 16, color: Colors.teal),
+                      onPressed: () => _ogrenciDetayDialog(ogr),
+                      tooltip: 'Detay',
+                      splashRadius: 16,
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, size: 16, color: _navy),
                       onPressed: () => _ogrenciDuzenle(ogr),
@@ -288,13 +294,17 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
   }
 
   void _hizliOgrenciEkleDialog() {
-    final adCtrl    = TextEditingController();
-    final soyadCtrl = TextEditingController();
-    final veliCtrl  = TextEditingController();
-    final telCtrl   = TextEditingController();
-    final adresCtrl = TextEditingController();
-    final okulCtrl  = TextEditingController();
-    bool yukleniyor = false;
+    final adCtrl     = TextEditingController();
+    final soyadCtrl  = TextEditingController();
+    final sinifCtrl  = TextEditingController();
+    final tcCtrl     = TextEditingController();
+    final veliCtrl   = TextEditingController();
+    final telCtrl    = TextEditingController();
+    final acilTelCtrl= TextEditingController();
+    final adresCtrl  = TextEditingController();
+    final okulCtrl   = TextEditingController();
+    final notCtrl    = TextEditingController();
+    bool yukleniyor  = false;
 
     showDialog(
       context: context,
@@ -340,10 +350,20 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                   ]),
                   const SizedBox(height: 8),
                   Row(children: [
-                    Expanded(child: _webInp(okulCtrl, 'Okul', Icons.school_outlined)),
+                    Expanded(child: _webInp(okulCtrl,   'Okul',   Icons.school_outlined)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _webInp(sinifCtrl,  'Sinif',  Icons.class_outlined)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _webInp(tcCtrl,     'TC Kimlik (opsiyonel)', Icons.badge_outlined)),
                   ]),
                   const SizedBox(height: 8),
                   _webInp(adresCtrl, 'Adres', Icons.location_on_outlined),
+                  const SizedBox(height: 4),
+                  const Text(
+                      'Adres girilince sistem fiyatı otomatik hesaplar.',
+                      style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic)),
                   const SizedBox(height: 16),
                   const Text('Veli Bilgileri', style: TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 13, color: _navy)),
@@ -412,9 +432,15 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                           'adSoyad' : '${adCtrl.text.trim()} ${soyadCtrl.text.trim()}'.trim(),
                           'adres'   : adresCtrl.text.trim(),
                           'okul'    : okulCtrl.text.trim(),
-                          'veliAd'  : veliCtrl.text.trim(),
-                          'veliTel' : telCtrl.text.trim(),
-                          'aktif'   : true,
+                          'veliAd'    : veliCtrl.text.trim(),
+                          'veliTel'   : telCtrl.text.trim(),
+                          'sinif'     : sinifCtrl.text.trim(),
+                          'tc'        : tcCtrl.text.trim(),
+                          'acilTel'   : acilTelCtrl.text.trim(),
+                          'not'       : notCtrl.text.trim(),
+                          'fiyat'     : 0,
+                          'sozlesmeDurum': 'bekliyor',
+                          'aktif'     : true,
                           'olusturma': now,
                         });
                         await FirebaseFirestore.instance
@@ -554,6 +580,140 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
       },
     ));
   }
+
+
+  // ── Öğrenci Detay Dialog ───────────────────────────────────────
+  void _ogrenciDetayDialog(Map<String, dynamic> ogr) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        contentPadding: EdgeInsets.zero,
+        content: SizedBox(
+          width: 500,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Başlık
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                  color: _navy,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+              child: Row(children: [
+                CircleAvatar(
+                    radius: 20, backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: Text(
+                        (ogr['ad'] ?? '?').isNotEmpty ? (ogr['ad'] as String)[0].toUpperCase() : '?',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(ogr['adSoyad'] ?? ogr['ad'] ?? '',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text('${ogr['okul'] ?? ''} ${ogr['sinif'] ?? ''}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                ])),
+                IconButton(icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                    onPressed: () => Navigator.pop(_),
+                    padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+              ]),
+            ),
+            // İçerik
+            Flexible(child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Öğrenci Bilgileri
+                _detayBaslik('Ogrenci Bilgileri', Icons.school_outlined),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  _infoBant2('Adres', ogr['adres'] ?? ogr['sabahAdres'] ?? '-', Icons.location_on_outlined, Colors.blue),
+                  _infoBant2('Okul', ogr['okul'] ?? '-', Icons.school_outlined, _navy),
+                  _infoBant2('Sinif', ogr['sinif'] ?? '-', Icons.class_outlined, Colors.teal),
+                  _infoBant2('TC', ogr['tc'] ?? '-', Icons.badge_outlined, Colors.grey),
+                  _infoBant2('Konum', ogr['konumVar'] == true ? 'Var' : 'Bekleniyor',
+                      Icons.location_on, ogr['konumVar'] == true ? Colors.green : Colors.orange),
+                ]),
+                const SizedBox(height: 14),
+                // Veli
+                _detayBaslik('Veli Bilgileri', Icons.family_restroom_outlined),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  _infoBant2('Veli', ogr['veliAd'] ?? '-', Icons.person_outlined, Colors.purple),
+                  _infoBant2('Tel', ogr['veliTel'] ?? ogr['anneTelefon'] ?? '-', Icons.phone_outlined, Colors.green),
+                  if ((ogr['acilTel'] ?? '').isNotEmpty)
+                    _infoBant2('Acil', ogr['acilTel'], Icons.emergency_outlined, Colors.red),
+                ]),
+                const SizedBox(height: 14),
+                // Servis
+                _detayBaslik('Servis Bilgileri', Icons.directions_bus_outlined),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  _infoBant2('Servis', ogr['soforAd'] ?? ogr['servisAd'] ?? (ogr['surucuId']?.isNotEmpty == true ? 'Atanmis' : 'Atanmamis'),
+                      Icons.directions_bus_outlined, ogr['surucuId']?.isNotEmpty == true ? Colors.blue : Colors.orange),
+                  _infoBant2('Proje', ogr['projeAd'] ?? ogr['projeId'] ?? '-', Icons.folder_outlined, _navy),
+                  _infoBant2('Sabah', ogr['sabahKullan'] == true ? 'Evet' : 'Hayir', Icons.wb_sunny_outlined, Colors.orange),
+                  _infoBant2('Aksam', ogr['aksamKullan'] == true ? 'Evet' : 'Hayir', Icons.nights_stay_outlined, Colors.indigo),
+                ]),
+                const SizedBox(height: 14),
+                // Sistem
+                _detayBaslik('Sistem Bilgileri', Icons.info_outline),
+                const SizedBox(height: 8),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  _infoBant2('Durum', ogr['durum'] ?? 'onayli', Icons.verified_outlined, Colors.green),
+                  _infoBant2('Sozlesme', ogr['sozlesmeDurum'] ?? 'bekliyor', Icons.description_outlined,
+                      ogr['sozlesmeDurum'] == 'imzalandi' ? Colors.green : Colors.orange),
+                  _infoBant2('Fiyat', '${ogr['fiyat'] ?? 0} TL', Icons.payments_outlined, Colors.teal),
+                ]),
+              ]),
+            )),
+            // Alt butonlar
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                Expanded(child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: _navy, side: const BorderSide(color: _navy),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  onPressed: () { Navigator.pop(_); _ogrenciDuzenle(ogr); },
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('Duzenle'),
+                )),
+                const SizedBox(width: 10),
+                Expanded(child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _navy, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  onPressed: () => Navigator.pop(_),
+                  icon: const Icon(Icons.close_outlined, size: 16),
+                  label: const Text('Kapat'),
+                )),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _detayBaslik(String baslik, IconData ikon) => Row(children: [
+    Icon(ikon, color: _navy, size: 16), const SizedBox(width: 8),
+    Text(baslik, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _navy)),
+  ]);
+
+  Widget _infoBant2(String label, String deger, IconData ikon, Color renk) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+            color: renk.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: renk.withValues(alpha: 0.2))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(ikon, size: 12, color: renk),
+          const SizedBox(width: 5),
+          Text('$label: ', style: TextStyle(fontSize: 11, color: renk, fontWeight: FontWeight.bold)),
+          Text(deger, style: TextStyle(fontSize: 11, color: renk)),
+        ]),
+      );
 
   void _silOnay(Map<String, dynamic> ogr) {
     showDialog(context: context, builder: (_) => AlertDialog(
@@ -827,6 +987,9 @@ class _OgrenciDuzenleDialogState extends State<_OgrenciDuzenleDialog> {
                 DropdownMenuItem(value: 'onayli',    child: Text('Onaylı')),
                 DropdownMenuItem(value: 'beklemede', child: Text('Beklemede')),
                 DropdownMenuItem(value: 'pasif',     child: Text('Pasif')),
+                DropdownMenuItem(value: 'mezun',     child: Text('Mezun')),
+                DropdownMenuItem(value: 'ayrildi',   child: Text('Ayrıldı')),
+                DropdownMenuItem(value: 'arsiv',     child: Text('Arşiv')),
               ],
               onChanged: (v) => setState(() => _durum = v ?? 'onayli'),
             ),

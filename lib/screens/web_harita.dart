@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'ai_widget.dart';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -31,8 +30,7 @@ class _WebHaritaState extends State<WebHarita> {
   bool _yukleniyor = true;
   String? _seciliSoforId;
   Map<String, dynamic>? _seciliSofor;
-  bool _detayPanelAcik = false;  // Servis detay panel
-  List<Map<String, dynamic>> _projeler = [];  // Proje listesi
+  bool _detayPanelAcik = false;
 
   GoogleMapController? _mapController;
   Set<Marker>   _markerlar   = {};
@@ -120,15 +118,6 @@ class _WebHaritaState extends State<WebHarita> {
       }
     });
 
-    // Projeleri de yükle
-    try {
-      final pSnap = await FirebaseFirestore.instance
-          .collection('projects')
-          .where('firmaId', isEqualTo: _firmaId)
-          .where('aktif', isEqualTo: true)
-          .get();
-      _projeler = pSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    } catch (_) {}
 
     if (mounted) setState(() => _yukleniyor = false);
   }
@@ -317,6 +306,84 @@ class _WebHaritaState extends State<WebHarita> {
       _ogrenciler.where((o) => (o['surucuId'] ?? '') == id && o['bindi'] == true).length;
 
 
+
+  // ── Projeye Ata Dialog ───────────────────────────────────────
+  void _projeAta(BuildContext ctx, String soforId, Map<String, dynamic> sofor) {
+    String? secProjeId = sofor['projeId']?.toString().isNotEmpty == true ? sofor['projeId'] : null;
+    Navigator.pop(ctx);
+    showDialog(context: context, builder: (_) => StatefulBuilder(
+        builder: (dCtx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(children: [
+            Icon(Icons.folder_outlined, color: Color(0xFF1a3a6b)),
+            SizedBox(width: 10),
+            Text('Projeye Ata', style: TextStyle(
+                color: Color(0xFF1a3a6b), fontWeight: FontWeight.bold)),
+          ]),
+          content: SizedBox(
+            width: 340,
+            child: FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('projects')
+                  .where('firmaId', isEqualTo: _firmaId)
+                  .where('aktif', isEqualTo: true)
+                  .get(),
+              builder: (_, snap) {
+                final projeler = snap.data?.docs ?? [];
+                return Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('${sofor['ad'] ?? 'Servis'} icin proje secin:',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                  const SizedBox(height: 14),
+                  ...projeler.map((p) {
+                    final d = p.data() as Map<String, dynamic>;
+                    final secili = secProjeId == p.id;
+                    return GestureDetector(
+                        onTap: () => setS(() => secProjeId = p.id),
+                        child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                                color: secili ? const Color(0xFF1a3a6b).withValues(alpha: 0.08) : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: secili ? const Color(0xFF1a3a6b) : Colors.grey.shade200,
+                                    width: secili ? 1.5 : 1)),
+                            child: Row(children: [
+                              Icon(Icons.folder_outlined,
+                                  color: secili ? const Color(0xFF1a3a6b) : Colors.grey, size: 16),
+                              const SizedBox(width: 10),
+                              Expanded(child: Text(d['projeAd'] ?? '',
+                                  style: TextStyle(
+                                      fontWeight: secili ? FontWeight.bold : FontWeight.normal,
+                                      color: secili ? const Color(0xFF1a3a6b) : Colors.grey[700]))),
+                              if (secili)
+                                const Icon(Icons.check_circle, color: Color(0xFF1a3a6b), size: 16),
+                            ])));  // Row + Container + GestureDetector
+                  }),
+                ]);
+              },
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Iptal')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
+              onPressed: () async {
+                if (secProjeId == null) return;
+                // services ve drivers koleksiyonunu güncelle
+                await FirebaseFirestore.instance
+                    .collection('drivers').doc(soforId)
+                    .update({'projeId': secProjeId, 'durum': 'projeye_dahil'});
+                if (dCtx.mounted) Navigator.pop(dCtx);
+                _yukle();
+              },
+              child: const Text('Ata'),
+            ),
+          ],
+        )));
+  }
+
   // ──────────────────────────────────────────────────────────────
   // SERVİS DETAY DİYALOGU
   // ──────────────────────────────────────────────────────────────
@@ -487,6 +554,20 @@ class _WebHaritaState extends State<WebHarita> {
                 decoration: const BoxDecoration(
                     border: Border(top: BorderSide(color: Color(0xFFEEEEEE)))),
                 child: Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.teal,
+                        side: const BorderSide(color: Colors.teal),
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    onPressed: () {
+                      // Projeye Ata - servis projeId güncelle
+                      _projeAta(ctx, soforId, sofor);
+                    },
+                    icon: const Icon(Icons.folder_outlined, size: 16),
+                    label: const Text('Projeye Ata'),
+                  )),
+                  const SizedBox(width: 10),
                   Expanded(child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                         foregroundColor: _navy,
@@ -958,7 +1039,7 @@ class _AtanmamisOgrenciler extends StatefulWidget {
 
 class _AtanmamisOgrencilerState extends State<_AtanmamisOgrenciler> {
   static const _navy = Color(0xFF1a3a6b);
-  List<String> _secilenIds = [];
+  final List<String> _secilenIds = [];
   bool _ataniyor = false;
 
   Future<void> _serviseAta() async {
@@ -1025,8 +1106,11 @@ class _AtanmamisOgrencilerState extends State<_AtanmamisOgrenciler> {
             final secili = _secilenIds.contains(doc.id);
             return GestureDetector(
               onTap: () => setState(() {
-                if (secili) _secilenIds.remove(doc.id);
-                else _secilenIds.add(doc.id);
+                if (secili) {
+                  _secilenIds.remove(doc.id);
+                } else {
+                  _secilenIds.add(doc.id);
+                }
               }),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 5),

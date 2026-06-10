@@ -1,5 +1,6 @@
 // lib/screens/web_admin_panel.dart — Servisim360 Web Admin v4 — 18 Menü
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_service.dart';
@@ -122,6 +123,7 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
   void _projeEkleDialog(){
     final adCtrl=TextEditingController();
     final donemCtrl=TextEditingController(text:'2025-2026');
+    final okulAdresCtrl=TextEditingController();
     String tip='okul';
     showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
@@ -129,7 +131,8 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
         Text('Yeni Proje',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold,fontSize:16))]),
       content:SizedBox(width:380,child:Column(mainAxisSize:MainAxisSize.min,children:[
         _tf(adCtrl,'Proje Adi *',Icons.folder_outlined),const SizedBox(height:10),
-        _tf(donemCtrl,'Donem',Icons.calendar_today_outlined),const SizedBox(height:12),
+        _tf(donemCtrl,'Donem',Icons.calendar_today_outlined),const SizedBox(height:10),
+        _tf(okulAdresCtrl,'Okul / Isyeri Adresi',Icons.location_on_outlined),const SizedBox(height:12),
         Row(children:[
           _TipBtn('okul','Okul',Icons.school_outlined,tip,(t)=>setS(()=>tip=t)),const SizedBox(width:8),
           _TipBtn('kolej','Kolej',Icons.account_balance_outlined,tip,(t)=>setS(()=>tip=t)),const SizedBox(width:8),
@@ -146,6 +149,7 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
             final ref=await FirebaseFirestore.instance.collection('projects').add({
               'firmaId':_firmaId,'projeAd':adCtrl.text.trim(),
               'donem':donemCtrl.text.trim(),'tip':tip,
+              'okulAdresi':okulAdresCtrl.text.trim(),
               'aktif':true,'olusturmaTarihi':FieldValue.serverTimestamp(),
             });
             if(ctx.mounted){
@@ -160,6 +164,8 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
       ],
     )));
   }
+
+
 
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
@@ -411,6 +417,7 @@ class _WebAnaSayfa extends StatelessWidget{
               _HB(Icons.link_outlined,           'Kayit Linki',   Colors.green,      ()=>onNavigate(7)),
               _HB(Icons.qr_code_outlined,        'QR Olustur',    Color(0xFFFF8C00), ()=>onNavigate(13)),
               _HB(Icons.add_road_outlined,       'Rota Olustur',  Colors.indigo,     ()=>onNavigate(10)),
+              _HB(Icons.auto_awesome_outlined,   'Otomatik Dagit',Colors.teal,       ()=>onNavigate(10)),
               _HB(Icons.event_busy_outlined,     'Devamsizlik',   Colors.red,        ()=>onNavigate(11)),
             ]),
             const SizedBox(height:18),
@@ -576,6 +583,8 @@ class _ServislerSekmeState extends State<_ServislerSekme>{
               },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
         ])));
   }
+
+
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),isDense:true,
@@ -663,6 +672,8 @@ class _AraclarSekmeState extends State<_AraclarSekme>{
               },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
         ]));
   }
+
+
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
@@ -753,6 +764,68 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
               },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
         ]));
   }
+
+  // ── Öğrenciye Bağla ─────────────────────────────────────────
+  void _ogrenciBaglaDialog(String veliId, Map<String,dynamic> veli) {
+    String? secOgrId;
+    showDialog(context:context,builder:(_)=>StatefulBuilder(
+        builder:(dCtx,setS)=>AlertDialog(
+            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+            title:const Text('Ogrenciye Bagla',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+            content:SizedBox(width:360,child:FutureBuilder<QuerySnapshot>(
+                future:FirebaseFirestore.instance.collection('students')
+                    .where('firmaId',isEqualTo:widget.firmaId).get(),
+                builder:(_,snap){
+                  final ogrs=snap.data?.docs??[];
+                  return Column(mainAxisSize:MainAxisSize.min,children:[
+                    const Text('Veliye baglanacak ogrenciyi secin:',style:TextStyle(fontSize:13,color:Colors.grey)),
+                    const SizedBox(height:12),
+                    ...ogrs.map((o){
+                      final od=o.data() as Map<String,dynamic>;
+                      final secili=secOgrId==o.id;
+                      return GestureDetector(
+                          onTap:()=>setS(()=>secOgrId=o.id),
+                          child:Container(
+                              margin:const EdgeInsets.only(bottom:6),
+                              padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                              decoration:BoxDecoration(
+                                  color:secili?const Color(0xFF1a3a6b).withValues(alpha:0.08):Colors.grey[50],
+                                  borderRadius:BorderRadius.circular(8),
+                                  border:Border.all(color:secili?const Color(0xFF1a3a6b):Colors.grey.shade200)),
+                              child:Row(children:[
+                                Icon(Icons.school_outlined,size:14,color:secili?const Color(0xFF1a3a6b):Colors.grey),
+                                const SizedBox(width:8),
+                                Expanded(child:Text(od['adSoyad']??od['ad']??'',
+                                    style:TextStyle(fontWeight:secili?FontWeight.bold:FontWeight.normal,
+                                        color:secili?const Color(0xFF1a3a6b):Colors.grey[700]))),
+                                if(secili)const Icon(Icons.check_circle,color:Color(0xFF1a3a6b),size:14),
+                              ])));
+                    }),
+                  ]);
+                })),
+            actions:[
+              TextButton(onPressed:()=>Navigator.pop(dCtx),child:const Text('Iptal')),
+              ElevatedButton(
+                  style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),
+                  onPressed:() async{
+                    if(secOgrId==null)return;
+                    final oSnap=await FirebaseFirestore.instance.collection('students').doc(secOgrId).get();
+                    final oData=oSnap.data()??{};
+                    await FirebaseFirestore.instance.collection('parents').doc(veliId).update({
+                      'ogrenciId':secOgrId,
+                      'ogrenciAd':oData['adSoyad']??oData['ad']??'',
+                    });
+                    await FirebaseFirestore.instance.collection('students').doc(secOgrId).update({
+                      'veliId':veliId,
+                      'veliAd':veli['ad']??'',
+                      'veliTel':veli['telefon']??'',
+                    });
+                    if(dCtx.mounted)Navigator.pop(dCtx);
+                  },
+                  child:const Text('Bagla')),
+            ])));
+  }
+
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
@@ -799,9 +872,48 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
                         if((d['projeAd']??'').isNotEmpty)
                           Text('Proje: ${d['projeAd']}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
                       ])),
-                      Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                          decoration:BoxDecoration(color:(sozl?Colors.green:Colors.orange).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
-                          child:Text(sozl?'Onaylandi':'Bekleniyor',style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:sozl?Colors.green:Colors.orange))),
+                      Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                        Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                            decoration:BoxDecoration(color:(sozl?Colors.green:Colors.orange).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                            child:Text(sozl?'Onaylandi':'Bekleniyor',style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:sozl?Colors.green:Colors.orange))),
+                        const SizedBox(height:6),
+                        Row(mainAxisSize:MainAxisSize.min,children:[
+                          // WhatsApp giriş bilgisi
+                          if((d['telefon']??'').isNotEmpty)
+                            GestureDetector(
+                                onTap:() async{
+                                  final tel=(d['telefon'] as String).replaceAll(RegExp(r'[^0-9]'),'');
+                                  final kul=d['kullaniciAdi']??'';
+                                  final sif=d['geciciSifre']??'';
+                                  final msg=Uri.encodeComponent('Servisim360 giris bilgileriniz:\nKullanici Adi: '+kul+'\nSifre: '+sif+'\nservisim.org.tr');
+                                  final uri=Uri.parse('https://wa.me/90'+tel+'?text='+msg);
+                                  if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);
+                                },
+                                child:Container(padding:const EdgeInsets.all(6),
+                                    decoration:BoxDecoration(color:const Color(0xFF25D366).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                    child:const Icon(Icons.chat_outlined,size:16,color:Color(0xFF25D366)))),
+                          const SizedBox(width:4),
+                          // Ogrenciye bagla
+                          GestureDetector(
+                              onTap:()=>_ogrenciBaglaDialog(docs[i].id,d),
+                              child:Container(padding:const EdgeInsets.all(6),
+                                  decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:const Icon(Icons.link_outlined,size:16,color:Colors.blue))),
+                          const SizedBox(width:4),
+                          // Aktif toggle
+                          GestureDetector(
+                              onTap:() async{
+                                await FirebaseFirestore.instance.collection('parents').doc(docs[i].id)
+                                    .update({'aktif':!(d['aktif']??true)});
+                              },
+                              child:Container(padding:const EdgeInsets.all(6),
+                                  decoration:BoxDecoration(
+                                      color:((d['aktif']??true)?Colors.green:Colors.grey).withValues(alpha:0.1),
+                                      borderRadius:BorderRadius.circular(6)),
+                                  child:Icon((d['aktif']??true)?Icons.toggle_on_outlined:Icons.toggle_off_outlined,
+                                      size:16,color:(d['aktif']??true)?Colors.green:Colors.grey))),
+                        ]),
+                      ]),
                     ]));
               });
         })),
@@ -1102,6 +1214,8 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
                             if((d['veliAd']??'').isNotEmpty)Text('Veli:${d['veliAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
                             if((d['servisAd']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),
                               Text('Servis:${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500]))],
+                            if((d['projeAd']??d['projeId']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),
+                              Text('Proje:${d['projeAd']??d['projeId']}',style:TextStyle(fontSize:11,color:Colors.blue[400]))],
                           ]),
                           Row(children:[
                             Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:11,color:Colors.grey[400])),
@@ -1685,6 +1799,8 @@ class _ServisDuzenleDialog {
       )),
     );
   }
+
+
 
   static TextField _tf(TextEditingController c, String l, IconData i) =>
       TextField(controller: c, decoration: InputDecoration(

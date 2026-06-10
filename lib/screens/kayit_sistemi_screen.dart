@@ -34,7 +34,7 @@ class _KayitSistemiScreenState extends State<KayitSistemiScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     _yukle();
   }
 
@@ -97,6 +97,7 @@ class _KayitSistemiScreenState extends State<KayitSistemiScreen>
             const Tab(icon: Icon(Icons.person_add_outlined, size: 18), text: 'Yüz Yüze'),
             const Tab(icon: Icon(Icons.link_outlined, size: 18), text: 'Link'),
             const Tab(icon: Icon(Icons.qr_code_outlined, size: 18), text: 'QR Kod'),
+            const Tab(icon: Icon(Icons.campaign_outlined, size: 18), text: 'Afis'),
             Tab(
               icon: Stack(clipBehavior: Clip.none, children: [
                 const Icon(Icons.pending_actions_outlined, size: 18),
@@ -131,6 +132,7 @@ class _KayitSistemiScreenState extends State<KayitSistemiScreen>
           _QrSekmesi(firmaId: _firmaId, projeler: _projeler),
           _BekleyenSekmesi(firmaId: _firmaId, servisler: _servisler,
               onOnaylandi: _yukle),
+          _AfisSekmesi(firmaId: _firmaId, projeler: _projeler),
         ],
       ),
     );
@@ -827,137 +829,177 @@ class _BekleyenSekmesi extends StatelessWidget {
             ],
           ));
         }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (_, i) {
-            final d     = docs[i].data() as Map<String, dynamic>;
-            final docId = docs[i].id;
-            final durum = d['durum'] as String? ?? 'beklemede';
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _durumRenk(durum).withValues(alpha: 0.3)),
-                  boxShadow: [BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
-              child: Column(children: [
-                // Başlık
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                      color: _durumRenk(durum).withValues(alpha: 0.06),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(14))),
-                  child: Row(children: [
-                    CircleAvatar(radius: 18,
-                        backgroundColor: _durumRenk(durum).withValues(alpha: 0.15),
-                        child: Text(
-                            (d['ogrenciAd'] as String? ?? '?').isNotEmpty
-                                ? (d['ogrenciAd'] as String)[0].toUpperCase() : '?',
-                            style: TextStyle(color: _durumRenk(durum),
-                                fontWeight: FontWeight.bold))),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(d['ogrenciAd'] as String? ?? 'Öğrenci',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('Veli: ${d['veliAd'] ?? '-'}  •  ${d['veliTelefon'] ?? ''}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                    ])),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: _durumRenk(durum).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20)),
-                      child: Text(durum,
-                          style: TextStyle(fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: _durumRenk(durum))),
-                    ),
-                  ]),
+        return Column(children: [
+          Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(children: [
+                Text('${docs.length} bekleyen basvuru',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: _navy)),
+                const Spacer(),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _yesil, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  onPressed: () async {
+                    for (final doc in docs) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      final ogrRef = await FirebaseFirestore.instance
+                          .collection('students').add({
+                        'firmaId': firmaId, 'ad': d['ogrenciAd'] ?? d['ad'] ?? '',
+                        'adres': d['adres'] ?? '', 'okul': d['okul'] ?? '',
+                        'veliAd': d['veliAd'] ?? '', 'veliTel': d['veliTel'] ?? '',
+                        'projeId': d['projeId'] ?? '', 'surucuId': '',
+                        'sozlesmeOnay': false, 'fiyat': 0, 'aktif': true,
+                        'olusturmaTarihi': FieldValue.serverTimestamp(),
+                      });
+                      await FirebaseFirestore.instance
+                          .collection('parents').doc(ogrRef.id).set({
+                        'firmaId': firmaId, 'ad': d['veliAd'] ?? '',
+                        'telefon': d['veliTel'] ?? '', 'ogrenciId': ogrRef.id,
+                        'projeId': d['projeId'] ?? '', 'aktif': true,
+                        'sozlesmeOnay': false,
+                      });
+                      await doc.reference.update({'durum': 'onaylandi'});
+                    }
+                    onOnaylandi();
+                  },
+                  icon: const Icon(Icons.done_all_outlined, size: 16),
+                  label: const Text('Tumunu Onayla'),
                 ),
-                // Detaylar
-                Padding(
-                  padding: const EdgeInsets.all(14),
+              ])),
+          Expanded(child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: docs.length,
+              itemBuilder: (_, i) {
+                final d     = docs[i].data() as Map<String, dynamic>;
+                final docId = docs[i].id;
+                final durum = d['durum'] as String? ?? 'beklemede';
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _durumRenk(durum).withValues(alpha: 0.3)),
+                      boxShadow: [BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)]),
                   child: Column(children: [
-                    Row(children: [
-                      Expanded(child: _satir('Okul', d['okul'] ?? '-', Icons.school_outlined)),
-                      Expanded(child: _satir('Sınıf', d['sinif'] ?? '-', Icons.class_outlined)),
-                    ]),
-                    _satir('Adres', d['adres'] ?? '-', Icons.location_on_outlined),
-                    _satir('Proje', d['projeAd'] ?? '-', Icons.folder_outlined),
-                    if ((d['fiyat'] ?? '').toString().isNotEmpty)
-                      _satir('Hesaplanan Fiyat', '${d['fiyat']} ₺', Icons.payments_outlined),
-                  ]),
-                ),
-                // Butonlar
-                if (durum == 'beklemede')
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                    child: Row(children: [
-                      // Servise ata dropdown
-                      Expanded(child: DropdownButtonFormField<String?>(
-                        value: null,
-                        decoration: InputDecoration(
-                          labelText: 'Servise Ata',
-                          isDense: true,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                        ),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Servis seç...')),
-                          ...servisler.map((s) => DropdownMenuItem(
-                              value: s['id'] as String,
-                              child: Text('${s['ad'] ?? 'Şoför'}', overflow: TextOverflow.ellipsis))),
-                        ],
-                        onChanged: (servisId) async {
-                          if (servisId == null) return;
-                          await _onayla(context, docId, d, servisId);
-                          onOnaylandi();
-                        },
-                      )),
-                      const SizedBox(width: 8),
-                      // Reddet
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                            foregroundColor: _kirmizi,
-                            side: const BorderSide(color: _kirmizi),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
-                        onPressed: () async {
-                          await FirebaseFirestore.instance
-                              .collection('veli_basvurulari')
-                              .doc(docId)
-                              .update({'durum': 'reddedildi'});
-                        },
-                        icon: const Icon(Icons.close_outlined, size: 14),
-                        label: const Text('Reddet', style: TextStyle(fontSize: 12)),
-                      ),
-                    ]),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    // Başlık
+                    Container(
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                          color: _durumRenk(durum).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(durum == 'onaylandi'
-                            ? Icons.check_circle_outline : Icons.cancel_outlined,
-                            color: _durumRenk(durum), size: 16),
-                        const SizedBox(width: 6),
-                        Text(durum == 'onaylandi' ? 'Onaylandı' : 'Reddedildi',
-                            style: TextStyle(color: _durumRenk(durum),
-                                fontWeight: FontWeight.bold, fontSize: 13)),
+                          color: _durumRenk(durum).withValues(alpha: 0.06),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14))),
+                      child: Row(children: [
+                        CircleAvatar(radius: 18,
+                            backgroundColor: _durumRenk(durum).withValues(alpha: 0.15),
+                            child: Text(
+                                (d['ogrenciAd'] as String? ?? '?').isNotEmpty
+                                    ? (d['ogrenciAd'] as String)[0].toUpperCase() : '?',
+                                style: TextStyle(color: _durumRenk(durum),
+                                    fontWeight: FontWeight.bold))),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(d['ogrenciAd'] as String? ?? 'Öğrenci',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('Veli: ${d['veliAd'] ?? '-'}  •  ${d['veliTelefon'] ?? ''}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        ])),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: _durumRenk(durum).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20)),
+                          child: Text(durum,
+                              style: TextStyle(fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: _durumRenk(durum))),
+                        ),
                       ]),
                     ),
-                  ),
-              ]),
-            );
-          },
-        );
+                    // Detaylar
+                    Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(children: [
+                        Row(children: [
+                          Expanded(child: _satir('Okul', d['okul'] ?? '-', Icons.school_outlined)),
+                          Expanded(child: _satir('Sınıf', d['sinif'] ?? '-', Icons.class_outlined)),
+                        ]),
+                        _satir('Adres', d['adres'] ?? '-', Icons.location_on_outlined),
+                        _satir('Proje', d['projeAd'] ?? '-', Icons.folder_outlined),
+                        if ((d['fiyat'] ?? '').toString().isNotEmpty)
+                          _satir('Hesaplanan Fiyat', '${d['fiyat']} ₺', Icons.payments_outlined),
+                      ]),
+                    ),
+                    // Butonlar
+                    if (durum == 'beklemede')
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                        child: Row(children: [
+                          // Servise ata dropdown
+                          Expanded(child: DropdownButtonFormField<String?>(
+                            value: null,
+                            decoration: InputDecoration(
+                              labelText: 'Servise Ata',
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                            ),
+                            items: [
+                              const DropdownMenuItem(value: null, child: Text('Servis seç...')),
+                              ...servisler.map((s) => DropdownMenuItem(
+                                  value: s['id'] as String,
+                                  child: Text('${s['ad'] ?? 'Şoför'}', overflow: TextOverflow.ellipsis))),
+                            ],
+                            onChanged: (servisId) async {
+                              if (servisId == null) return;
+                              await _onayla(context, docId, d, servisId);
+                              onOnaylandi();
+                            },
+                          )),
+                          const SizedBox(width: 8),
+                          // Reddet
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                                foregroundColor: _kirmizi,
+                                side: const BorderSide(color: _kirmizi),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                            onPressed: () async {
+                              await FirebaseFirestore.instance
+                                  .collection('veli_basvurulari')
+                                  .doc(docId)
+                                  .update({'durum': 'reddedildi'});
+                            },
+                            icon: const Icon(Icons.close_outlined, size: 14),
+                            label: const Text('Reddet', style: TextStyle(fontSize: 12)),
+                          ),
+                        ]),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                              color: _durumRenk(durum).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(durum == 'onaylandi'
+                                ? Icons.check_circle_outline : Icons.cancel_outlined,
+                                color: _durumRenk(durum), size: 16),
+                            const SizedBox(width: 6),
+                            Text(durum == 'onaylandi' ? 'Onaylandı' : 'Reddedildi',
+                                style: TextStyle(color: _durumRenk(durum),
+                                    fontWeight: FontWeight.bold, fontSize: 13)),
+                          ]),
+                        ),
+                      ),
+                  ]),
+                );
+              }))
+        ]);
       },
     );
   }
@@ -1040,4 +1082,216 @@ class _BekleyenSekmesi extends StatelessWidget {
       default:           return _turuncu;
     }
   }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  5. AFİŞ VE PERFORMANS SEKMESİ
+// ════════════════════════════════════════════════════════════════
+class _AfisSekmesi extends StatefulWidget {
+  final String firmaId;
+  final List<Map<String, dynamic>> projeler;
+  const _AfisSekmesi({required this.firmaId, required this.projeler});
+  @override State<_AfisSekmesi> createState() => _AfisSekmesiState();
+}
+
+class _AfisSekmesiState extends State<_AfisSekmesi> {
+  static const _navy    = Color(0xFF1a3a6b);
+  static const _turuncu = Color(0xFFFF8C00);
+  String? _seciliProjeId;
+  String  _seciliProjeAd = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Proje seçimi
+        const Text('Afiş Olustur', style: TextStyle(
+            fontWeight: FontWeight.bold, fontSize: 18, color: _navy)),
+        const SizedBox(height: 4),
+        const Text('Okul veya kolej için projeye ozel afis ve QR kod olusturun.',
+            style: TextStyle(color: Colors.grey, fontSize: 13)),
+        const SizedBox(height: 16),
+
+        // Proje dropdown
+        DropdownButtonFormField<String>(
+          value: _seciliProjeId,
+          decoration: InputDecoration(
+              labelText: 'Proje Sec',
+              prefixIcon: const Icon(Icons.folder_outlined, color: _navy, size: 18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true, fillColor: Colors.white),
+          items: [
+            const DropdownMenuItem<String>(value: null, child: Text('Proje secin...')),
+            ...widget.projeler.map((p) => DropdownMenuItem<String>(
+                value: p['id'] as String,
+                child: Text(p['projeAd'] ?? p['ad'] ?? ''))),
+          ],
+          onChanged: (v) {
+            final proje = widget.projeler.firstWhere(
+                    (p) => p['id'] == v, orElse: () => {});
+            setState(() {
+              _seciliProjeId = v;
+              _seciliProjeAd = proje['projeAd'] ?? proje['ad'] ?? '';
+            });
+          },
+        ),
+
+        if (_seciliProjeId != null) ...[
+          const SizedBox(height: 24),
+
+          // Afiş önizleme
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    colors: [_navy, _navy.withValues(alpha: 0.85)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(16)),
+            child: Column(children: [
+              const Icon(Icons.directions_bus_outlined, color: Colors.white, size: 40),
+              const SizedBox(height: 8),
+              const Text('SERVİSİM360', style: TextStyle(
+                  color: Colors.white54, fontSize: 12, letterSpacing: 3)),
+              const SizedBox(height: 4),
+              Text(_seciliProjeAd.toUpperCase(), style: const TextStyle(
+                  color: Colors.white, fontSize: 20,
+                  fontWeight: FontWeight.bold, letterSpacing: 1)),
+              const SizedBox(height: 4),
+              const Text('2025-2026 SERVIS KAYITLARI BASLADI!',
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const SizedBox(height: 16),
+              // QR bölümü
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: Column(children: [
+                  QrImageView(
+                    data: 'https://servisim.org.tr/#/kayit?firma=${widget.firmaId}&proje=$_seciliProjeId',
+                    version: QrVersions.auto,
+                    size: 160,
+                    backgroundColor: Colors.white,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('QR kodu okutarak kayit olun',
+                      style: TextStyle(color: Colors.grey, fontSize: 11)),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              // Link
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                    'servisim.org.tr/kayit?proje=$_seciliProjeId',
+                    style: const TextStyle(color: Colors.white, fontSize: 11),
+                    textAlign: TextAlign.center),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Aksiyon butonları
+          Row(children: [
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _turuncu, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () => Navigator.pushNamed(context, '/qr_afis',
+                  arguments: {'firmaId': widget.firmaId, 'projeId': _seciliProjeId}),
+              icon: const Icon(Icons.print_outlined, size: 18),
+              label: const Text('Afisi Yazdir', style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () async {
+                final link = 'https://servisim.org.tr/#/kayit?firma=${widget.firmaId}&proje=$_seciliProjeId';
+                final msg = Uri.encodeComponent(
+                    '$_seciliProjeAd Servis Kayit:\n$link');
+                final uri = Uri.parse('https://wa.me/?text=$msg');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.share_outlined, size: 18),
+              label: const Text('WhatsApp Paylas', style: TextStyle(fontWeight: FontWeight.bold)),
+            )),
+          ]),
+          const SizedBox(height: 24),
+
+          // Performans
+          _PerformansKarti(firmaId: widget.firmaId, projeId: _seciliProjeId!),
+        ],
+      ]),
+    );
+  }
+}
+
+class _PerformansKarti extends StatelessWidget {
+  final String firmaId, projeId;
+  static const _navy = Color(0xFF1a3a6b);
+  const _PerformansKarti({required this.firmaId, required this.projeId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('kayit_basvurulari')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('projeId', isEqualTo: projeId)
+          .snapshots(),
+      builder: (_, snap) {
+        final docs = snap.data?.docs ?? [];
+        final toplam    = docs.length;
+        final bekleyen  = docs.where((d) => (d.data() as Map)['durum'] == 'bekliyor').length;
+        final onaylanan = docs.where((d) => (d.data() as Map)['durum'] == 'onaylandi').length;
+        final linkten   = docs.where((d) => (d.data() as Map)['kayitTuru'] == 'link').length;
+        final qrdan     = docs.where((d) => (d.data() as Map)['kayitTuru'] == 'qr').length;
+
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Afiş Performansi', style: TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
+          const SizedBox(height: 12),
+          GridView.count(crossAxisCount: 3, shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.4,
+              children: [
+                _pKart('Toplam Basvuru', '$toplam', Icons.people_outlined, Colors.blue),
+                _pKart('Bekleyen', '$bekleyen', Icons.pending_outlined, Colors.orange),
+                _pKart('Onaylanan', '$onaylanan', Icons.check_circle_outline, Colors.green),
+                _pKart('Link ile Gelen', '$linkten', Icons.link_outlined, Colors.purple),
+                _pKart('QR ile Gelen', '$qrdan', Icons.qr_code_outlined, Colors.teal),
+                _pKart('Red/Iptal', '${toplam - onaylanan - bekleyen}',
+                    Icons.cancel_outlined, Colors.red),
+              ]),
+        ]);
+      },
+    );
+  }
+
+  Widget _pKart(String baslik, String deger, IconData ikon, Color renk) =>
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(ikon, color: renk, size: 18),
+          const Spacer(),
+          Text(deger, style: TextStyle(fontSize: 20,
+              fontWeight: FontWeight.bold, color: renk)),
+          Text(baslik, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        ]),
+      );
 }

@@ -4,6 +4,7 @@
 // â•‘  WEB: ÅofÃ¶r listesi + Ekle formu
 // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 
@@ -843,6 +844,32 @@ class _SoforKarti extends StatelessWidget {
             label: const Text('DÃ¼zenle', style: TextStyle(fontSize: 11)),
             onPressed: onDuzenle,
           )),
+          const SizedBox(width: 8),
+          // WhatsApp giriş bilgisi gönder
+          if ((sofor['telefon'] ?? '').isNotEmpty)
+            Expanded(child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () async {
+                final tel = (sofor['telefon'] as String).replaceAll(RegExp(r'[^0-9]'), '');
+                final kul = sofor['kullaniciAdi'] ?? '';
+                final sif = sofor['geciciSifre'] ?? '';
+                final msg = Uri.encodeComponent(
+                    'Servisim360 giris bilgileriniz:%0A'
+                        'Kullanici Adi: ' + kul + '%0A'
+                        'Sifre: ' + sif + '%0A'
+                        'servisim.org.tr');
+                final uri = Uri.parse('https://wa.me/90' + tel + '?text=' + msg);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.chat_outlined, size: 13),
+              label: const Text('WA', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            )),
           const SizedBox(width: 8),
           Expanded(child: ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
