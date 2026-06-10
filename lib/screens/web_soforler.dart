@@ -679,6 +679,26 @@ class _WebSoforlerState extends State<WebSoforler> {
                     onPressed: () => Navigator.pop(ctx),
                     child: const Text('Iptal'),
                   )),
+                  const SizedBox(width: 6),
+                  // Sifre yenile
+                  IconButton(
+                    tooltip: 'Sifre Yenile',
+                    style: IconButton.styleFrom(
+                        backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    onPressed: () async {
+                      final yeni = 'S${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                      await FirebaseFirestore.instance.collection('drivers').doc(soforId)
+                          .update({'geciciSifre': yeni});
+                      await FirebaseFirestore.instance.collection('kullanicilar').doc(soforId)
+                          .set({'sifre': yeni}, SetOptions(merge: true));
+                      setS(() { sifreCtrl.text = yeni; });
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Yeni sifre: $yeni'),
+                          backgroundColor: Colors.blue, behavior: SnackBarBehavior.floating));
+                    },
+                    icon: const Icon(Icons.key_outlined, color: Colors.blue, size: 18),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(flex: 2, child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(

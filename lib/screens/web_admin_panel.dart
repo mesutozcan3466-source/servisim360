@@ -124,6 +124,9 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     final adCtrl=TextEditingController();
     final donemCtrl=TextEditingController(text:'2025-2026');
     final okulAdresCtrl=TextEditingController();
+    final baslangicCtrl=TextEditingController(text:'01.09.2025');
+    final bitisCtrl=TextEditingController(text:'30.06.2026');
+    String secFiyatTuru='mahalle';
     String tip='okul';
     showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
@@ -131,8 +134,25 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
         Text('Yeni Proje',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold,fontSize:16))]),
       content:SizedBox(width:380,child:Column(mainAxisSize:MainAxisSize.min,children:[
         _tf(adCtrl,'Proje Adi *',Icons.folder_outlined),const SizedBox(height:10),
-        _tf(donemCtrl,'Donem',Icons.calendar_today_outlined),const SizedBox(height:10),
-        _tf(okulAdresCtrl,'Okul / Isyeri Adresi',Icons.location_on_outlined),const SizedBox(height:12),
+        _tf(donemCtrl,'Donem (2025-2026)',Icons.calendar_today_outlined),const SizedBox(height:10),
+        _tf(okulAdresCtrl,'Okul / Isyeri Adresi',Icons.location_on_outlined),const SizedBox(height:10),
+        _tf(baslangicCtrl,'Baslangic Tarihi (01.09.2025)',Icons.date_range_outlined),const SizedBox(height:10),
+        _tf(bitisCtrl,'Bitis Tarihi (30.06.2026)',Icons.date_range_outlined),const SizedBox(height:10),
+        // Fiyat türü
+        DropdownButtonFormField<String>(
+          value: secFiyatTuru,
+          decoration: InputDecoration(labelText: 'Varsayilan Fiyat Turu',
+              prefixIcon: const Icon(Icons.attach_money_outlined, color: Color(0xFF1a3a6b), size:18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
+          items: const [
+            DropdownMenuItem(value: 'mahalle', child: Text('Mahalle Bazli')),
+            DropdownMenuItem(value: 'bolge',   child: Text('Bolge Bazli')),
+            DropdownMenuItem(value: 'km',      child: Text('KM Bazli')),
+            DropdownMenuItem(value: 'manuel',  child: Text('Manuel')),
+          ],
+          onChanged: (v) => setS(() => secFiyatTuru = v ?? 'mahalle'),
+        ),
+        const SizedBox(height:12),
         Row(children:[
           _TipBtn('okul','Okul',Icons.school_outlined,tip,(t)=>setS(()=>tip=t)),const SizedBox(width:8),
           _TipBtn('kolej','Kolej',Icons.account_balance_outlined,tip,(t)=>setS(()=>tip=t)),const SizedBox(width:8),
@@ -150,6 +170,9 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
               'firmaId':_firmaId,'projeAd':adCtrl.text.trim(),
               'donem':donemCtrl.text.trim(),'tip':tip,
               'okulAdresi':okulAdresCtrl.text.trim(),
+              'baslangicTarihi':baslangicCtrl.text.trim(),
+              'bitisTarihi':bitisCtrl.text.trim(),
+              'fiyatTuru':secFiyatTuru,
               'aktif':true,'olusturmaTarihi':FieldValue.serverTimestamp(),
             });
             if(ctx.mounted){
@@ -419,6 +442,7 @@ class _WebAnaSayfa extends StatelessWidget{
               _HB(Icons.add_road_outlined,       'Rota Olustur',  Colors.indigo,     ()=>onNavigate(10)),
               _HB(Icons.auto_awesome_outlined,   'Otomatik Dagit',Colors.teal,       ()=>onNavigate(10)),
               _HB(Icons.event_busy_outlined,     'Devamsizlik',   Colors.red,        ()=>onNavigate(11)),
+              _HB(Icons.campaign_outlined,         'Afis Olustur',  Colors.deepPurple, ()=>onNavigate(7)),
             ]),
             const SizedBox(height:18),
             // Yaklasan servis saatleri
@@ -867,6 +891,11 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
                           Text('Kul:${d['kullaniciAdi']}  Sifre:${d['geciciSifre']??'---'}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
                         if((d['ogrenciAd']??'').isNotEmpty)
                           Text('Ogrenci: ${d['ogrenciAd']}',style:TextStyle(fontSize:11,color:Colors.blue[400])),
+                        if((d['kayitTuru']??'').isNotEmpty)
+                          Container(margin:const EdgeInsets.only(top:3),
+                              padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
+                              decoration:BoxDecoration(color:Colors.teal.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
+                              child:Text('Kayit: ${d['kayitTuru']}',style:const TextStyle(fontSize:10,color:Colors.teal,fontWeight:FontWeight.bold))),
                         if((d['servisAd']??'').isNotEmpty)
                           Text('Servis: ${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.teal[400])),
                         if((d['projeAd']??'').isNotEmpty)
@@ -899,6 +928,19 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
                               child:Container(padding:const EdgeInsets.all(6),
                                   decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                                   child:const Icon(Icons.link_outlined,size:16,color:Colors.blue))),
+                          const SizedBox(width:4),
+                          // Sifre yenile
+                          GestureDetector(
+                              onTap:() async{
+                                final yeniSifre='S${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                                await FirebaseFirestore.instance.collection('parents').doc(docs[i].id)
+                                    .update({'geciciSifre':yeniSifre});
+                                if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content:Text('Yeni sifre: $yeniSifre'),backgroundColor:Colors.blue,behavior:SnackBarBehavior.floating));
+                              },
+                              child:Container(padding:const EdgeInsets.all(6),
+                                  decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:const Icon(Icons.key_outlined,size:16,color:Colors.blue))),
                           const SizedBox(width:4),
                           // Aktif toggle
                           GestureDetector(

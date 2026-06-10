@@ -583,6 +583,26 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
 
 
   // ── Öğrenci Detay Dialog ───────────────────────────────────────
+
+  // Fiyat hesaplama - adres'e gore fiyat tablosundan bul
+  Future<double> _fiyatHesapla(String adres) async {
+    if (adres.isEmpty || _firmaId.isEmpty) return 0;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('fiyatlar')
+          .where('firmaId', isEqualTo: _firmaId)
+          .get();
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        final bolge = (d['bolge'] ?? '').toString().toLowerCase();
+        if (bolge.isNotEmpty && adres.toLowerCase().contains(bolge)) {
+          return ((d['ucret'] ?? d['fiyat'] ?? 0) as num).toDouble();
+        }
+      }
+    } catch (_) {}
+    return 0;
+  }
+
   void _ogrenciDetayDialog(Map<String, dynamic> ogr) {
     showDialog(
       context: context,
@@ -630,6 +650,22 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                   _infoBant2('TC', ogr['tc'] ?? '-', Icons.badge_outlined, Colors.grey),
                   _infoBant2('Konum', ogr['konumVar'] == true ? 'Var' : 'Bekleniyor',
                       Icons.location_on, ogr['konumVar'] == true ? Colors.green : Colors.orange),
+                  GestureDetector(
+                      onTap: () {
+                        Navigator.pop(_);
+                        Navigator.pushNamed(context, '/harita');
+                      },
+                      child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.withValues(alpha: 0.2))),
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.edit_location_outlined, size: 12, color: Colors.blue),
+                            SizedBox(width: 5),
+                            Text('Konum Duzenle', style: TextStyle(fontSize: 11, color: Colors.blue)),
+                          ]))),
                 ]),
                 const SizedBox(height: 14),
                 // Veli
@@ -677,7 +713,18 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
                   icon: const Icon(Icons.edit_outlined, size: 16),
                   label: const Text('Duzenle'),
                 )),
-                const SizedBox(width: 10),
+                const SizedBox(width: 6),
+                // Servise Ata
+                Expanded(child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  onPressed: () { Navigator.pop(_); _ogrenciDuzenle(ogr); },
+                  icon: const Icon(Icons.directions_bus_outlined, size: 16),
+                  label: const Text('ServiseAta'),
+                )),
+                const SizedBox(width: 6),
                 Expanded(child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                       backgroundColor: _navy, foregroundColor: Colors.white,
