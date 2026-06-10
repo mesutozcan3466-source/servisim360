@@ -425,8 +425,23 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
                           'sinif'     : sinifCtrl.text.trim(),
                           'veliAd'    : veliCtrl.text.trim(),
                           'veliTel'   : telCtrl.text.trim(),
-                          'aktif'     : true,
-                          'olusturma' : now,
+                          'aktif'       : true,
+                          'durum'       : 'bekliyor',
+                          'projeId'     : SessionService.instance.aktifProjeId ?? '',
+                          'projeAd'     : SessionService.instance.aktifProjeAdi ?? '',
+                          'surucuId'    : '',
+                          'soforId'     : '',
+                          'soforAd'     : '',
+                          'servisId'    : '',
+                          'servisAd'    : '',
+                          'veliId'      : '',
+                          'konumVar'    : false,
+                          'sabahKullan' : true,
+                          'aksamKullan' : true,
+                          'sozlesmeOnay': false,
+                          'fiyat'       : 0,
+                          'olusturma'   : now,
+                          'olusturmaTarihi': FieldValue.serverTimestamp(),
                         });
 
                         // 2. Otomatik veli hesabı oluştur
@@ -441,6 +456,10 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
                           'aktif'         : true,
                           'rol'           : 'veli',
                           'olusturma'     : now,
+                          'ogrenciId'    : ogrRef.id,
+                          'projeId'      : SessionService.instance.aktifProjeId ?? '',
+                          'sozlesmeOnay' : false,
+                          'aktif'        : true,
                         });
 
                         // 3. kullanicilar koleksiyonuna da ekle
@@ -569,4 +588,3 @@ class _OgrencilerScreenState extends State<OgrencilerScreen> {
         ),
       );
 }
-

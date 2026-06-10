@@ -328,7 +328,7 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
       case 3:return _AraclarSekme(firmaId:_firmaId);
       case 4:return WebSoforler(firmaId:_firmaId);
       case 5:return const WebOgrenciler();
-      case 6:return _VelilerSekme(firmaId:_firmaId);
+      case 6:return _VelilerSekme(firmaId:_firmaId,projeId:_projeId);
       case 7:return _KayitSistemiSekme(firmaId:_firmaId);
       case 8:return _SozlesmelerSekme(firmaId:_firmaId);
       case 9:return _FiyatlandirmaSekme(firmaId:_firmaId);
@@ -706,7 +706,8 @@ class _AraclarSekmeState extends State<_AraclarSekme>{
 
 // ════════ VELILER ════════
 class _VelilerSekme extends StatefulWidget{
-  final String firmaId;const _VelilerSekme({required this.firmaId});
+  final String firmaId, projeId;
+  const _VelilerSekme({required this.firmaId, this.projeId=''});
   @override State<_VelilerSekme> createState()=>_VelilerSekmeState();
 }
 class _VelilerSekmeState extends State<_VelilerSekme>{
@@ -731,8 +732,21 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
                 final tel=tC.text.trim();
                 final sif='S${tel.replaceAll(RegExp(r'\\D'),'').substring(0,4.clamp(0,tel.length))}';
                 await FirebaseFirestore.instance.collection('parents').add({
-                  'firmaId':widget.firmaId,'ad':aC.text.trim(),'telefon':tel,'email':eC.text.trim(),
-                  'kullaniciAdi':tel,'geciciSifre':sif,'sozlesmeOnay':false,'aktif':true,
+                  'firmaId':widget.firmaId,
+                  'ad':aC.text.trim(),
+                  'telefon':tel,
+                  'email':eC.text.trim(),
+                  'kullaniciAdi':tel,
+                  'geciciSifre':sif,
+                  'sozlesmeOnay':false,
+                  'aktif':true,
+                  'ogrenciId':'',
+                  'ogrenciAd':'',
+                  'projeId':widget.projeId,
+                  'projeAd':'',
+                  'servisId':'',
+                  'servisAd':'',
+                  'rol':'veli',
                   'olusturmaTarihi':FieldValue.serverTimestamp(),
                 });
                 if(mounted)Navigator.pop(context);
