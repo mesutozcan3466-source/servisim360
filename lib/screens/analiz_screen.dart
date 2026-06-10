@@ -19,6 +19,7 @@ class _AnalizScreenState extends State<AnalizScreen>
 
   late final TabController _tabCtrl;
   String? _firmaId;
+  String  _projeId = '';
   bool _yukleniyor = true;
 
   int _toplamOgrenci   = 0;
@@ -35,7 +36,7 @@ class _AnalizScreenState extends State<AnalizScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
     _yukle();
   }
 
@@ -65,42 +66,42 @@ class _AnalizScreenState extends State<AnalizScreen>
               style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 20),
           _disaAktarBtn(
-            icon: Icons.table_chart_outlined, renk: Colors.green,
-            baslik: 'Excel Aktar',
-            aciklama: 'Öğrenci ve şoför listelerini Excel dosyasına aktar',
-            onTap: () { Navigator.pop(_); _excelaAktar(); }),
+              icon: Icons.table_chart_outlined, renk: Colors.green,
+              baslik: 'Excel Aktar',
+              aciklama: 'Öğrenci ve şoför listelerini Excel dosyasına aktar',
+              onTap: () { Navigator.pop(_); _excelaAktar(); }),
           const SizedBox(height: 10),
           _disaAktarBtn(
-            icon: Icons.people_outlined, renk: Colors.blue,
-            baslik: 'Öğrenci Listesi',
-            aciklama: 'Ad, soyad, veli, adres — metin olarak kopyala',
-            onTap: () { Navigator.pop(_); _ogrenciListesiKopyala(); }),
+              icon: Icons.people_outlined, renk: Colors.blue,
+              baslik: 'Öğrenci Listesi',
+              aciklama: 'Ad, soyad, veli, adres — metin olarak kopyala',
+              onTap: () { Navigator.pop(_); _ogrenciListesiKopyala(); }),
           const SizedBox(height: 10),
           _disaAktarBtn(
-            icon: Icons.directions_car_outlined, renk: _navy,
-            baslik: 'Şoför Listesi',
-            aciklama: 'Ad, plaka, öğrenci sayısı — metin olarak kopyala',
-            onTap: () { Navigator.pop(_); _soforListesiKopyala(); }),
+              icon: Icons.directions_car_outlined, renk: _navy,
+              baslik: 'Şoför Listesi',
+              aciklama: 'Ad, plaka, öğrenci sayısı — metin olarak kopyala',
+              onTap: () { Navigator.pop(_); _soforListesiKopyala(); }),
           const SizedBox(height: 10),
           _disaAktarBtn(
-            icon: Icons.event_busy_outlined, renk: Colors.red,
-            baslik: 'Devamsızlık Raporu',
-            aciklama: 'Son 30 günlük devamsızlıklar — metin olarak kopyala',
-            onTap: () { Navigator.pop(_); _devamsizlikRaporuKopyala(); }),
+              icon: Icons.event_busy_outlined, renk: Colors.red,
+              baslik: 'Devamsızlık Raporu',
+              aciklama: 'Son 30 günlük devamsızlıklar — metin olarak kopyala',
+              onTap: () { Navigator.pop(_); _devamsizlikRaporuKopyala(); }),
           const SizedBox(height: 10),
           _disaAktarBtn(
-            icon: Icons.bar_chart_outlined, renk: Colors.green,
-            baslik: 'Genel Özet',
-            aciklama: 'Tüm istatistiklerin özeti — metin olarak kopyala',
-            onTap: () { Navigator.pop(_); _genelOzetKopyala(); }),
+              icon: Icons.bar_chart_outlined, renk: Colors.green,
+              baslik: 'Genel Özet',
+              aciklama: 'Tüm istatistiklerin özeti — metin olarak kopyala',
+              onTap: () { Navigator.pop(_); _genelOzetKopyala(); }),
         ]),
       )),
     );
   }
 
   Widget _disaAktarBtn({required IconData icon, required Color renk,
-      required String baslik, required String aciklama,
-      required VoidCallback onTap}) =>
+    required String baslik, required String aciklama,
+    required VoidCallback onTap}) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
@@ -298,7 +299,7 @@ class _AnalizScreenState extends State<AnalizScreen>
         final ogr  = d['ogrenciAd'] ?? '';
         final tip  = d['tip'] ?? '';
         final tur  = tip == 'sabah' ? 'Sadece Sabah' :
-                     tip == 'aksam' ? 'Sadece Akşam' : 'Tüm Gün';
+        tip == 'aksam' ? 'Sadece Akşam' : 'Tüm Gün';
         final tarih = d['tarih'] is Timestamp
             ? (d['tarih'] as Timestamp).toDate().toString().substring(0, 10)
             : '';
@@ -431,6 +432,7 @@ class _AnalizScreenState extends State<AnalizScreen>
       final driverSnap = await db.collection('drivers')
           .where('firmaId', isEqualTo: _firmaId).get();
       final projeId = SessionService.instance.aktifProjeId ?? '';
+      _projeId = projeId;
 
       final liste = <_RotaVeri>[];
       for (final dDoc in driverSnap.docs) {
@@ -488,6 +490,7 @@ class _AnalizScreenState extends State<AnalizScreen>
           tabs: const [
             Tab(text: 'Genel'),
             Tab(text: 'Yoklama'),
+            Tab(text: 'Gelir'),
             Tab(text: 'Rotalar'),
           ],
         ),
@@ -499,6 +502,7 @@ class _AnalizScreenState extends State<AnalizScreen>
         children: [
           _genelTab(),
           _yoklamaTab(),
+          _GelirSekme(firmaId: _firmaId ?? '', projeId: _projeId),
           _rotalarTab(),
         ],
       ),
@@ -996,4 +1000,162 @@ class _SaatVeri {
   final String saat;
   final int servisSayisi;
   const _SaatVeri(this.saat, this.servisSayisi);
+}
+
+// ════════ GELİR RAPORU ════════
+class _GelirSekme extends StatefulWidget {
+  final String firmaId, projeId;
+  const _GelirSekme({required this.firmaId, required this.projeId});
+  @override State<_GelirSekme> createState() => _GelirSekmeState();
+}
+
+class _GelirSekmeState extends State<_GelirSekme> {
+  static const _navy   = Color(0xFF1a3a6b);
+  static const _orange = Color(0xFFFF8C00);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: () {
+        var q = FirebaseFirestore.instance
+            .collection('students')
+            .where('firmaId', isEqualTo: widget.firmaId);
+        if (widget.projeId.isNotEmpty) {
+          q = q.where('projeId', isEqualTo: widget.projeId);
+        }
+        return q.snapshots();
+      }(),
+      builder: (_, snap) {
+        final docs = snap.data?.docs ?? [];
+        double toplam = 0;
+        int sozlesmeli = 0;
+        int sozlesmesiz = 0;
+        final List<Map<String, dynamic>> detaylar = [];
+
+        for (final doc in docs) {
+          final d = doc.data() as Map<String, dynamic>;
+          final ucret = ((d['fiyat'] ?? d['ucret'] ?? d['aylikUcret'] ?? 0) as num).toDouble();
+          toplam += ucret;
+          if (d['sozlesmeOnay'] == true || d['sozlesmeDurum'] == 'imzalandi') {
+            sozlesmeli++;
+          } else {
+            sozlesmesiz++;
+          }
+          if (ucret > 0) {
+            detaylar.add({
+              'ad': d['ad'] ?? d['adSoyad'] ?? '',
+              'servis': d['soforAd'] ?? d['servisAd'] ?? '',
+              'ucret': ucret,
+              'sozlesme': d['sozlesmeOnay'] == true,
+            });
+          }
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Özet kartlar
+            Row(children: [
+              Expanded(child: _ozetKart('Toplam Gelir',
+                  '${toplam.toStringAsFixed(0)} TL', Icons.payments_outlined, Colors.green)),
+              const SizedBox(width: 12),
+              Expanded(child: _ozetKart('Sozlesmeli',
+                  '$sozlesmeli ogr', Icons.check_circle_outline, Colors.blue)),
+              const SizedBox(width: 12),
+              Expanded(child: _ozetKart('Sozlesmesiz',
+                  '$sozlesmesiz ogr', Icons.pending_outlined, Colors.orange)),
+            ]),
+            const SizedBox(height: 20),
+
+            // Servis bazlı gelir
+            const Text('Ogrenci Bazli Ucretler',
+                style: TextStyle(fontWeight: FontWeight.bold,
+                    fontSize: 15, color: _navy)),
+            const SizedBox(height: 10),
+
+            if (detaylar.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                    color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: const Center(child: Text('Ucret tanimli ogrenci yok',
+                    style: TextStyle(color: Colors.grey))),
+              )
+            else
+              ...detaylar.map((item) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)]),
+                child: Row(children: [
+                  CircleAvatar(radius: 16,
+                      backgroundColor: _navy.withValues(alpha: 0.08),
+                      child: Text((item['ad'] as String).isNotEmpty
+                          ? (item['ad'] as String)[0].toUpperCase() : '?',
+                          style: const TextStyle(color: _navy,
+                              fontWeight: FontWeight.bold, fontSize: 12))),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(item['ad'] as String,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    if ((item['servis'] as String).isNotEmpty)
+                      Text(item['servis'] as String,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                  ])),
+                  Text('${item['ucret']} TL',
+                      style: const TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 16, color: _orange)),
+                  const SizedBox(width: 8),
+                  Icon(
+                      item['sozlesme'] as bool
+                          ? Icons.check_circle_outline
+                          : Icons.pending_outlined,
+                      color: item['sozlesme'] as bool ? Colors.green : Colors.orange,
+                      size: 16),
+                ]),
+              )),
+
+            const SizedBox(height: 20),
+            // Toplam
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: _navy,
+                  borderRadius: BorderRadius.circular(14)),
+              child: Row(children: [
+                const Icon(Icons.monetization_on_outlined,
+                    color: Colors.white, size: 24),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Aylik Toplam Gelir',
+                    style: TextStyle(color: Colors.white70, fontSize: 13))),
+                Text('${toplam.toStringAsFixed(0)} TL',
+                    style: const TextStyle(color: Colors.white,
+                        fontWeight: FontWeight.bold, fontSize: 22)),
+              ]),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _ozetKart(String baslik, String deger, IconData ikon, Color renk) =>
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05), blurRadius: 6)]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(ikon, color: renk, size: 20),
+          const SizedBox(height: 8),
+          Text(deger, style: TextStyle(fontSize: 18,
+              fontWeight: FontWeight.bold, color: renk)),
+          Text(baslik, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+        ]),
+      );
 }

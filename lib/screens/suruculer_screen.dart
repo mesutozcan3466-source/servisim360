@@ -160,11 +160,11 @@ class _SurucularScreenState extends State<SurucularScreen> {
         prefixIcon: const Icon(Icons.search_rounded, color: _navy),
         suffixIcon: _aramaMetni.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear_rounded),
-                onPressed: () {
-                  _aramaCtrl.clear();
-                  setState(() => _aramaMetni = '');
-                })
+            icon: const Icon(Icons.clear_rounded),
+            onPressed: () {
+              _aramaCtrl.clear();
+              setState(() => _aramaMetni = '');
+            })
             : null,
         filled: true,
         fillColor: Colors.white,
@@ -186,9 +186,9 @@ class _SurucularScreenState extends State<SurucularScreen> {
     final plaka = (data['plaka'] ?? data['aracPlaka'] ?? '').toLowerCase();
     final kadi  = (data['kullaniciAdi'] ?? '').toLowerCase();
     return ad.contains(_aramaMetni)   ||
-           tel.contains(_aramaMetni)  ||
-           plaka.contains(_aramaMetni)||
-           kadi.contains(_aramaMetni);
+        tel.contains(_aramaMetni)  ||
+        plaka.contains(_aramaMetni)||
+        kadi.contains(_aramaMetni);
   }
 
   @override
@@ -258,11 +258,11 @@ class _SurucularScreenState extends State<SurucularScreen> {
                       size: 80, color: Colors.grey[300]),
                   const SizedBox(height: 16),
                   Text(
-                    _aramaMetni.isNotEmpty || _filtredurum != null
-                        ? 'Arama sonucu bulunamadı'
-                        : 'Henüz şoför eklenmedi',
-                    style: const TextStyle(fontSize: 18,
-                        fontWeight: FontWeight.bold, color: _navy)),
+                      _aramaMetni.isNotEmpty || _filtredurum != null
+                          ? 'Arama sonucu bulunamadı'
+                          : 'Henüz şoför eklenmedi',
+                      style: const TextStyle(fontSize: 18,
+                          fontWeight: FontWeight.bold, color: _navy)),
                   const SizedBox(height: 24),
                   if (_aramaMetni.isEmpty && _filtredurum == null)
                     ElevatedButton.icon(
@@ -361,8 +361,8 @@ class _SurucularScreenState extends State<SurucularScreen> {
                     ],
                   )),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(ctx)),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(ctx)),
                 ]),
               ),
 
@@ -373,138 +373,138 @@ class _SurucularScreenState extends State<SurucularScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
 
-                  // Akış bilgisi
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.blue.shade200)),
-                    child: const Row(children: [
-                      Icon(Icons.info_outline, color: Colors.blue, size: 16),
-                      SizedBox(width: 8),
-                      Expanded(child: Text(
-                        'Şoför → Firma Havuzu → Boşta → Projeye Dahil Et → Öğrenci Ata → Aktif Görev',
-                        style: TextStyle(fontSize: 11, color: Colors.blue),
-                      )),
+                      // Akış bilgisi
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.blue.shade200)),
+                        child: const Row(children: [
+                          Icon(Icons.info_outline, color: Colors.blue, size: 16),
+                          SizedBox(width: 8),
+                          Expanded(child: Text(
+                            'Şoför → Firma Havuzu → Boşta → Projeye Dahil Et → Öğrenci Ata → Aktif Görev',
+                            style: TextStyle(fontSize: 11, color: Colors.blue),
+                          )),
+                        ]),
+                      ),
+
+                      // 1. ŞOFÖR BİLGİLERİ
+                      _bolumBaslik('1. Şoför Bilgileri', Icons.person_outlined),
+                      const SizedBox(height: 8),
+                      _satirIkiIki(
+                        _inp2(adCtrl, 'Şoför Adı Soyadı *', Icons.person_outlined),
+                        _inp2(telCtrl, 'Telefon *', Icons.phone_outlined,
+                            tip: TextInputType.phone),
+                      ),
+                      const SizedBox(height: 10),
+                      _satirIkiIki(
+                        _inp2(plakaCtrl, 'Araç Plakası *',
+                            Icons.directions_bus_outlined),
+                        _inp2(kapasiteCtrl, 'Kapasite',
+                            Icons.people_outlined,
+                            tip: TextInputType.number),
+                      ),
+                      const SizedBox(height: 10),
+                      _inp2(modelCtrl, 'Araç Markası / Modeli',
+                          Icons.directions_car_outlined),
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        const Text('Aktif Şoför',
+                            style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        Switch(
+                          value: aktif, activeColor: Colors.green,
+                          onChanged: (v) => setSt(() => aktif = v),
+                        ),
+                      ]),
+                      const SizedBox(height: 20),
+
+                      // 2. GİRİŞ BİLGİLERİ
+                      _bolumBaslik('2. Giriş Bilgileri', Icons.lock_outlined),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Şoför bu bilgilerle sisteme giriş yapar.',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      _inp2(kulAdiCtrl, 'Kullanıcı Adı *',
+                          Icons.account_circle_outlined),
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        Expanded(child: _inp2(sifreCtrl, 'Geçici Şifre *',
+                            Icons.key_outlined)),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'Yeni şifre üret',
+                          icon: const Icon(Icons.refresh_rounded, color: _navy),
+                          onPressed: () =>
+                              setSt(() => sifreCtrl.text = _rastgeleKod()),
+                        ),
+                      ]),
+                      const SizedBox(height: 20),
+
+                      // 2b. İSTEĞE BAĞLI BELGELER
+                      _bolumBaslik('2b. İsteğe Bağlı Belgeler', Icons.badge_outlined),
+                      const SizedBox(height: 4),
+                      const Text('Zorunlu değil, ileride eklenebilir',
+                          style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      const SizedBox(height: 8),
+                      _satirIkiIki(
+                        _inp2(tcCtrl, 'TC Kimlik No', Icons.credit_card_outlined,
+                            tip: TextInputType.number),
+                        _inp2(ehliyetCtrl, 'Ehliyet Sınıfı', Icons.drive_eta_outlined),
+                      ),
+                      const SizedBox(height: 10),
+                      _satirIkiIki(
+                        _inp2(srcCtrl, 'SRC Belgesi No', Icons.article_outlined),
+                        _inp2(psikoCtrl, 'Psikoteknik Tarihi',
+                            Icons.calendar_today_outlined),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 3. SERVİS TÜRÜ
+                      _bolumBaslik('3. Servis Türü', Icons.assignment_outlined),
+                      const SizedBox(height: 8),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        _turBtn('okul',     '🏫 Okul',     servisTuru,
+                                (v) => setSt(() => servisTuru = v)),
+                        _turBtn('kolej',    '🎓 Kolej',    servisTuru,
+                                (v) => setSt(() => servisTuru = v)),
+                        _turBtn('personel', '👔 Personel', servisTuru,
+                                (v) => setSt(() => servisTuru = v)),
+                        _turBtn('ozel',     '🚐 Özel',     servisTuru,
+                                (v) => setSt(() => servisTuru = v)),
+                        _turBtn('sabah',    '🌅 Sabah',    servisTuru,
+                                (v) => setSt(() => servisTuru = v)),
+                        _turBtn('aksam',    '🌇 Akşam',    servisTuru,
+                                (v) => setSt(() => servisTuru = v)),
+                      ]),
+
+                      const SizedBox(height: 20),
+
+                      // Not
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.amber.shade200)),
+                        child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.amber, size: 16),
+                              SizedBox(width: 8),
+                              Expanded(child: Text(
+                                'Proje atanmadan şoför paneli boş görünür. '
+                                    'Kayıt sonrası "Projeye Dahil Et" ile proje atayın.',
+                                style: TextStyle(fontSize: 12, color: Colors.amber),
+                              )),
+                            ]),
+                      ),
                     ]),
-                  ),
-
-                  // 1. ŞOFÖR BİLGİLERİ
-                  _bolumBaslik('1. Şoför Bilgileri', Icons.person_outlined),
-                  const SizedBox(height: 8),
-                  _satirIkiIki(
-                    _inp2(adCtrl, 'Şoför Adı Soyadı *', Icons.person_outlined),
-                    _inp2(telCtrl, 'Telefon *', Icons.phone_outlined,
-                        tip: TextInputType.phone),
-                  ),
-                  const SizedBox(height: 10),
-                  _satirIkiIki(
-                    _inp2(plakaCtrl, 'Araç Plakası *',
-                        Icons.directions_bus_outlined),
-                    _inp2(kapasiteCtrl, 'Kapasite',
-                        Icons.people_outlined,
-                        tip: TextInputType.number),
-                  ),
-                  const SizedBox(height: 10),
-                  _inp2(modelCtrl, 'Araç Markası / Modeli',
-                      Icons.directions_car_outlined),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    const Text('Aktif Şoför',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    Switch(
-                      value: aktif, activeColor: Colors.green,
-                      onChanged: (v) => setSt(() => aktif = v),
-                    ),
-                  ]),
-                  const SizedBox(height: 20),
-
-                  // 2. GİRİŞ BİLGİLERİ
-                  _bolumBaslik('2. Giriş Bilgileri', Icons.lock_outlined),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Şoför bu bilgilerle sisteme giriş yapar.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  _inp2(kulAdiCtrl, 'Kullanıcı Adı *',
-                      Icons.account_circle_outlined),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(child: _inp2(sifreCtrl, 'Geçici Şifre *',
-                        Icons.key_outlined)),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: 'Yeni şifre üret',
-                      icon: const Icon(Icons.refresh_rounded, color: _navy),
-                      onPressed: () =>
-                          setSt(() => sifreCtrl.text = _rastgeleKod()),
-                    ),
-                  ]),
-                  const SizedBox(height: 20),
-
-                  // 2b. İSTEĞE BAĞLI BELGELER
-                  _bolumBaslik('2b. İsteğe Bağlı Belgeler', Icons.badge_outlined),
-                  const SizedBox(height: 4),
-                  const Text('Zorunlu değil, ileride eklenebilir',
-                      style: TextStyle(color: Colors.grey, fontSize: 11)),
-                  const SizedBox(height: 8),
-                  _satirIkiIki(
-                    _inp2(tcCtrl, 'TC Kimlik No', Icons.credit_card_outlined,
-                        tip: TextInputType.number),
-                    _inp2(ehliyetCtrl, 'Ehliyet Sınıfı', Icons.drive_eta_outlined),
-                  ),
-                  const SizedBox(height: 10),
-                  _satirIkiIki(
-                    _inp2(srcCtrl, 'SRC Belgesi No', Icons.article_outlined),
-                    _inp2(psikoCtrl, 'Psikoteknik Tarihi',
-                        Icons.calendar_today_outlined),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 3. SERVİS TÜRÜ
-                  _bolumBaslik('3. Servis Türü', Icons.assignment_outlined),
-                  const SizedBox(height: 8),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    _turBtn('okul',     '🏫 Okul',     servisTuru,
-                        (v) => setSt(() => servisTuru = v)),
-                    _turBtn('kolej',    '🎓 Kolej',    servisTuru,
-                        (v) => setSt(() => servisTuru = v)),
-                    _turBtn('personel', '👔 Personel', servisTuru,
-                        (v) => setSt(() => servisTuru = v)),
-                    _turBtn('ozel',     '🚐 Özel',     servisTuru,
-                        (v) => setSt(() => servisTuru = v)),
-                    _turBtn('sabah',    '🌅 Sabah',    servisTuru,
-                        (v) => setSt(() => servisTuru = v)),
-                    _turBtn('aksam',    '🌇 Akşam',    servisTuru,
-                        (v) => setSt(() => servisTuru = v)),
-                  ]),
-
-                  const SizedBox(height: 20),
-
-                  // Not
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.amber.shade200)),
-                    child: const Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Icon(Icons.info_outline, color: Colors.amber, size: 16),
-                      SizedBox(width: 8),
-                      Expanded(child: Text(
-                        'Proje atanmadan şoför paneli boş görünür. '
-                        'Kayıt sonrası "Projeye Dahil Et" ile proje atayın.',
-                        style: TextStyle(fontSize: 12, color: Colors.amber),
-                      )),
-                    ]),
-                  ),
-                ]),
               )),
 
               // Alt butonlar
@@ -552,7 +552,7 @@ class _SurucularScreenState extends State<SurucularScreen> {
                       final kulKont = await FirebaseFirestore.instance
                           .collection('drivers')
                           .where('kullaniciAdi',
-                              isEqualTo: kulAdiCtrl.text.trim())
+                          isEqualTo: kulAdiCtrl.text.trim())
                           .get();
                       if (kulKont.docs.isNotEmpty) {
                         setSt(() => yukleniyor = false);
@@ -637,8 +637,8 @@ class _SurucularScreenState extends State<SurucularScreen> {
                     },
                     icon: yukleniyor
                         ? const SizedBox(width: 18, height: 18,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.save_rounded),
                     label: Text(yukleniyor ? 'Kaydediliyor...' : 'Şoförü Kaydet',
                         style: const TextStyle(
@@ -670,10 +670,10 @@ class _SurucularScreenState extends State<SurucularScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(children: [
           Container(
-            width: 36, height: 36,
-            decoration: BoxDecoration(
-                color: _navy.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.send_rounded, color: _navy, size: 18)),
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                  color: _navy.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.send_rounded, color: _navy, size: 18)),
           const SizedBox(width: 10),
           const Expanded(child: Text('Giriş Bilgilerini Gönder')),
         ]),
@@ -775,14 +775,14 @@ class _SurucularScreenState extends State<SurucularScreen> {
               decoration: const BoxDecoration(
                   color: _navy,
                   borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(20))),
+                  BorderRadius.vertical(top: Radius.circular(20))),
               child: Row(children: [
                 CircleAvatar(
                   radius: 24, backgroundColor: Colors.white.withValues(alpha: 0.2),
                   child: Text(
-                    ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
-                    style: const TextStyle(color: Colors.white,
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+                      ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
+                      style: const TextStyle(color: Colors.white,
+                          fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(child: Column(
@@ -806,8 +806,8 @@ class _SurucularScreenState extends State<SurucularScreen> {
                   ),
                 ])),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(_)),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(_)),
               ]),
             ),
 
@@ -831,9 +831,9 @@ class _SurucularScreenState extends State<SurucularScreen> {
                     src.isNotEmpty || psiko.isNotEmpty) ...[
                   const Divider(height: 24),
                   Align(alignment: Alignment.centerLeft,
-                    child: Text('Belgeler', style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13,
-                        color: Colors.grey[600]))),
+                      child: Text('Belgeler', style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 13,
+                          color: Colors.grey[600]))),
                   const SizedBox(height: 8),
                   if (tcKimlik.isNotEmpty)
                     _detaySatir(Icons.credit_card_outlined, 'TC Kimlik', tcKimlik),
@@ -858,20 +858,20 @@ class _SurucularScreenState extends State<SurucularScreen> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    const Row(children: [
-                      Icon(Icons.folder_rounded,
-                          color: Colors.blue, size: 16),
-                      SizedBox(width: 6),
-                      Text('Atandığı Projeler',
-                          style: TextStyle(fontWeight: FontWeight.bold,
-                              color: Colors.blue)),
-                    ]),
-                    const SizedBox(height: 8),
-                    if (projeler.isEmpty)
-                      const Text('Henüz proje atanmadı',
-                          style: TextStyle(color: Colors.grey, fontSize: 13))
-                    else
-                      ...projeler.map((p) => Padding(
+                        const Row(children: [
+                          Icon(Icons.folder_rounded,
+                              color: Colors.blue, size: 16),
+                          SizedBox(width: 6),
+                          Text('Atandığı Projeler',
+                              style: TextStyle(fontWeight: FontWeight.bold,
+                                  color: Colors.blue)),
+                        ]),
+                        const SizedBox(height: 8),
+                        if (projeler.isEmpty)
+                          const Text('Henüz proje atanmadı',
+                              style: TextStyle(color: Colors.grey, fontSize: 13))
+                        else
+                          ...projeler.map((p) => Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Row(children: [
                               const Icon(Icons.check_circle_rounded,
@@ -880,7 +880,7 @@ class _SurucularScreenState extends State<SurucularScreen> {
                               Text(p, style: const TextStyle(fontSize: 13)),
                             ]),
                           )),
-                  ]),
+                      ]),
                 ),
 
                 const SizedBox(height: 12),
@@ -906,13 +906,13 @@ class _SurucularScreenState extends State<SurucularScreen> {
                         const SizedBox(width: 10),
                         Column(crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                          const Text('Atanan Öğrenci',
-                              style: TextStyle(color: Colors.green,
-                                  fontWeight: FontWeight.bold)),
-                          Text('$sayi öğrenci',
-                              style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.bold)),
-                        ]),
+                              const Text('Atanan Öğrenci',
+                                  style: TextStyle(color: Colors.green,
+                                      fontWeight: FontWeight.bold)),
+                              Text('$sayi öğrenci',
+                                  style: const TextStyle(
+                                      fontSize: 20, fontWeight: FontWeight.bold)),
+                            ]),
                       ]),
                     );
                   },
@@ -1021,29 +1021,29 @@ class _SurucularScreenState extends State<SurucularScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('İptal')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy, foregroundColor: Colors.white),
-              onPressed: () async {
-                await FirebaseFirestore.instance
-                    .collection('drivers').doc(docId).update({
-                  'adSoyad'       : adCtrl.text.trim(),
-                  'ad'            : adCtrl.text.trim(),
-                  'telefon'       : telCtrl.text.trim(),
-                  'plaka'         : plakaCtrl.text.trim(),
-                  'aracPlaka'     : plakaCtrl.text.trim(),
-                  'aracKapasitesi': kapasiteCtrl.text.trim(),
-                  'aracModeli'    : modelCtrl.text.trim(),
-                  'aktif'         : aktif,
-                  'aktifMi'       : aktif,
-                  'soforDurum'    : aktif ? 'bosta' : 'pasif',
-                  'updatedAt'     : FieldValue.serverTimestamp(),
-                });
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Kaydet')),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy, foregroundColor: Colors.white),
+                onPressed: () async {
+                  await FirebaseFirestore.instance
+                      .collection('drivers').doc(docId).update({
+                    'adSoyad'       : adCtrl.text.trim(),
+                    'ad'            : adCtrl.text.trim(),
+                    'telefon'       : telCtrl.text.trim(),
+                    'plaka'         : plakaCtrl.text.trim(),
+                    'aracPlaka'     : plakaCtrl.text.trim(),
+                    'aracKapasitesi': kapasiteCtrl.text.trim(),
+                    'aracModeli'    : modelCtrl.text.trim(),
+                    'aktif'         : aktif,
+                    'aktifMi'       : aktif,
+                    'soforDurum'    : aktif ? 'bosta' : 'pasif',
+                    'updatedAt'     : FieldValue.serverTimestamp(),
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('Kaydet')),
           ],
         ),
       ),
@@ -1169,9 +1169,9 @@ class _SoforKarti extends StatelessWidget {
                 radius: 24,
                 backgroundColor: durum.renk.withValues(alpha: 0.12),
                 child: Text(
-                  ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
-                  style: TextStyle(color: durum.renk,
-                      fontWeight: FontWeight.bold, fontSize: 20)),
+                    ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
+                    style: TextStyle(color: durum.renk,
+                        fontWeight: FontWeight.bold, fontSize: 20)),
               ),
               const SizedBox(width: 14),
               Expanded(child: Column(
@@ -1261,20 +1261,20 @@ class _SoforKarti extends StatelessWidget {
               // Ara
               _akBtn(Icons.phone_rounded, 'Ara', Colors.green,
                   tel.isNotEmpty ? () async {
-                final uri = Uri.parse('tel:$tel');
-                if (await canLaunchUrl(uri)) launchUrl(uri);
-              } : null),
+                    final uri = Uri.parse('tel:$tel');
+                    if (await canLaunchUrl(uri)) launchUrl(uri);
+                  } : null),
               const SizedBox(width: 8),
               // WhatsApp
               _akBtn(Icons.message_rounded, 'WA',
                   const Color(0xFF25D366),
                   tel.isNotEmpty ? () async {
-                final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
-                final url = Uri.parse('https://wa.me/90$temiz');
-                if (await canLaunchUrl(url)) {
-                  launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-              } : null),
+                    final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
+                    final url = Uri.parse('https://wa.me/90$temiz');
+                    if (await canLaunchUrl(url)) {
+                      launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  } : null),
               const Spacer(),
               // Aktif toggle
               Switch(
@@ -1291,13 +1291,13 @@ class _SoforKarti extends StatelessWidget {
               ),
               // Düzenle
               IconButton(
-                icon: const Icon(Icons.edit_rounded, color: _navy),
-                onPressed: onDuzenle, tooltip: 'Düzenle'),
+                  icon: const Icon(Icons.edit_rounded, color: _navy),
+                  onPressed: onDuzenle, tooltip: 'Düzenle'),
               // Sil
               IconButton(
-                icon: const Icon(Icons.delete_rounded, color: Colors.red),
-                tooltip: 'Sil',
-                onPressed: () => _silOnay(context, ad)),
+                  icon: const Icon(Icons.delete_rounded, color: Colors.red),
+                  tooltip: 'Sil',
+                  onPressed: () => _silOnay(context, ad)),
             ]),
           ]),
         ),
@@ -1335,8 +1335,8 @@ class _SoforKarti extends StatelessWidget {
             break;
           case 'ogrenci':
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Öğrenci Ata ekranına gidin'),
-                  behavior: SnackBarBehavior.floating));
+                const SnackBar(content: Text('Öğrenci Ata ekranına gidin'),
+                    behavior: SnackBarBehavior.floating));
             break;
           case 'sifre':
             _sifreYenileDialog(context);
@@ -1456,7 +1456,7 @@ class _SoforKarti extends StatelessWidget {
                         seciliServisId = null;
                         seciliAracId   = null;
                         seciliProjeAd  = projeler.firstWhere(
-                            (p) => p['id'] == v, orElse: () => {})['projeAd'] ?? '';
+                                (p) => p['id'] == v, orElse: () => {})['projeAd'] ?? '';
                         servisler      = [];
                         araclar        = [];
                       });
@@ -1509,7 +1509,7 @@ class _SoforKarti extends StatelessWidget {
                         onChanged: (v) => setSt(() {
                           seciliServisId = v;
                           seciliServisAd = servisler.firstWhere(
-                              (s) => s['id'] == v, orElse: () => {})['servisAdi'] ?? '';
+                                  (s) => s['id'] == v, orElse: () => {})['servisAdi'] ?? '';
                         }),
                       ),
                     const SizedBox(height: 14),
@@ -1568,35 +1568,35 @@ class _SoforKarti extends StatelessWidget {
                     onPressed: (seciliProjeId == null || seciliServisId == null)
                         ? null
                         : () async {
-                            final now = FieldValue.serverTimestamp();
-                            await FirebaseFirestore.instance
-                                .collection('drivers').doc(docId).update({
-                              'projeId'    : seciliProjeId,
-                              'projeAd'    : seciliProjeAd,
-                              'servisId'   : seciliServisId,
-                              'servisAd'   : seciliServisAd,
-                              'vehicleId'  : seciliAracId,
-                              'soforDurum' : 'projeyeDahil',
-                              'projeler'   : FieldValue.arrayUnion([seciliProjeAd]),
-                              'updatedAt'  : now,
-                            });
-                            // Araç güncelle
-                            if (seciliAracId != null) {
-                              await FirebaseFirestore.instance
-                                  .collection('vehicles').doc(seciliAracId).update({
-                                'surucuId' : docId,
-                                'durum'    : 'gorevde',
-                                'updatedAt': now,
-                              });
-                            }
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text('$seciliServisAd servisine atandı'),
-                                backgroundColor: Colors.teal,
-                                behavior: SnackBarBehavior.floating));
-                            }
-                          },
+                      final now = FieldValue.serverTimestamp();
+                      await FirebaseFirestore.instance
+                          .collection('drivers').doc(docId).update({
+                        'projeId'    : seciliProjeId,
+                        'projeAd'    : seciliProjeAd,
+                        'servisId'   : seciliServisId,
+                        'servisAd'   : seciliServisAd,
+                        'vehicleId'  : seciliAracId,
+                        'soforDurum' : 'projeyeDahil',
+                        'projeler'   : FieldValue.arrayUnion([seciliProjeAd]),
+                        'updatedAt'  : now,
+                      });
+                      // Araç güncelle
+                      if (seciliAracId != null) {
+                        await FirebaseFirestore.instance
+                            .collection('vehicles').doc(seciliAracId).update({
+                          'surucuId' : docId,
+                          'durum'    : 'gorevde',
+                          'updatedAt': now,
+                        });
+                      }
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('$seciliServisAd servisine atandı'),
+                            backgroundColor: Colors.teal,
+                            behavior: SnackBarBehavior.floating));
+                      }
+                    },
                     icon: const Icon(Icons.check_rounded, size: 18),
                     label: const Text('Servise Ata',
                         style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1642,35 +1642,35 @@ class _SoforKarti extends StatelessWidget {
               onChanged: (v) => setSt(() {
                 seciliProjeId = v;
                 seciliProjeAd = projeler.firstWhere(
-                    (p) => p['id'] == v, orElse: () => {})['projeAd'] ?? '';
+                        (p) => p['id'] == v, orElse: () => {})['projeAd'] ?? '';
               }),
             ),
           ]),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('İptal')),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('İptal')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: _navy, foregroundColor: Colors.white),
-              onPressed: seciliProjeId == null ? null : () async {
-                await FirebaseFirestore.instance
-                    .collection('drivers').doc(docId).update({
-                  'projeId'    : seciliProjeId,
-                  'projeAd'    : seciliProjeAd,
-                  'soforDurum' : 'projeyeDahil',
-                  'projeler'   : FieldValue.arrayUnion([seciliProjeAd]),
-                  'updatedAt'  : FieldValue.serverTimestamp(),
-                });
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('$seciliProjeAd projesine dahil edildi'),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating));
-                }
-              },
-              child: const Text('Dahil Et')),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _navy, foregroundColor: Colors.white),
+                onPressed: seciliProjeId == null ? null : () async {
+                  await FirebaseFirestore.instance
+                      .collection('drivers').doc(docId).update({
+                    'projeId'    : seciliProjeId,
+                    'projeAd'    : seciliProjeAd,
+                    'soforDurum' : 'projeyeDahil',
+                    'projeler'   : FieldValue.arrayUnion([seciliProjeAd]),
+                    'updatedAt'  : FieldValue.serverTimestamp(),
+                  });
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('$seciliProjeAd projesine dahil edildi'),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating));
+                  }
+                },
+                child: const Text('Dahil Et')),
           ],
         ),
       ),
@@ -1698,38 +1698,38 @@ class _SoforKarti extends StatelessWidget {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10)),
               suffixIcon: IconButton(
-                icon: const Icon(Icons.refresh_rounded),
-                onPressed: () =>
-                    yeniSifreCtrl.text = _rastgeleKodStatic()),
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: () =>
+                  yeniSifreCtrl.text = _rastgeleKodStatic()),
             ),
           ),
         ]),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(_),
-            child: const Text('İptal')),
+              onPressed: () => Navigator.pop(_),
+              child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white),
-            onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('drivers').doc(docId).update({
-                'geciciSifre': yeniSifreCtrl.text.trim(),
-                'updatedAt'  : FieldValue.serverTimestamp(),
-              });
-              await FirebaseFirestore.instance
-                  .collection('kullanicilar').doc(docId).update({
-                'sifre': yeniSifreCtrl.text.trim(),
-              });
-              if (_.mounted) Navigator.pop(_);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Şifre güncellendi: ${yeniSifreCtrl.text}'),
-                  backgroundColor: Colors.orange,
-                  behavior: SnackBarBehavior.floating));
-              }
-            },
-            child: const Text('Güncelle')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('drivers').doc(docId).update({
+                  'geciciSifre': yeniSifreCtrl.text.trim(),
+                  'updatedAt'  : FieldValue.serverTimestamp(),
+                });
+                await FirebaseFirestore.instance
+                    .collection('kullanicilar').doc(docId).update({
+                  'sifre': yeniSifreCtrl.text.trim(),
+                });
+                if (_.mounted) Navigator.pop(_);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Şifre güncellendi: ${yeniSifreCtrl.text}'),
+                      backgroundColor: Colors.orange,
+                      behavior: SnackBarBehavior.floating));
+                }
+              },
+              child: const Text('Güncelle')),
         ],
       ),
     );
@@ -1759,31 +1759,31 @@ class _SoforKarti extends StatelessWidget {
         ),
         actions: [
           OutlinedButton.icon(
-            icon: const Icon(Icons.copy_rounded, size: 16),
-            label: const Text('Kopyala'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: mesaj));
-              Navigator.pop(_);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Kopyalandı!'),
-                  backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating));
-            }),
+              icon: const Icon(Icons.copy_rounded, size: 16),
+              label: const Text('Kopyala'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: mesaj));
+                Navigator.pop(_);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Kopyalandı!'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating));
+              }),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF25D366),
-                foregroundColor: Colors.white),
-            onPressed: () async {
-              Navigator.pop(_);
-              final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
-              final url = Uri.parse(
-                  'https://wa.me/90$temiz?text=${Uri.encodeComponent(mesaj)}');
-              if (await canLaunchUrl(url)) {
-                launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-            icon: const Icon(Icons.send_rounded, size: 16),
-            label: const Text('WhatsApp')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white),
+              onPressed: () async {
+                Navigator.pop(_);
+                final temiz = tel.replaceAll(RegExp(r'[^0-9]'), '');
+                final url = Uri.parse(
+                    'https://wa.me/90$temiz?text=${Uri.encodeComponent(mesaj)}');
+                if (await canLaunchUrl(url)) {
+                  launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('WhatsApp')),
         ],
       ),
     );
@@ -1799,13 +1799,13 @@ class _SoforKarti extends StatelessWidget {
         content: Text('$ad silinsin mi? Bu işlem geri alınamaz.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(_, false),
-            child: const Text('İptal')),
+              onPressed: () => Navigator.pop(_, false),
+              child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(_, true),
-            child: const Text('Sil',
-                style: TextStyle(color: Colors.white))),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(_, true),
+              child: const Text('Sil',
+                  style: TextStyle(color: Colors.white))),
         ],
       ),
     );

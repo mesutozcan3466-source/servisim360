@@ -37,7 +37,7 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
     final snap = await FirebaseFirestore.instance
         .collection('students')
         .where('firmaId', isEqualTo: _firmaId)
-          .where('projeId', isEqualTo: _projeId)
+        .where('projeId', isEqualTo: _projeId)
         .where('aktif', isEqualTo: true)
         .get();
 
@@ -154,7 +154,32 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
         backgroundColor: _navy, foregroundColor: Colors.white,
         title: const Text('Yoklama', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          YardimButonu(ekranAdi: 'Sofor Paneli'),IconButton(icon: const Icon(Icons.refresh), onPressed: _yukle)],
+          YardimButonu(ekranAdi: 'Sofor Paneli'),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _yukle),
+          TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              onPressed: () async {
+                if (_ogrenciler.isEmpty) return;
+                final onay = await showDialog<bool>(context: context,
+                    builder: (_) => AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        title: const Text('Hepsini Bindi Yap'),
+                        content: Text('${_ogrenciler.length} ogrenci bindi olarak isaretelsin mi?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Vazgec')),
+                          ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(_, true), child: const Text('Evet')),
+                        ]));
+                if (onay == true && mounted) {
+                  for (final ogr in _ogrenciler) {
+                    await _durumDegistir(ogr['id'] as String, ogr['ad'] ?? '', 'bindi');
+                  }
+                }
+              },
+              icon: const Icon(Icons.done_all_outlined, size: 16),
+              label: const Text('Hepsi', style: TextStyle(fontSize: 12))),
+        ],
       ),
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator(color: _navy))
@@ -195,6 +220,8 @@ class _YoklamaScreenState extends State<YoklamaScreen> {
               final durum   = _durumlar[id];
               final geliyor = durum == null;
 
+              final bindi = durum == 'bindi';
+              final gelmeyecek = durum == 'gelmeyecek';
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

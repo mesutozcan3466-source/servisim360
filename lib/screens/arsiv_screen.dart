@@ -1,7 +1,7 @@
 // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
 // â•‘  DOSYA: lib/screens/arsiv_screen.dart                       â•‘
 // â•‘  Servisim360 â€” Evrak & Belge YÃ¶netim Sistemi                â•‘
-// â•‘  v4 â€” Kategorili, Otomatik, KalÄ±cÄ± Silme Yok               â•‘
+// â•‘  v4 â€” Kategorili, Otomatik, Kalici Silme Yok               â•‘
 // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 import 'package:flutter/material.dart';
 import 'ai_widget.dart';
@@ -24,19 +24,19 @@ class _EvrakKategori {
 }
 
 const List<_EvrakKategori> _kategoriler = [
-  _EvrakKategori('ogrenci', 'Ã–ÄŸrenci EvraklarÄ±', 'ğŸ“', Color(0xFF2196F3), [
+  _EvrakKategori('ogrenci', 'Ã–ÄŸrenci Evraklari', 'ğŸ“', Color(0xFF2196F3), [
     'KayÄ±t Formu', 'SÃ¶zleÅŸme', 'Kimlik Fotokopisi', 'Ä°kametgah', 'FotoÄŸraf', 'DiÄŸer'
   ]),
-  _EvrakKategori('sofor', 'ÅofÃ¶r EvraklarÄ±', 'ğŸš—', Color(0xFF4CAF50), [
+  _EvrakKategori('sofor', 'ÅofÃ¶r Evraklari', 'ğŸš—', Color(0xFF4CAF50), [
     'Ehliyet', 'SRC Belgesi', 'Psikoteknik', 'Adli Sicil', 'Kimlik', 'SaÄŸlÄ±k Raporu', 'DiÄŸer'
   ]),
-  _EvrakKategori('arac', 'AraÃ§ EvraklarÄ±', 'ğŸšŒ', Color(0xFFFF9800), [
+  _EvrakKategori('arac', 'Arac Evraklari', 'ğŸšŒ', Color(0xFFFF9800), [
     'Ruhsat', 'Sigorta', 'Kasko', 'Muayene', 'Trafik Belgesi', 'DiÄŸer'
   ]),
-  _EvrakKategori('firma', 'Firma EvraklarÄ±', 'ğŸ¢', Color(0xFF9C27B0), [
+  _EvrakKategori('firma', 'Firma Evraklari', 'ğŸ¢', Color(0xFF9C27B0), [
     'Vergi LevhasÄ±', 'Yetki Belgesi', 'TaÅŸÄ±ma Ä°zni', 'Ticaret Sicil', 'Ä°mza SirkÃ¼leri', 'DiÄŸer'
   ]),
-  _EvrakKategori('sozlesme', 'SÃ¶zleÅŸmeler', 'ğŸ“„', Color(0xFF1a3a6b), [
+  _EvrakKategori('sozlesme', 'Sozlesmeler', 'ğŸ“„', Color(0xFF1a3a6b), [
     'Ã–ÄŸrenci SÃ¶zleÅŸmesi', 'Personel SÃ¶zleÅŸmesi', 'Turizm SÃ¶zleÅŸmesi', 'Hizmet SÃ¶zleÅŸmesi', 'DiÄŸer'
   ]),
   _EvrakKategori('sistem', 'Sistem Belgeleri', 'ğŸ’¾', Color(0xFF607D8B), [
@@ -241,7 +241,7 @@ class _ArsivScreenState extends State<ArsivScreen> {
           autofocus: true,
           decoration: const InputDecoration(
             labelText: 'KlasÃ¶r AdÄ±',
-            hintText: 'Ã–rn: 2026 Ã–ÄŸrenci EvraklarÄ±',
+            hintText: 'Ã–rn: 2026 Ã–ÄŸrenci Evraklari',
             prefixIcon: Icon(Icons.folder_outlined),
             border: OutlineInputBorder(),
           ),
@@ -298,73 +298,73 @@ class _ArsivScreenState extends State<ArsivScreen> {
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator())
           : Column(children: [
-              // Ãœst bar
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.all(14),
-                child: Row(children: [
-                  // Arama
-                  Expanded(child: TextField(
-                    controller: _aramaCtrl,
-                    onChanged: (v) => setState(() => _arama = v.toLowerCase()),
-                    decoration: InputDecoration(
-                      hintText: 'Dosya adÄ±, kiÅŸi adÄ± ara...',
-                      prefixIcon: const Icon(Icons.search_rounded, color: _navy, size: 18),
-                      suffixIcon: _arama.isNotEmpty
-                          ? IconButton(icon: const Icon(Icons.clear_rounded, size: 16),
-                              onPressed: () { _aramaCtrl.clear(); setState(() => _arama = ''); })
-                          : null,
-                      filled: true, fillColor: const Color(0xFFF5F7FA),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none),
-                      isDense: true,
-                    ),
-                  )),
-                  const SizedBox(width: 10),
-                  // Pasif filtre
-                  FilterChip(
-                    label: const Text('Pasifler', style: TextStyle(fontSize: 12)),
-                    selected: _sadecePasif,
-                    onSelected: (v) => setState(() => _sadecePasif = v),
-                    selectedColor: Colors.orange.shade100,
-                  ),
-                  const SizedBox(width: 10),
-                  // YÃ¼kle butonu
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: _turuncu, foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                    onPressed: _dosyaYukle,
-                    icon: const Icon(Icons.upload_file_rounded, size: 16),
-                    label: const Text('Dosya YÃ¼kle', style: TextStyle(fontSize: 12)),
-                  ),
-                ]),
+        // Ãœst bar
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(14),
+          child: Row(children: [
+            // Arama
+            Expanded(child: TextField(
+              controller: _aramaCtrl,
+              onChanged: (v) => setState(() => _arama = v.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Dosya adÄ±, kiÅŸi adÄ± ara...',
+                prefixIcon: const Icon(Icons.search_rounded, color: _navy, size: 18),
+                suffixIcon: _arama.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear_rounded, size: 16),
+                    onPressed: () { _aramaCtrl.clear(); setState(() => _arama = ''); })
+                    : null,
+                filled: true, fillColor: const Color(0xFFF5F7FA),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+                isDense: true,
               ),
+            )),
+            const SizedBox(width: 10),
+            // Pasif filtre
+            FilterChip(
+              label: const Text('Pasifler', style: TextStyle(fontSize: 12)),
+              selected: _sadecePasif,
+              onSelected: (v) => setState(() => _sadecePasif = v),
+              selectedColor: Colors.orange.shade100,
+            ),
+            const SizedBox(width: 10),
+            // YÃ¼kle butonu
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _turuncu, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: _dosyaYukle,
+              icon: const Icon(Icons.upload_file_rounded, size: 16),
+              label: const Text('Dosya YÃ¼kle', style: TextStyle(fontSize: 12)),
+            ),
+          ]),
+        ),
 
-              // Kategori filtreleri
-              Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: [
-                    _katBtn('tumu', 'ğŸ“ TÃ¼mÃ¼', Colors.grey),
-                    ...  _kategoriler.map((k) => _katBtn(k.id, '${k.ikon} ${k.ad}', k.renk)),
-                  ]),
-                ),
-              ),
-
-              const Divider(height: 1),
-
-              // Ä°Ã§erik
-              Expanded(child: Row(children: [
-                // Sol â€” KlasÃ¶rler
-                _buildKlasorPanel(),
-                const VerticalDivider(width: 1),
-                // SaÄŸ â€” Dosyalar
-                Expanded(child: _buildDosyaListesi()),
-              ])),
+        // Kategori filtreleri
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _katBtn('tumu', 'ğŸ“ TÃ¼mÃ¼', Colors.grey),
+              ...  _kategoriler.map((k) => _katBtn(k.id, '${k.ikon} ${k.ad}', k.renk)),
             ]),
+          ),
+        ),
+
+        const Divider(height: 1),
+
+        // Ä°Ã§erik
+        Expanded(child: Row(children: [
+          // Sol â€” KlasÃ¶rler
+          _buildKlasorPanel(),
+          const VerticalDivider(width: 1),
+          // SaÄŸ â€” Dosyalar
+          Expanded(child: _buildDosyaListesi()),
+        ])),
+      ]),
     );
   }
 
@@ -488,8 +488,8 @@ class _ArsivScreenState extends State<ArsivScreen> {
           docs = docs.where((d) {
             final data = d.data() as Map<String, dynamic>;
             return (data['dosyaAdi'] ?? '').toLowerCase().contains(_arama) ||
-                   (data['iliskiAd'] ?? '').toLowerCase().contains(_arama) ||
-                   (data['altTur']   ?? '').toLowerCase().contains(_arama);
+                (data['iliskiAd'] ?? '').toLowerCase().contains(_arama) ||
+                (data['altTur']   ?? '').toLowerCase().contains(_arama);
           }).toList();
         }
 
@@ -571,8 +571,8 @@ class _ArsivScreenState extends State<ArsivScreen> {
           Text('Pasife Al'),
         ]),
         content: const Text(
-            'Belge pasife alÄ±nacak. KalÄ±cÄ± olarak silinmeyecek, '
-            '"Pasifler" filtresinden eriÅŸebilirsiniz.'),
+            'Belge pasife alÄ±nacak. Kalici olarak silinmeyecek, '
+                '"Pasifler" filtresinden eriÅŸebilirsiniz.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Ä°ptal')),
           ElevatedButton(
