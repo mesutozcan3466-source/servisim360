@@ -79,6 +79,8 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
 
       if (_superAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_panel');
+      } else if (rol == 'kolejAdmin') {               // ← YENİ
+        Navigator.pushReplacementNamed(context, '/web_kolej');
       } else if (_firmaAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_admin');
       } else if (rol == 'sofor' || rol == 'bireyselSofor') {
@@ -98,8 +100,8 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
   bool _superAdminMi(String r) =>
       r == 'superAdmin' || r == 'superadmin' || r == 'super_admin';
   bool _firmaAdminMi(String r) =>
-      r == 'firmaAdmin' || r == 'admin' || r == 'kolejAdmin' ||
-          r == 'firma_admin' || r == 'sekreter';
+      r == 'firmaAdmin' || r == 'admin' ||
+          r == 'firma_admin' || r == 'sekreter';   // kolejAdmin buradan çıktı
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +175,8 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
 
       if (_superAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_panel');
+      } else if (rol == 'kolejAdmin') {               // ← YENİ
+        Navigator.pushReplacementNamed(context, '/web_kolej');
       } else if (_firmaAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_admin');
       } else if (rol == 'sofor' || rol == 'bireyselSofor') {
@@ -208,8 +212,8 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
   bool _superAdminMi(String r) =>
       r == 'superAdmin' || r == 'superadmin' || r == 'super_admin';
   bool _firmaAdminMi(String r) =>
-      r == 'firmaAdmin' || r == 'admin' || r == 'kolejAdmin' ||
-          r == 'firma_admin' || r == 'sekreter';
+      r == 'firmaAdmin' || r == 'admin' ||
+          r == 'firma_admin' || r == 'sekreter';   // kolejAdmin buradan çıktı
 
   @override
   Widget build(BuildContext context) {
@@ -332,6 +336,8 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                   const SizedBox(height: 6),
                   _rolBilgiSatir(Icons.admin_panel_settings_outlined,
                       'Firma Admin', 'Tam yonetim paneli', _navy),
+                  _rolBilgiSatir(Icons.school_outlined,          // ← YENİ
+                      'Kolej Admin', 'Servis takip paneli', Colors.blue),
                   _rolBilgiSatir(Icons.directions_bus_outlined,
                       'Sofor', 'Servis paneli', Colors.teal),
                   _rolBilgiSatir(Icons.family_restroom_outlined,

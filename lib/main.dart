@@ -26,6 +26,7 @@ import 'screens/web_ayarlar.dart';
 import 'screens/web_super_admin.dart';
 import 'screens/web_sofor_panel.dart';
 import 'screens/web_veli_panel.dart';
+import 'screens/web_kolej_panel.dart';              // ← YENİ
 
 // ── Dashboard & Yönlendirme ──────────────────────────────────────
 import 'screens/dashboard_screen.dart';
@@ -186,6 +187,7 @@ class Servisim360App extends StatelessWidget {
     '/web_sofor':  (_) => const WebSoforPanel(),
     '/web_veli_panel': (_) => const WebVeliPanel(),
     '/web_ayarlar': (_) => const WebAyarlar(),
+    '/web_kolej':  (_) => const WebKolejPanel(),          // ← YENİ
 
     // ── Dashboard & Proje Seç ────────────────────────────────────
     '/dashboard':  (_) => const DashboardScreen(),
@@ -198,7 +200,6 @@ class Servisim360App extends StatelessWidget {
     '/suruculer':  (_) => const SurucularScreen(),
     '/surucu_ekrani':(_)=> const SurucuEkraniScreen(),
     '/yoklama':    (_) => const YoklamaScreen(),
-    // '/sofor_rota' → parametre gerektiriyor, Navigator.push ile çağrılmalı
 
     // ── Veli Paneli ──────────────────────────────────────────────
     '/veli_panel': (_) => const VeliPanelScreen(),
