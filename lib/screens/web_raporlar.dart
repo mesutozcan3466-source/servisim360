@@ -18,6 +18,7 @@ class _WebRaporlarState extends State<WebRaporlar> {
   bool _yukleniyor = true;
   int _ogrenciSayi = 0, _soforSayi = 0, _devamsizlikSayi = 0, _aktifServis = 0;
   double _toplamGelir = 0;
+  int _kayitYuzYuze=0, _kayitLink=0, _kayitQr=0, _kayitAfis=0;
   Map<String, int> _gunlukDevamsizlik = {};
   Map<String, int> _soforDoluluk = {};
   String _firmaId = '';
@@ -96,6 +97,20 @@ class _WebRaporlarState extends State<WebRaporlar> {
       }
       _toplamGelir = g;
     } catch (_) {}
+    // Kayit kaynagi
+    try {
+      final kSnap = await FirebaseFirestore.instance
+          .collection('kayit_basvurulari').where('firmaId', isEqualTo: _firmaId).get();
+      int yy=0, ll=0, qr=0, af=0;
+      for (final d in kSnap.docs) {
+        final t = (d.data()['kayitTuru'] ?? '').toString();
+        if (t=='yuzYuze') yy++;
+        else if (t=='link') ll++;
+        else if (t=='qr') qr++;
+        else if (t=='afis') af++;
+      }
+      _kayitYuzYuze=yy; _kayitLink=ll; _kayitQr=qr; _kayitAfis=af;
+    } catch (_) {}
     if (mounted) setState(() => _yukleniyor = false);
   }
 
@@ -111,6 +126,38 @@ class _WebRaporlarState extends State<WebRaporlar> {
           Text('Raporu Dışa Aktar'),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha:0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.withValues(alpha:0.2))),
+              child: Row(children: [
+                const Icon(Icons.table_chart_outlined, color: Colors.green, size: 20),
+                const SizedBox(width: 10),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Excel / CSV Olarak Aktar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text('Ogrenci, Sofor, Devamsizlik verileri', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ])),
+                TextButton(onPressed: null, child: Text('Yakin', style: TextStyle(color: Colors.green))),
+              ])),
+          Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha:0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.withValues(alpha:0.2))),
+              child: Row(children: [
+                const Icon(Icons.picture_as_pdf_outlined, color: Colors.red, size: 20),
+                const SizedBox(width: 10),
+                const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('PDF Olarak Aktar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text('Ozet rapor PDF formatinda', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ])),
+                TextButton(onPressed: null, child: Text('Yakin', style: TextStyle(color: Colors.red))),
+              ])),
+          const SizedBox(height: 8),
           _disaBtn(Icons.people_outlined,          Colors.blue,   'Öğrenci Listesi',    _ogrenciListesiKopyala),
           const SizedBox(height: 8),
           _disaBtn(Icons.directions_car_outlined,  _navy,         'Şoför Listesi',      _soforListesiKopyala),
@@ -295,6 +342,27 @@ class _WebRaporlarState extends State<WebRaporlar> {
           _RaporKart('Aylik Gelir','${_toplamGelir.toStringAsFixed(0)} TL',Icons.payments_outlined,Colors.teal),
         ]),
 
+        const SizedBox(height: 20),
+
+        // Kayıt Kaynağı Raporu
+        Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius:6)]),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Kayit Kaynagi Raporu',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+              const SizedBox(height: 12),
+              Row(children: [
+                _RaporKart('Yuz Yuze', '$_kayitYuzYuze', Icons.person_outlined, Colors.blue),
+                const SizedBox(width: 10),
+                _RaporKart('Link', '$_kayitLink', Icons.link_outlined, Colors.purple),
+                const SizedBox(width: 10),
+                _RaporKart('QR', '$_kayitQr', Icons.qr_code_outlined, Colors.teal),
+                const SizedBox(width: 10),
+                _RaporKart('Afis', '$_kayitAfis', Icons.campaign_outlined, Colors.orange),
+              ]),
+            ])),
         const SizedBox(height: 20),
 
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

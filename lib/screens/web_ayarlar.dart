@@ -173,6 +173,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
           _sekmeBtn(4, Icons.folder_outlined,         'Proje Ayarlari'),
           _sekmeBtn(5, Icons.map_outlined,            'Harita Ayarlari'),
           _sekmeBtn(6, Icons.manage_accounts_outlined,'Kullanici Yonetimi'),
+          _sekmeBtn(7, Icons.backup_outlined,             'Yedekleme'),
+          _sekmeBtn(8, Icons.archive_outlined,            'Arsiv Ayarlari'),
+          _sekmeBtn(9, Icons.security_outlined,           'Guvenlik'),
         ]),
       ),
       const VerticalDivider(width: 1),
@@ -185,6 +188,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
         _projeAyarlariTab(),
         _haritaAyarlariTab(),
         _kullaniciYonetimiTab(),
+        _yedeklemeTab(),
+        _arsivAyarlariTab(),
+        _guvenlikTab(),
       ][_sekme]),
     ]);
   }
@@ -684,4 +690,149 @@ class _WebAyarlarState extends State<WebAyarlar> {
           isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
       );
+  // ── Yedekleme ───────────────────────────────────────────
+  Widget _yedeklemeTab() {
+    return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Yedekleme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _navy)),
+      const SizedBox(height: 16),
+      Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius:5)]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Manuel Yedek Al', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            const Text('Tum verilerinizi JSON formatinda disa aktarin.',
+                style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 12),
+            Row(children: [
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Yedekleme baslatildi...'),
+                        backgroundColor: Colors.green, behavior: SnackBarBehavior.floating)),
+                icon: const Icon(Icons.backup_outlined, size: 18),
+                label: const Text('Yedek Al'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(foregroundColor: _navy,
+                    side: const BorderSide(color: Color(0xFF1a3a6b)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                onPressed: null,
+                icon: const Icon(Icons.restore_outlined, size: 18),
+                label: const Text('Yedekten Yukle'),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 12),
+            const Text('Otomatik Yedekleme', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            const SizedBox(height: 8),
+            ...[('Gunluk Yedekleme', true), ('Haftalik Yedekleme', false),
+              ('Bulut Yedekleme', true)].map((item) =>
+                SwitchListTile(
+                  dense: true, value: item.$2,
+                  onChanged: (_) {},
+                  title: Text(item.$1),
+                  activeColor: _navy,
+                )),
+          ])),
+    ]));
+  }
+
+  // ── Arşiv Ayarları ────────────────────────────────────────
+  Widget _arsivAyarlariTab() {
+    return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Arsiv Ayarlari', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _navy)),
+      const SizedBox(height: 16),
+      Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius:5)]),
+          child: Column(children: [
+            ...[
+              ('Ogrenci Arsivleme Suresi', '3 Yil'),
+              ('Veli Arsivleme Suresi', '3 Yil'),
+              ('Sozlesme Arsivleme Suresi', '5 Yil'),
+              ('Rapor Arsivleme Suresi', '2 Yil'),
+              ('Devamsizlik Arsivleme', '1 Yil'),
+            ].map((item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(children: [
+                  const Icon(Icons.archive_outlined, size: 16, color: Color(0xFF1a3a6b)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(item.$1, style: const TextStyle(fontSize: 13))),
+                  Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF1a3a6b).withValues(alpha:0.08),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text(item.$2, style: const TextStyle(
+                          fontWeight: FontWeight.bold, color: Color(0xFF1a3a6b), fontSize: 12))),
+                ]))),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Arsiv ayarlari kaydedildi'),
+                      behavior: SnackBarBehavior.floating)),
+              icon: const Icon(Icons.save_outlined, size: 18),
+              label: const Text('Ayarlari Kaydet'),
+            ),
+          ])),
+    ]));
+  }
+
+  // ── Güvenlik ──────────────────────────────────────────────
+  Widget _guvenlikTab() {
+    return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Guvenlik', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _navy)),
+      const SizedBox(height: 16),
+      // Son girişler
+      Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius:5)]),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Son Girisler', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1a3a6b))),
+            const SizedBox(height: 10),
+            StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('giris_loglari')
+                    .where('firmaId', isEqualTo: _firmaId)
+                    .orderBy('tarih', descending: true)
+                    .limit(20)
+                    .snapshots(),
+                builder: (_, snap) {
+                  final docs = snap.data?.docs ?? [];
+                  if (docs.isEmpty) return const Text('Giris kaydi bulunamadi.',
+                      style: TextStyle(color: Colors.grey, fontSize: 13));
+                  return Column(children: docs.map((d) {
+                    final dd = d.data() as Map<String,dynamic>;
+                    final normal = (dd['supheliGiris'] ?? false) != true;
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(normal ? Icons.check_circle_outline : Icons.warning_outlined,
+                          color: normal ? Colors.green : Colors.red, size: 18),
+                      title: Text(dd['kullanici'] ?? dd['email'] ?? '',
+                          style: const TextStyle(fontSize: 13)),
+                      subtitle: Text(dd['tarih']?.toString().substring(0,16) ?? '',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      trailing: Text(dd['ip'] ?? '',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    );
+                  }).toList());
+                }),
+          ])),
+    ]));
+  }
+
+
+
 }

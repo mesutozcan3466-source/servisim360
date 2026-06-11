@@ -375,16 +375,16 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
           Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
-              _sistemAktif ? 'Sistem Aktif' : 'Sistem Pasif',
-              style: TextStyle(fontWeight: FontWeight.bold,
-                  color: _sistemAktif ? Colors.green : Colors.grey)),
+                _sistemAktif ? 'Sistem Aktif' : 'Sistem Pasif',
+                style: TextStyle(fontWeight: FontWeight.bold,
+                    color: _sistemAktif ? Colors.green : Colors.grey)),
             Text(
-              _sistemAktif
-                  ? 'Plaka kamerası bağlı ve dinleniyor'
-                  : 'Aktif etmek için sağ üstteki butonu kullanın',
-              style: TextStyle(fontSize: 11,
-                  color: _sistemAktif
-                      ? Colors.green.shade700 : Colors.grey)),
+                _sistemAktif
+                    ? 'Plaka kamerası bağlı ve dinleniyor'
+                    : 'Aktif etmek için sağ üstteki butonu kullanın',
+                style: TextStyle(fontSize: 11,
+                    color: _sistemAktif
+                        ? Colors.green.shade700 : Colors.grey)),
           ])),
           Switch(
             value: _sistemAktif,
@@ -405,63 +405,63 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
                 blurRadius: 8)]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          const Row(children: [
-            Icon(Icons.car_crash_outlined, color: Color(0xFF1a3a6b), size: 18),
-            SizedBox(width: 8),
-            Text('Manuel Plaka Girişi',
-                style: TextStyle(fontWeight: FontWeight.bold,
-                    fontSize: 14, color: Color(0xFF1a3a6b))),
-          ]),
-          const SizedBox(height: 4),
-          const Text('Kamera API bağlandığında otomatik çalışacak',
-              style: TextStyle(color: Colors.grey, fontSize: 11)),
-          const SizedBox(height: 14),
+              const Row(children: [
+                Icon(Icons.car_crash_outlined, color: Color(0xFF1a3a6b), size: 18),
+                SizedBox(width: 8),
+                Text('Manuel Plaka Girişi',
+                    style: TextStyle(fontWeight: FontWeight.bold,
+                        fontSize: 14, color: Color(0xFF1a3a6b))),
+              ]),
+              const SizedBox(height: 4),
+              const Text('Kamera API bağlandığında otomatik çalışacak',
+                  style: TextStyle(color: Colors.grey, fontSize: 11)),
+              const SizedBox(height: 14),
 
-          TextField(
-            controller: _plakaCtrl,
-            textCapitalization: TextCapitalization.characters,
-            style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.bold,
-                letterSpacing: 4),
-            textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              hintText: '34 ABC 123',
-              hintStyle: TextStyle(color: Colors.grey[300],
-                  letterSpacing: 4, fontSize: 20),
-              prefixIcon: const Icon(Icons.directions_car_outlined,
-                  color: Color(0xFF1a3a6b)),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                      color: Color(0xFF1a3a6b))),
-              focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                      color: Color(0xFF1a3a6b), width: 2)),
-            ),
-          ),
-          const SizedBox(height: 12),
+              TextField(
+                controller: _plakaCtrl,
+                textCapitalization: TextCapitalization.characters,
+                style: const TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold,
+                    letterSpacing: 4),
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  hintText: '34 ABC 123',
+                  hintStyle: TextStyle(color: Colors.grey[300],
+                      letterSpacing: 4, fontSize: 20),
+                  prefixIcon: const Icon(Icons.directions_car_outlined,
+                      color: Color(0xFF1a3a6b)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: Color(0xFF1a3a6b))),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: Color(0xFF1a3a6b), width: 2)),
+                ),
+              ),
+              const SizedBox(height: 12),
 
-          SizedBox(width: double.infinity, child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1a3a6b),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12))),
-            onPressed: _taniniyor
-                ? null
-                : () => _plakaTani(_plakaCtrl.text),
-            icon: _taniniyor
-                ? const SizedBox(width: 18, height: 18,
+              SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1a3a6b),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                onPressed: _taniniyor
+                    ? null
+                    : () => _plakaTani(_plakaCtrl.text),
+                icon: _taniniyor
+                    ? const SizedBox(width: 18, height: 18,
                     child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.search_rounded),
-            label: Text(_taniniyor ? 'Tanınıyor...' : 'Plakayı Tanı',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 15)),
-          )),
-        ]),
+                    : const Icon(Icons.search_rounded),
+                label: Text(_taniniyor ? 'Tanınıyor...' : 'Plakayı Tanı',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15)),
+              )),
+            ]),
       ),
       const SizedBox(height: 16),
 
@@ -478,78 +478,78 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
                   blurRadius: 6)]),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-            Row(children: [
-              const Icon(Icons.directions_bus_outlined,
-                  color: Color(0xFF1a3a6b), size: 18),
-              const SizedBox(width: 8),
-              Expanded(child: Text(
-                _projeAdi.isNotEmpty
-                    ? '$_projeAdi — Kayıtlı Araçlar'
-                    : 'Projede Kayıtlı Araçlar',
-                style: const TextStyle(fontWeight: FontWeight.bold,
-                    fontSize: 14, color: Color(0xFF1a3a6b)))),
-              Text('${_projeAraclari.length} araç',
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey[500])),
-            ]),
-            const Divider(height: 14),
-            ..._projeAraclari.map((a) {
-              final plaka   = a['plaka'] ?? '-';
-              final soforAd = a['adSoyad'] ?? a['ad'] ?? '-';
-              final projeAd = a['projeAdi'] ?? '';
-              return GestureDetector(
-                onTap: () {
-                  _plakaCtrl.text = plaka;
-                  _plakaTani(plaka);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.grey.shade200)),
-                  child: Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                Row(children: [
+                  const Icon(Icons.directions_bus_outlined,
+                      color: Color(0xFF1a3a6b), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                      _projeAdi.isNotEmpty
+                          ? '$_projeAdi — Kayıtlı Araçlar'
+                          : 'Projede Kayıtlı Araçlar',
+                      style: const TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 14, color: Color(0xFF1a3a6b)))),
+                  Text('${_projeAraclari.length} araç',
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey[500])),
+                ]),
+                const Divider(height: 14),
+                ..._projeAraclari.map((a) {
+                  final plaka   = a['plaka'] ?? '-';
+                  final soforAd = a['adSoyad'] ?? a['ad'] ?? '-';
+                  final projeAd = a['projeAdi'] ?? '';
+                  return GestureDetector(
+                    onTap: () {
+                      _plakaCtrl.text = plaka;
+                      _plakaTani(plaka);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: const Color(0xFF1a3a6b),
-                          borderRadius: BorderRadius.circular(6)),
-                      child: Text(plaka,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13, letterSpacing: 2)),
+                          color: const Color(0xFFF5F7FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.grey.shade200)),
+                      child: Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFF1a3a6b),
+                              borderRadius: BorderRadius.circular(6)),
+                          child: Text(plaka,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13, letterSpacing: 2)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(soforAd, style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 13)),
+                              if (projeAd.isNotEmpty)
+                                Text(projeAd, style: TextStyle(
+                                    fontSize: 11, color: Colors.grey[500])),
+                            ])),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFFF8C00)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6)),
+                          child: const Text('Giriş Yap',
+                              style: TextStyle(fontSize: 11,
+                                  color: Color(0xFFFF8C00),
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ]),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(soforAd, style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 13)),
-                      if (projeAd.isNotEmpty)
-                        Text(projeAd, style: TextStyle(
-                            fontSize: 11, color: Colors.grey[500])),
-                    ])),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFFF8C00)
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6)),
-                      child: const Text('Giriş Yap',
-                          style: TextStyle(fontSize: 11,
-                              color: Color(0xFFFF8C00),
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ]),
-                ),
-              );
-            }),
-          ]),
+                  );
+                }),
+              ]),
         ),
       ],
 
@@ -562,30 +562,30 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
             border: Border.all(color: Colors.blue.shade200)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          const Row(children: [
-            Icon(Icons.info_outline, color: Colors.blue, size: 16),
-            SizedBox(width: 8),
-            Text('Kamera API Entegrasyonu',
-                style: TextStyle(fontWeight: FontWeight.bold,
-                    color: Colors.blue, fontSize: 13)),
-          ]),
-          const SizedBox(height: 8),
-          ...[
-            'Hikvision, Dahua veya herhangi bir IP kamera',
-            'OpenALPR veya özel plaka tanıma API',
-            'Webhook ile Servisim360\'a gönderim',
-            'Gerçek zamanlı plaka eşleştirme',
-          ].map((m) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(children: [
-              const Icon(Icons.check_circle_outline,
-                  color: Colors.blue, size: 13),
-              const SizedBox(width: 6),
-              Text(m, style: const TextStyle(
-                  fontSize: 11, color: Colors.blue)),
+              const Row(children: [
+                Icon(Icons.info_outline, color: Colors.blue, size: 16),
+                SizedBox(width: 8),
+                Text('Kamera API Entegrasyonu',
+                    style: TextStyle(fontWeight: FontWeight.bold,
+                        color: Colors.blue, fontSize: 13)),
+              ]),
+              const SizedBox(height: 8),
+              ...[
+                'Hikvision, Dahua veya herhangi bir IP kamera',
+                'OpenALPR veya özel plaka tanıma API',
+                'Webhook ile Servisim360\'a gönderim',
+                'Gerçek zamanlı plaka eşleştirme',
+              ].map((m) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(children: [
+                  const Icon(Icons.check_circle_outline,
+                      color: Colors.blue, size: 13),
+                  const SizedBox(width: 6),
+                  Text(m, style: const TextStyle(
+                      fontSize: 11, color: Colors.blue)),
+                ]),
+              )),
             ]),
-          )),
-        ]),
       ),
     ]),
   );
@@ -641,11 +641,11 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
                           : Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8)),
                   child: Icon(
-                    yetkisiz
-                        ? Icons.warning_amber_outlined
-                        : Icons.check_circle_outline,
-                    color: yetkisiz ? Colors.red : Colors.green,
-                    size: 22),
+                      yetkisiz
+                          ? Icons.warning_amber_outlined
+                          : Icons.check_circle_outline,
+                      color: yetkisiz ? Colors.red : Colors.green,
+                      size: 22),
                 ),
                 title: Row(children: [
                   Text(d['plaka'] ?? '-',
@@ -665,20 +665,20 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
                                 fontWeight: FontWeight.bold))),
                 ]),
                 subtitle: Text(
-                  '${d['surucuAd'] ?? 'Bilinmiyor'}'
-                  '${(d['projeAdi'] ?? '').isNotEmpty ? " • ${d['projeAdi']}" : ""}',
-                  style: const TextStyle(fontSize: 11)),
+                    '${d['surucuAd'] ?? 'Bilinmiyor'}'
+                        '${(d['projeAdi'] ?? '').isNotEmpty ? " • ${d['projeAdi']}" : ""}',
+                    style: const TextStyle(fontSize: 11)),
                 trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                  Text(d['girisSaatiStr'] ?? '-',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text(d['gun'] ?? '-',
-                      style: TextStyle(
-                          fontSize: 10, color: Colors.grey[500])),
-                ]),
+                      Text(d['girisSaatiStr'] ?? '-',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text(d['gun'] ?? '-',
+                          style: TextStyle(
+                              fontSize: 10, color: Colors.grey[500])),
+                    ]),
               ),
             );
           },
@@ -721,9 +721,9 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.blue.shade200)),
             child: const Text(
-              'Her şoförün okula varış geçmişi analizi. '
-              'Hedef saat ayarları Ayarlar\'dan yapılabilir.',
-              style: TextStyle(fontSize: 12, color: Colors.blue)),
+                'Her şoförün okula varış geçmişi analizi. '
+                    'Hedef saat ayarları Ayarlar\'dan yapılabilir.',
+                style: TextStyle(fontSize: 12, color: Colors.blue)),
           ),
           ...soforGirisler.entries.map((e) {
             final girisler = e.value;
@@ -736,38 +736,38 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Row(children: [
-                    const Icon(Icons.person_outlined,
-                        color: _navy, size: 18),
-                    const SizedBox(width: 8),
-                    Text(e.key, style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14, color: _navy)),
-                    const Spacer(),
-                    Text('${girisler.length} giriş',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey[500])),
-                  ]),
-                  const Divider(height: 12),
-                  ...girisler.take(5).map((g) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(children: [
-                      Text(g['gun'] ?? '-',
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w500,
-                              color: _navy),
-                          softWrap: false),
-                      const SizedBox(width: 12),
-                      Text(g['girisSaatiStr'] ?? '-',
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      // Hedef: 08:00 — basit gecikme gösterimi
-                      _gecikmeRozeti(g['girisSaatiStr'] ?? '08:00'),
+                      Row(children: [
+                        const Icon(Icons.person_outlined,
+                            color: _navy, size: 18),
+                        const SizedBox(width: 8),
+                        Text(e.key, style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14, color: _navy)),
+                        const Spacer(),
+                        Text('${girisler.length} giriş',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[500])),
+                      ]),
+                      const Divider(height: 12),
+                      ...girisler.take(5).map((g) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(children: [
+                          Text(g['gun'] ?? '-',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w500,
+                                  color: _navy),
+                              softWrap: false),
+                          const SizedBox(width: 12),
+                          Text(g['girisSaatiStr'] ?? '-',
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(width: 8),
+                          // Hedef: 08:00 — basit gecikme gösterimi
+                          _gecikmeRozeti(g['girisSaatiStr'] ?? '08:00'),
+                        ]),
+                      )),
                     ]),
-                  )),
-                ]),
               ),
             );
           }),
@@ -832,61 +832,61 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
             Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              Text(docs.isNotEmpty
-                  ? '${docs.length} Yetkisiz Giriş Denemesi'
-                  : 'Güvenlik Temiz',
-                  style: TextStyle(fontWeight: FontWeight.bold,
-                      color: docs.isNotEmpty
-                          ? Colors.red : Colors.green)),
-              Text(docs.isNotEmpty
-                  ? 'Kayıtlı olmayan araç giriş yapmak istedi'
-                  : 'Yetkisiz araç girişi tespit edilmedi',
-                  style: TextStyle(fontSize: 11,
-                      color: docs.isNotEmpty
-                          ? Colors.red.shade700 : Colors.green.shade700)),
-            ])),
+                  Text(docs.isNotEmpty
+                      ? '${docs.length} Yetkisiz Giriş Denemesi'
+                      : 'Güvenlik Temiz',
+                      style: TextStyle(fontWeight: FontWeight.bold,
+                          color: docs.isNotEmpty
+                              ? Colors.red : Colors.green)),
+                  Text(docs.isNotEmpty
+                      ? 'Kayıtlı olmayan araç giriş yapmak istedi'
+                      : 'Yetkisiz araç girişi tespit edilmedi',
+                      style: TextStyle(fontSize: 11,
+                          color: docs.isNotEmpty
+                              ? Colors.red.shade700 : Colors.green.shade700)),
+                ])),
           ]),
         ),
         Expanded(child: docs.isEmpty
             ? Center(child: Column(
-                mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.shield_outlined, size: 64, color: Colors.grey[300]),
-              const SizedBox(height: 12),
-              const Text('Yetkisiz giriş kaydı yok',
-                  style: TextStyle(color: Colors.grey, fontSize: 15)),
-            ]))
+            mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.shield_outlined, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          const Text('Yetkisiz giriş kaydı yok',
+              style: TextStyle(color: Colors.grey, fontSize: 15)),
+        ]))
             : ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                itemCount: docs.length,
-                itemBuilder: (_, i) {
-                  final d = docs[i].data() as Map<String, dynamic>;
-                  return Card(
-                    color: Colors.red.shade50,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: Colors.red.shade200)),
-                    child: ListTile(
-                      leading: const Icon(Icons.no_crash_outlined,
-                          color: Colors.red, size: 28),
-                      title: Text(d['plaka'] ?? '-',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16, color: Colors.red,
-                              letterSpacing: 2)),
-                      subtitle: Text(
-                          'Tanınmayan araç • ${d['girisSaatiStr'] ?? ''} ${d['gun'] ?? ''}',
-                          style: const TextStyle(fontSize: 11)),
-                      trailing: IconButton(
-                          icon: const Icon(Icons.add_circle_outline,
-                              color: Colors.green),
-                          tooltip: 'Sisteme Ekle',
-                          onPressed: () => _snack(
-                              'Plakayı Araçlar menüsünden ekleyin')),
-                    ),
-                  );
-                },
-              )),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          itemCount: docs.length,
+          itemBuilder: (_, i) {
+            final d = docs[i].data() as Map<String, dynamic>;
+            return Card(
+              color: Colors.red.shade50,
+              margin: const EdgeInsets.only(bottom: 8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.red.shade200)),
+              child: ListTile(
+                leading: const Icon(Icons.no_crash_outlined,
+                    color: Colors.red, size: 28),
+                title: Text(d['plaka'] ?? '-',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16, color: Colors.red,
+                        letterSpacing: 2)),
+                subtitle: Text(
+                    'Tanınmayan araç • ${d['girisSaatiStr'] ?? ''} ${d['gun'] ?? ''}',
+                    style: const TextStyle(fontSize: 11)),
+                trailing: IconButton(
+                    icon: const Icon(Icons.add_circle_outline,
+                        color: Colors.green),
+                    tooltip: 'Sisteme Ekle',
+                    onPressed: () => _snack(
+                        'Plakayı Araçlar menüsünden ekleyin')),
+              ),
+            );
+          },
+        )),
       ]);
     },
   );
@@ -929,15 +929,15 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
         ]),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10))),
-            onPressed: () {
-              Navigator.pop(_);
-              _plakaCtrl.clear();
-            },
-            child: const Text('Tamam')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              onPressed: () {
+                Navigator.pop(_);
+                _plakaCtrl.clear();
+              },
+              child: const Text('Tamam')),
         ],
       ),
     );
@@ -972,18 +972,18 @@ class _PlakaTanimaScreenState extends State<PlakaTanimaScreen>
               letterSpacing: 4, color: Colors.red)),
           const SizedBox(height: 8),
           const Text(
-            'Bu plaka sistemde kayıtlı değil!\n'
-            'Güvenlik kaydına alındı.\n'
-            'Yetkili görevli bilgilendirildi.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.red)),
+              'Bu plaka sistemde kayıtlı değil!\n'
+                  'Güvenlik kaydına alındı.\n'
+                  'Yetkili görevli bilgilendirildi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.red)),
         ]),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () { Navigator.pop(_); _plakaCtrl.clear(); },
-            child: const Text('Anladım')),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red, foregroundColor: Colors.white),
+              onPressed: () { Navigator.pop(_); _plakaCtrl.clear(); },
+              child: const Text('Anladım')),
         ],
       ),
     );
