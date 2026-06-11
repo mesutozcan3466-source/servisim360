@@ -56,7 +56,9 @@ class _GruplamaScreenState extends State<GruplamaScreen>
   String _mod = 'normal'; // normal | cercle | manuel
   double _cerclYaricap = 1000;
   LatLng? _cerclMerkez;
-  List<String> _manuelSecilen = [];
+  List<String> _manuelSecilen  = [];
+  Set<String>  _kilitliIds    = {};  // Manuel kilitlenen öğrenciler
+  bool         _konumsuzGoster = false;
 
   // Seçili detay
   Map<String, dynamic>? _seciliDetay;
@@ -289,8 +291,8 @@ class _GruplamaScreenState extends State<GruplamaScreen>
               '"${data['ad'] ?? 'Ogrenci'}" zaten "$soforAd" servisine atanmis.\n\nYine de farkli bir servise tasinmak ister misiniz?',
             ),
             actions: [
-          AiAsistanButonu(ekranAdi: 'Rotalar'),
-          YardimButonu(ekranAdi: 'Rotalar'),
+              AiAsistanButonu(ekranAdi: 'Rotalar'),
+              YardimButonu(ekranAdi: 'Rotalar'),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Iptal'),
@@ -335,11 +337,55 @@ class _GruplamaScreenState extends State<GruplamaScreen>
   }
 
   // ── OTOMATİK GRUPLAMA (K-Means benzeri) ──────────────────────
+
+  // Akşam rotasını sabah rotasının tersine çevir
+  void _aksamRotaOlustur() {
+    int guncellenen = 0;
+    for (final sofor in _soforler) {
+      final surucuId = (sofor['id'] ?? '').toString();
+      if (surucuId.isEmpty) continue;
+      final servisOgr = _ogrenciler
+          .where((o) => (o['surucuId'] ?? o['soforId'] ?? '') == surucuId)
+          .toList();
+      if (servisOgr.isEmpty) continue;
+      final tersine = servisOgr.reversed.toList();
+      for (int i = 0; i < tersine.length; i++) {
+        final ogrId = (tersine[i]['id'] ?? tersine[i]['docId'] ?? '').toString();
+        if (ogrId.isEmpty) continue;
+        FirebaseFirestore.instance.collection('students').doc(ogrId)
+            .update({'aksamSira': i + 1}).catchError((_) {});
+      }
+      guncellenen++;
+    }
+    _snack('$guncellenen servis icin aksam rotasi olusturuldu', Colors.green);
+  }
+
+  // Öğrenci kilitle/aç
+  void _ogrenciKilitle(String ogrId) {
+    setState(() {
+      if (_kilitliIds.contains(ogrId)) {
+        _kilitliIds.remove(ogrId);
+      } else {
+        _kilitliIds.add(ogrId);
+      }
+    });
+    _snack(_kilitliIds.contains(ogrId) ? 'Ogrenci kilitlendi' : 'Kilit kaldirildi',
+        _kilitliIds.contains(ogrId) ? Colors.blue : Colors.grey);
+  }
+
   void _otomatikGrupla() {
     if (_soforler.isEmpty) {
       _snack('Once sofor ekleyin!', Colors.orange); return;
     }
-    final konumlular = _ogrenciler.where((o) => _konumAl(o) != null).toList();
+    // Kilitlenmis ogrenler otomatik dagitima dahil edilmez
+    final konumlular = _ogrenciler.where((o) {
+      final id = (o['id'] ?? '').toString();
+      return _konumAl(o) != null && !_kilitliIds.contains(id);
+    }).toList();
+    final konumsuzlar = _ogrenciler.where((o) => _konumAl(o) == null).toList();
+    if (konumsuzlar.isNotEmpty) {
+      _snack('${konumsuzlar.length} konumsuz ogrenci dagitima dahil edilmedi', Colors.orange);
+    }
     if (konumlular.isEmpty) {
       _snack('Konumlu ogrenci yok', Colors.orange); return;
     }
@@ -676,6 +722,13 @@ class _GruplamaScreenState extends State<GruplamaScreen>
                     aktif: false,
                     onTap: _otomatikGrupla,
                   ),
+                  const SizedBox(width: 8),
+                  _BolBtn(
+                      ikon: Icons.nights_stay_outlined,
+                      etiket: 'Aksam Rotasi',
+                      renk: Colors.indigo,
+                      aktif: true,
+                      onTap: _aksamRotaOlustur),
                   const SizedBox(width: 6),
                   // Bölgelere Böl (çember)
                   _BolBtn(

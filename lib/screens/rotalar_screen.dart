@@ -29,7 +29,8 @@ class _RotalarScreenState extends State<RotalarScreen>
   List<Map<String, dynamic>> _servisler  = [];
 
   // Filtreler
-  String _rotaTip   = 'tumu';   // tumu | sabah | aksam | ogle
+  String _rotaTip   = 'tumu';
+  Set<String> _devamsizIds = {};  // Bugün devamsız öğrenciler   // tumu | sabah | aksam | ogle
   String _aramaMetni = '';
   final _aramaCtrl = TextEditingController();
 
@@ -47,6 +48,40 @@ class _RotalarScreenState extends State<RotalarScreen>
     _tabCtrl.dispose();
     _aramaCtrl.dispose();
     super.dispose();
+  }
+
+
+  Future<void> _rotaKaydet(Map<String,dynamic> rota) async {
+    if (_firmaId == null) return;
+    try {
+      await FirebaseFirestore.instance.collection('routes')
+          .doc(rota['id'] ?? '')
+          .set({
+        ...rota,
+        'firmaId': _firmaId,
+        'guncellemeTarihi': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Rota kaydedildi'),
+          backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Hata: $e'), backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  // Akşam rotasını sabah rotasının tersi olarak hesapla
+  List<dynamic> _aksamRotaOlustur(List<dynamic> sabahSirasi) {
+    return sabahSirasi.reversed.toList();
+  }
+
+  // Devamsız filtreli öğrenci sayısı
+  int _aktifOgrenciSayisi(List<dynamic> ogrenciler) {
+    return ogrenciler.where((o) {
+      final id = (o['id'] ?? o['ogrenciId'] ?? '').toString();
+      return !_devamsizIds.contains(id);
+    }).length;
   }
 
   Future<void> _yukle() async {
@@ -81,6 +116,18 @@ class _RotalarScreenState extends State<RotalarScreen>
       });
     } catch (e) {
       debugPrint('Rotalar yukle hata: $e');
+      // Devamsız öğrenciler
+      try {
+        final devSnap = await FirebaseFirestore.instance
+            .collection('absence_requests')
+            .where('firmaId', isEqualTo: _firmaId)
+            .where('durum', isEqualTo: 'onaylandi')
+            .get();
+        _devamsizIds = devSnap.docs
+            .map((d) => (d.data()['ogrenciId'] ?? '').toString())
+            .where((id) => id.isNotEmpty)
+            .toSet();
+      } catch (_) {}
       setState(() => _yukleniyor = false);
     }
   }
@@ -192,13 +239,13 @@ class _RotalarScreenState extends State<RotalarScreen>
       body: _yukleniyor
           ? const Center(child: CircularProgressIndicator(color: _navy))
           : Column(children: [
-              _filtrePaneli(),
-              Expanded(child: TabBarView(controller: _tabCtrl, children: [
-                _buildRotalar(),
-                _buildAtamasizlar(),
-                _buildServisler(),
-              ])),
-            ]),
+        _filtrePaneli(),
+        Expanded(child: TabBarView(controller: _tabCtrl, children: [
+          _buildRotalar(),
+          _buildAtamasizlar(),
+          _buildServisler(),
+        ])),
+      ]),
     );
   }
 
@@ -217,8 +264,8 @@ class _RotalarScreenState extends State<RotalarScreen>
           prefixIcon: const Icon(Icons.search_rounded, color: _navy, size: 18),
           suffixIcon: _aramaMetni.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, size: 16),
-                  onPressed: () { _aramaCtrl.clear(); setState(() => _aramaMetni = ''); })
+              icon: const Icon(Icons.clear_rounded, size: 16),
+              onPressed: () { _aramaCtrl.clear(); setState(() => _aramaMetni = ''); })
               : null,
           filled: true, fillColor: const Color(0xFFF5F7FA),
           isDense: true,
@@ -282,12 +329,12 @@ class _RotalarScreenState extends State<RotalarScreen>
             style: const TextStyle(color: Colors.grey, fontSize: 16)),
         const SizedBox(height: 20),
         ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _turuncu, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          onPressed: () => Navigator.pushNamed(context, '/gruplama'),
-          icon: const Icon(Icons.add_road_outlined),
-          label: const Text('Rota Oluştur', style: TextStyle(fontWeight: FontWeight.bold))),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _turuncu, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () => Navigator.pushNamed(context, '/gruplama'),
+            icon: const Icon(Icons.add_road_outlined),
+            label: const Text('Rota Oluştur', style: TextStyle(fontWeight: FontWeight.bold))),
       ]));
     }
 
@@ -322,10 +369,10 @@ class _RotalarScreenState extends State<RotalarScreen>
                       ? Colors.green.withValues(alpha: 0.15)
                       : _navy.withValues(alpha: 0.1),
                   child: Text(
-                    (s['adSoyad'] ?? s['ad'] ?? 'Ş')[0].toUpperCase(),
-                    style: TextStyle(
-                        color: aktif ? Colors.green : _navy,
-                        fontWeight: FontWeight.bold, fontSize: 16)),
+                      (s['adSoyad'] ?? s['ad'] ?? 'Ş')[0].toUpperCase(),
+                      style: TextStyle(
+                          color: aktif ? Colors.green : _navy,
+                          fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -363,14 +410,14 @@ class _RotalarScreenState extends State<RotalarScreen>
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   if ((s['telefon'] ?? '').isNotEmpty)
                     IconButton(
-                      icon: const Icon(Icons.phone_outlined, size: 18, color: Colors.green),
-                      onPressed: () => _ara(s['telefon']),
-                      tooltip: 'Ara'),
+                        icon: const Icon(Icons.phone_outlined, size: 18, color: Colors.green),
+                        onPressed: () => _ara(s['telefon']),
+                        tooltip: 'Ara'),
                   if ((s['telefon'] ?? '').isNotEmpty)
                     IconButton(
-                      icon: const Icon(Icons.message_outlined, size: 18, color: Color(0xFF25D366)),
-                      onPressed: () => _whatsapp(s['telefon']),
-                      tooltip: 'WhatsApp'),
+                        icon: const Icon(Icons.message_outlined, size: 18, color: Color(0xFF25D366)),
+                        onPressed: () => _whatsapp(s['telefon']),
+                        tooltip: 'WhatsApp'),
                 ]),
               ]),
             ),
@@ -403,7 +450,7 @@ class _RotalarScreenState extends State<RotalarScreen>
   }
 
   Widget _rotaGrubu({required String tip, required String baslik,
-      required List<Map<String, dynamic>> ogrenciler}) {
+    required List<Map<String, dynamic>> ogrenciler}) {
     if (ogrenciler.isEmpty) return const SizedBox.shrink();
     final renk = _tipRenk(tip);
     // Akşam rotası sabahın tersi — otomatik ters çevir
@@ -479,15 +526,15 @@ class _RotalarScreenState extends State<RotalarScreen>
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: (ogr['veliTel'] ?? '').isNotEmpty
                 ? Row(mainAxisSize: MainAxisSize.min, children: [
-                    GestureDetector(
-                      onTap: () => _ara(ogr['veliTel']),
-                      child: const Icon(Icons.phone_outlined, color: Colors.green, size: 16)),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => _whatsapp(ogr['veliTel']),
-                      child: const Icon(Icons.message_outlined,
-                          color: Color(0xFF25D366), size: 16)),
-                  ])
+              GestureDetector(
+                  onTap: () => _ara(ogr['veliTel']),
+                  child: const Icon(Icons.phone_outlined, color: Colors.green, size: 16)),
+              const SizedBox(width: 8),
+              GestureDetector(
+                  onTap: () => _whatsapp(ogr['veliTel']),
+                  child: const Icon(Icons.message_outlined,
+                      color: Color(0xFF25D366), size: 16)),
+            ])
                 : null,
           );
         }),
@@ -525,13 +572,13 @@ class _RotalarScreenState extends State<RotalarScreen>
                   fontWeight: FontWeight.w600, fontSize: 13)),
           const Spacer(),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _navy, foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            onPressed: () => Navigator.pushNamed(context, '/gruplama'),
-            icon: const Icon(Icons.add_road_outlined, size: 14),
-            label: const Text('Rota Oluştur', style: TextStyle(fontSize: 12))),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              onPressed: () => Navigator.pushNamed(context, '/gruplama'),
+              icon: const Icon(Icons.add_road_outlined, size: 14),
+              label: const Text('Rota Oluştur', style: TextStyle(fontSize: 12))),
         ]),
       ),
       Expanded(child: ListView.builder(
@@ -570,9 +617,9 @@ class _RotalarScreenState extends State<RotalarScreen>
                 if ((ogr['veliTel'] ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
                   GestureDetector(
-                    onTap: () => _whatsapp(ogr['veliTel']),
-                    child: const Icon(Icons.message_outlined,
-                        color: Color(0xFF25D366), size: 16)),
+                      onTap: () => _whatsapp(ogr['veliTel']),
+                      child: const Icon(Icons.message_outlined,
+                          color: Color(0xFF25D366), size: 16)),
                 ],
               ]),
             ]),
@@ -598,12 +645,12 @@ class _RotalarScreenState extends State<RotalarScreen>
             textAlign: TextAlign.center),
         const SizedBox(height: 20),
         ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-              backgroundColor: _navy, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-          onPressed: () => Navigator.pushNamed(context, '/projeler'),
-          icon: const Icon(Icons.folder_outlined),
-          label: const Text('Projelere Git')),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _navy, foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            onPressed: () => Navigator.pushNamed(context, '/projeler'),
+            icon: const Icon(Icons.folder_outlined),
+            label: const Text('Projelere Git')),
       ]));
     }
 
@@ -611,7 +658,7 @@ class _RotalarScreenState extends State<RotalarScreen>
     final sabahlar  = _servisler.where((s) => s['tip'] == 'sabah').toList();
     final aksamlar  = _servisler.where((s) => s['tip'] == 'aksam').toList();
     final diger     = _servisler.where((s) =>
-        s['tip'] != 'sabah' && s['tip'] != 'aksam').toList();
+    s['tip'] != 'sabah' && s['tip'] != 'aksam').toList();
 
     return ListView(
       padding: const EdgeInsets.all(14),
@@ -684,8 +731,8 @@ class _RotalarScreenState extends State<RotalarScreen>
     final surucuId = s['surucuId'] as String? ?? '';
     final soforAd  = surucuId.isNotEmpty
         ? (_suruculer.firstWhere((d) => d['id'] == surucuId,
-              orElse: () => {})['adSoyad'] ??
-            s['soforAd'] ?? 'Atanmadı')
+        orElse: () => {})['adSoyad'] ??
+        s['soforAd'] ?? 'Atanmadı')
         : (s['soforAd'] ?? 'Atanmadı');
 
     return Card(
