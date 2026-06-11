@@ -22,6 +22,7 @@ import 'screens/rol_yonlendirici.dart';
 // ── Web Ekranları ────────────────────────────────────────────────
 import 'screens/web_giris_yonlendirici.dart';
 import 'screens/web_admin_panel.dart';
+import 'screens/web_ayarlar.dart';
 import 'screens/web_super_admin.dart';
 import 'screens/web_sofor_panel.dart';
 import 'screens/web_veli_panel.dart';
@@ -184,6 +185,7 @@ class Servisim360App extends StatelessWidget {
     '/web_panel':  (_) => const WebSuperAdminSayfasi(),
     '/web_sofor':  (_) => const WebSoforPanel(),
     '/web_veli_panel': (_) => const WebVeliPanel(),
+    '/web_ayarlar': (_) => const WebAyarlar(),
 
     // ── Dashboard & Proje Seç ────────────────────────────────────
     '/dashboard':  (_) => const DashboardScreen(),

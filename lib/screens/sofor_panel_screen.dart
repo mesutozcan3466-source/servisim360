@@ -41,6 +41,7 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
 
   final _sesli = SesliYonlendirmeServisi();
   String  _surucuId = '';
+  String  _soforAd  = '';
   String? _firmaId;
 
   List<Map<String, dynamic>> _projeler  = [];
@@ -112,6 +113,7 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         _servisAktif = _driverDoc['servisAktif'] ?? false;
         _surucuId    = driverDoc.id;
         final data = driverDoc.data() as Map<String, dynamic>?;
+        _soforAd = (_driverDoc['ad'] ?? _driverDoc['adSoyad'] ?? '').toString();
         if (data != null && !data.containsKey('uid')) {
           try { await driverDoc.reference.update({'uid': user.uid}); } catch (_) {}
         }
@@ -162,6 +164,19 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         _aktifProjeId  = _projeler.first['id'];
         _aktifProjeAdi = _projeler.first['ad'];
         SessionService.instance.aktifProjeAyarla(_aktifProjeId!, _aktifProjeAdi ?? '');
+        // Saate gore en yakın servisi liste başına taşı
+        final now = TimeOfDay.now();
+        final nowMin = now.hour * 60 + now.minute;
+        _projeler.sort((a, b) {
+          int saatFark(Map<String,dynamic> p) {
+            final s = (p['saatBaslangic'] ?? p['sabahSaati'] ?? '').toString();
+            if (!s.contains(':')) return 999999;
+            final parts = s.split(':');
+            final sMin = (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+            return (sMin - nowMin).abs();
+          }
+          return saatFark(a).compareTo(saatFark(b));
+        });
       }
     } catch (e) {
       debugPrint('Proje yukle hata: $e');
@@ -663,6 +678,123 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     }
   }
 
+
+
+  void _gunlukRaporGoster() {
+    final bindi  = _ogrenciler.where((o) => o['bindi'] == true).length;
+    final gelmed = _ogrenciler.where((o) => o['gelmedi'] == true).length;
+    final bekl   = _ogrenciler.length - bindi - gelmed;
+    showDialog(context: context, builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(children: [
+          Icon(Icons.assessment_outlined, color: Color(0xFF1a3a6b)),
+          SizedBox(width: 10),
+          Text('Gunluk Raporlarim', style: TextStyle(fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          _raporSatir('Toplam Ogrenci', '${_ogrenciler.length}', Icons.people_outlined, Colors.blue),
+          _raporSatir('Araca Bindi',    '$bindi',  Icons.check_circle_outline, Colors.green),
+          _raporSatir('Gelmedi',        '$gelmed', Icons.person_off_outlined,  Colors.red),
+          _raporSatir('Bekliyor',       '$bekl',   Icons.hourglass_empty,      Colors.orange),
+          const Divider(),
+          _raporSatir('Servis Durumu',  _servisAktif ? 'Aktif' : 'Tamamlandi', Icons.directions_bus_outlined,
+              _servisAktif ? Colors.green : Colors.grey),
+        ]),
+        actions: [
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(_),
+              child: const Text('Kapat')),
+        ]));
+  }
+
+  Widget _raporSatir(String baslik, String deger, IconData ikon, Color renk) =>
+      Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [
+        Icon(ikon, size: 18, color: renk),
+        const SizedBox(width: 10),
+        Expanded(child: Text(baslik, style: const TextStyle(fontSize: 13))),
+        Text(deger, style: TextStyle(fontWeight: FontWeight.bold, color: renk, fontSize: 14)),
+      ]));
+
+  void _acilDurumDialog() {
+    String? seciliTur;
+    showDialog(
+        context: context,
+        builder: (_) => StatefulBuilder(
+            builder: (dCtx, setS) => AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                title: const Row(children: [
+                  Icon(Icons.emergency_outlined, color: Colors.red, size: 24),
+                  SizedBox(width: 10),
+                  Text('Acil Durum', style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold)),
+                ]),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('Acil durum turunu secin:',
+                      style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  ...['Arac Arizasi','Trafik Kazasi','Trafik Yogunlugu',
+                    'Gecikme','Saglik Durumu','Diger'].map((tur) =>
+                      GestureDetector(
+                          onTap: () => setS(() => seciliTur = tur),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                                color: seciliTur == tur
+                                    ? Colors.red.withValues(alpha: 0.08) : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: seciliTur == tur ? Colors.red : Colors.grey.shade200)),
+                            child: Text(tur, style: TextStyle(
+                                fontWeight: seciliTur == tur
+                                    ? FontWeight.bold : FontWeight.normal,
+                                color: seciliTur == tur ? Colors.red : Colors.grey[700])),
+                          ))),
+                ]),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dCtx),
+                      child: const Text('Iptal')),
+                  ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red, foregroundColor: Colors.white),
+                      onPressed: seciliTur == null ? null : () async {
+                        await FirebaseFirestore.instance.collection('acil_durumlar').add({
+                          'firmaId'  : _firmaId,
+                          'soforId'  : _surucuId,
+                          'soforAd'  : _soforAd,
+                          'tur'      : seciliTur,
+                          'tarih'    : FieldValue.serverTimestamp(),
+                          'durum'    : 'bekliyor',
+                        });
+                        if (dCtx.mounted) {
+                          Navigator.pop(dCtx);
+                          ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(
+                              content: Text('Acil durum bildirimi gonderildi'),
+                              backgroundColor: Colors.red,
+                              behavior: SnackBarBehavior.floating));
+                        }
+                      },
+                      child: const Text('Gonder')),
+                ])));
+  }
+
+
+  void _konumKaydet(Map<String, dynamic> ogr) async {
+    final pos = await Geolocator.getCurrentPosition();
+    final id  = ogr['id'] ?? ogr['docId'] ?? '';
+    if (id.isEmpty) return;
+    await FirebaseFirestore.instance.collection('students').doc(id).update({
+      'konum': {'lat': pos.latitude, 'lng': pos.longitude},
+      'konumVar': true,
+    });
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Konum kaydedildi'), backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating));
+  }
+
   void _rotaYonetimine() {
     final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
     Navigator.push(context, MaterialPageRoute(
@@ -1002,6 +1134,14 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
                   onTap: () => Navigator.pushNamed(context, '/canli_rota'))),
             ]),
             const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: _BuyukButon(ikon: Icons.emergency_outlined, etiket: 'Acil Durum',
+                  renk: Colors.red, onTap: _acilDurumDialog)),
+              const SizedBox(width: 12),
+              Expanded(child: _BuyukButon(ikon: Icons.assessment_outlined, etiket: 'Raporlarim',
+                  renk: Colors.purple, onTap: _gunlukRaporGoster)),
+            ]),
+            const SizedBox(height: 12),
             if (_servisAktif) ...[
               Row(children: [
                 Expanded(child: ElevatedButton.icon(
@@ -1130,6 +1270,60 @@ class _OgrenciDetaySheet extends StatelessWidget {
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
                     color: bindi ? Colors.green : Colors.orange)),
           ),
+          const SizedBox(width: 8),
+          // Devamsız uyarısı
+          if (ogr['bugunGelmeyecek'] == true || ogr['devamsiz'] == true)
+            Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                child: const Text('⚠️ Devamsiz', style: TextStyle(fontSize: 12,
+                    fontWeight: FontWeight.bold, color: Colors.red))),
+        ]),
+        const SizedBox(height: 8),
+        // Gelmedi / Bırakıldı butonları
+        Row(children: [
+          Expanded(child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              final sid = ogr['id'] ?? ogr['docId'] ?? '';
+              if (sid.isNotEmpty) {
+                await FirebaseFirestore.instance
+                    .collection('students').doc(sid)
+                    .update({'gelmedi': true, 'bugunDurumu': 'gelmedi'});
+                await FirebaseFirestore.instance
+                    .collection('absence_requests').add({
+                  'firmaId': ogr['firmaId'] ?? '',
+                  'ogrenciId': sid,
+                  'ogrenciAd': ogr['adSoyad'] ?? ogr['ad'] ?? '',
+                  'tarih': FieldValue.serverTimestamp(),
+                  'durum': 'onaylandi', 'kaynak': 'sofor',
+                });
+              }
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.person_off_outlined, size: 16),
+            label: const Text('Gelmedi', style: TextStyle(fontSize: 12)),
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () async {
+              final id = ogr['id'] ?? ogr['docId'] ?? '';
+              if (id.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('students').doc(id)
+                    .update({'bindi': true, 'bugunDurumu': 'bindi'});
+              }
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.check_circle_outline, size: 16),
+            label: const Text('Bindi', style: TextStyle(fontSize: 12)),
+          )),
         ]),
         const Divider(height: 20),
 

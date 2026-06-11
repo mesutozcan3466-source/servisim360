@@ -52,7 +52,139 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
   bool _hazirolBildirimi  = false;   String _oncekiOgrenciAd = '';
 
   @override
-  void initState() { super.initState(); _yukle(); }
+  void initState() { super.initState(); _girisKaydet(); _yukle(); }
+
+
+  Future<void> _girisKaydet() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (uid.isEmpty) return;
+      await FirebaseFirestore.instance.collection('giris_loglari').add({
+        'kullanici': uid, 'rol': 'veli',
+        'tarih': FieldValue.serverTimestamp(), 'cihaz': 'mobil',
+      });
+    } catch (_) {}
+  }
+
+
+  void _duyurularGoster() {
+    showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+            child: Column(children: [
+              Container(width: 40, height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              const Text('Duyurular', style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 18, color: _navy)),
+              const SizedBox(height: 8),
+              Expanded(child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('duyurular')
+                      .where('firmaId', isEqualTo: _firmaId ?? '')
+                      .orderBy('tarih', descending: true)
+                      .limit(30)
+                      .snapshots(),
+                  builder: (_, snap) {
+                    final docs = snap.data?.docs ?? [];
+                    if (docs.isEmpty) return const Center(
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.campaign_outlined, size: 56, color: Colors.grey),
+                          SizedBox(height: 12),
+                          Text('Henuz duyuru yok', style: TextStyle(color: Colors.grey)),
+                        ]));
+                    return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: docs.length,
+                        itemBuilder: (_, i) {
+                          final d = docs[i].data() as Map<String, dynamic>;
+                          final tip = d['tip']?.toString() ?? 'duyuru';
+                          Color tipRenk = Colors.blue;
+                          IconData tipIkon = Icons.campaign_outlined;
+                          if (tip == 'tatil') { tipRenk = Colors.orange; tipIkon = Icons.beach_access_outlined; }
+                          else if (tip == 'iptal') { tipRenk = Colors.red; tipIkon = Icons.cancel_outlined; }
+                          else if (tip == 'gecikme') { tipRenk = Colors.amber; tipIkon = Icons.timer_outlined; }
+                          else if (tip == 'hava') { tipRenk = Colors.teal; tipIkon = Icons.wb_cloudy_outlined; }
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                                color: tipRenk.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: tipRenk.withValues(alpha: 0.2))),
+                            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(color: tipRenk.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10)),
+                                  child: Icon(tipIkon, color: tipRenk, size: 20)),
+                              const SizedBox(width: 12),
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text(d['baslik'] ?? d['title'] ?? '',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                const SizedBox(height: 4),
+                                Text(d['icerik'] ?? d['mesaj'] ?? '',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                                const SizedBox(height: 4),
+                                Text(
+                                    d['tarih'] != null
+                                        ? (d['tarih'].toDate?.call()?.toString().substring(0,16) ?? '')
+                                        : '',
+                                    style: TextStyle(fontSize: 10, color: Colors.grey[400])),
+                              ])),
+                            ]),
+                          );
+                        });
+                  })),
+            ])));
+  }
+
+  void _sikayetDialog() {
+    final ctrl = TextEditingController();
+    showDialog(context: context, builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(children: [
+          Icon(Icons.feedback_outlined, color: Color(0xFF1a3a6b)),
+          SizedBox(width: 10),
+          Text('Geri Bildirim', style: TextStyle(fontWeight: FontWeight.bold)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Servis hakkında görüş veya şikayetinizi iletin:',
+              style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(height: 12),
+          TextField(controller: ctrl, maxLines: 4,
+              decoration: InputDecoration(
+                  hintText: 'Mesajınızı yazın...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)))),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(_), child: const Text('İptal')),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
+              onPressed: () async {
+                if (ctrl.text.trim().isEmpty) return;
+                await FirebaseFirestore.instance.collection('sikayetler').add({
+                  'firmaId': _firmaId ?? '',
+                  'veliId': _veliId ?? '',
+                  'mesaj': ctrl.text.trim(),
+                  'tarih': FieldValue.serverTimestamp(),
+                  'durum': 'bekliyor',
+                });
+                if (mounted) Navigator.pop(_);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Görüşünüz iletildi, teşekkürler!'),
+                    backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+              },
+              child: const Text('Gönder')),
+        ]));
+  }
 
   @override
   void dispose() {
@@ -644,6 +776,14 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
           Expanded(child: _AnaButon(ikon: Icons.qr_code_outlined, etiket: 'QR Kodum', renk: Colors.brown,
               onTap: () => Navigator.pushNamed(context, '/qr_okut'))),
         ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _AnaButon(ikon: Icons.campaign_outlined, etiket: 'Duyurular',
+              renk: Colors.teal, onTap: _duyurularGoster)),
+          const SizedBox(width: 10),
+          Expanded(child: _AnaButon(ikon: Icons.feedback_outlined, etiket: 'Geri Bildirim',
+              renk: Colors.purple, onTap: _sikayetDialog)),
+        ]),
         const SizedBox(height: 16),
 
         // 3. OGRENCI KART
@@ -982,10 +1122,24 @@ class _SoforBilgiKarti extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: servisAktif ? Colors.green : Colors.grey)),
           ]),
         ])),
-        GestureDetector(onTap: onAra,
-            child: Container(padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: const Color(0xFF25D366).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.message, color: Color(0xFF25D366), size: 22))),
+        Column(children: [
+          GestureDetector(onTap: onAra,
+              child: Container(padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFF25D366).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.message, color: Color(0xFF25D366), size: 22))),
+          const SizedBox(height: 6),
+          GestureDetector(
+              onTap: () async {
+                final tel = soforData['telefon'] ?? soforData['tel'] ?? '';
+                if (tel.isNotEmpty) {
+                  final uri = Uri.parse('tel:$tel');
+                  if (await canLaunchUrl(uri)) await launchUrl(uri);
+                }
+              },
+              child: Container(padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.phone_outlined, color: Colors.blue, size: 22))),
+        ]),
       ]));
   }
 }
@@ -1006,7 +1160,7 @@ class _DevamsizlikSheetState extends State<_DevamsizlikSheet> {
     try {
       String aciklama;
       switch (_tip) {         case 'sabah': aciklama = 'Sadece sabah binecek'; break;         case 'aksam': aciklama = 'Sadece aksam binecek'; break;         default:      aciklama = 'Bugun hic gelmeyecek'; break;
-      }       await FirebaseFirestore.instance.collection('absence_requests').add({         'ogrenciId': ogr['id'], 'ogrenciAd': '${ogr['ad']} ${ogr['soyad'] ?? ''}'.trim(),         'firmaId': widget.firmaId, 'surucuId': ogr['surucuId'],         'tip': _tip, 'aciklama': aciklama,         'tarih': FieldValue.serverTimestamp(), 'durum': 'bildirildi'});
+      }       await FirebaseFirestore.instance.collection('absence_requests').add({         'ogrenciId': ogr['id'], 'ogrenciAd': '${ogr['ad']} ${ogr['soyad'] ?? ''}'.trim(),         'firmaId': widget.firmaId, 'surucuId': ogr['surucuId'],         'tip': _tip, 'aciklama': aciklama, 'sabahGelmeyecek': _tip=='aksam'||_tip=='hepsi', 'aksamGelmeyecek': _tip=='sabah'||_tip=='hepsi',         'tarih': FieldValue.serverTimestamp(), 'durum': 'bildirildi'});
       if (mounted) {
         Navigator.pop(context);         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bildirildi: $aciklama'), backgroundColor: Colors.green));
       }
