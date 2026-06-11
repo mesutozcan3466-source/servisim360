@@ -1394,7 +1394,7 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
                             Text('Sebep:${d['aciklama']??d['not']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
                         ])),
                         if(dur=='bekliyor')Row(children:[
-                          _AksBtn('Onayla',Colors.green,()async=>FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'durum':'onaylandi'})),
+                          _AksBtn('Onayla',Colors.green,()async=>FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'durum':'onaylandi','rotaGuncellendi':true,'onayTarihi':FieldValue.serverTimestamp()})),
                           const SizedBox(width:6),
                           _AksBtn('Reddet',Colors.red,()async=>FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'durum':'reddedildi'})),
                           const SizedBox(width:6),

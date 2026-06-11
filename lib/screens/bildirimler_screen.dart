@@ -26,7 +26,7 @@ class _BildirimlerScreenState extends State<BildirimlerScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 2, vsync: this);
+    _tab = TabController(length: 3, vsync: this);
     _yukle();
   }
 
@@ -51,6 +51,7 @@ class _BildirimlerScreenState extends State<BildirimlerScreen>
         tabs: const [
           Tab(icon: Icon(Icons.notifications_outlined), text: 'Bildirimler'),
           Tab(icon: Icon(Icons.send_outlined), text: 'Gönder'),
+          Tab(icon: Icon(Icons.auto_awesome_outlined), text: 'Otomatik'),
         ],
       ),
     ),
@@ -309,8 +310,8 @@ class _BildirimGonderState extends State<_BildirimGonder> {
               onPressed: _gonderiliyor ? null : _gonder,
               icon: _gonderiliyor
                   ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.send_outlined),
               label: Text(_gonderiliyor ? 'Gönderiliyor...' : 'Bildirim Gönder',
                   style: const TextStyle(
@@ -330,7 +331,7 @@ class _BildirimGonderState extends State<_BildirimGonder> {
               SizedBox(width: 8),
               Expanded(child: Text(
                   'Push bildirim için FCM entegrasyonu gereklidir. '
-                  'Uygulama içi bildirimler anlık çalışır.',
+                      'Uygulama içi bildirimler anlık çalışır.',
                   style: TextStyle(fontSize: 12, color: Colors.blue))),
             ]),
           ),
@@ -384,6 +385,120 @@ class _BildirimGonderState extends State<_BildirimGonder> {
               fontWeight: secili ? FontWeight.bold : FontWeight.normal)),
         ]),
       ),
+    );
+  }
+}
+
+
+// ════════ OTOMATİK BİLDİRİMLER ════════
+class _OtomatikBildirimler extends StatefulWidget {
+  final String firmaId;
+  const _OtomatikBildirimler({required this.firmaId});
+  @override State<_OtomatikBildirimler> createState() => _OtomatikBildirimlerState();
+}
+
+class _OtomatikBildirimlerState extends State<_OtomatikBildirimler> {
+  static const _navy = Color(0xFF1a3a6b);
+
+  final Map<String, bool> _aktif = {
+    'servisBasladi':   true,
+    'servisYaklasıyor': true,
+    'aracGeldi':       true,
+    'ogrenciAlindi':   true,
+    'okulaUlasti':     true,
+    'eveBirakildi':    true,
+    'servisTamamlandi': true,
+  };
+
+  final Map<String, String> _etiket = {
+    'servisBasladi':    'Servis Başladı',
+    'servisYaklasıyor': 'Servis Yaklaşıyor (500m)',
+    'aracGeldi':        'Araç Geldi',
+    'ogrenciAlindi':    'Öğrenci Alındı',
+    'okulaUlasti':      'Okula Ulaştı',
+    'eveBirakildi':     'Eve Bırakıldı',
+    'servisTamamlandi': 'Servis Tamamlandı',
+  };
+
+  final Map<String, IconData> _ikon = {
+    'servisBasladi':    Icons.play_circle_outlined,
+    'servisYaklasıyor': Icons.near_me_outlined,
+    'aracGeldi':        Icons.directions_bus_outlined,
+    'ogrenciAlindi':    Icons.person_add_outlined,
+    'okulaUlasti':      Icons.school_outlined,
+    'eveBirakildi':     Icons.home_outlined,
+    'servisTamamlandi': Icons.check_circle_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.2))),
+            child: const Row(children: [
+              Icon(Icons.info_outline, color: Colors.blue, size: 16),
+              SizedBox(width: 8),
+              Expanded(child: Text(
+                  'Otomatik bildirimler, şoför eylemleri gerçekleşince velilere otomatik gönderilir.',
+                  style: TextStyle(fontSize: 12, color: Colors.blue))),
+            ])),
+        const SizedBox(height: 16),
+        const Text('Aktif Bildirimler',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
+        const SizedBox(height: 10),
+        ..._aktif.entries.map((e) => Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4)]),
+          child: Row(children: [
+            Icon(_ikon[e.key], color: e.value ? _navy : Colors.grey, size: 20),
+            const SizedBox(width: 12),
+            Expanded(child: Text(_etiket[e.key] ?? e.key,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+            Switch(
+              value: e.value,
+              activeColor: _navy,
+              onChanged: (v) async {
+                setState(() => _aktif[e.key] = v);
+                await FirebaseFirestore.instance
+                    .collection('firms').doc(widget.firmaId)
+                    .set({'bildirimAyarlari': _aktif}, SetOptions(merge: true));
+              },
+            ),
+          ]),
+        )),
+        const SizedBox(height: 16),
+        const Text('Şoför Bildirimleri',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _navy)),
+        const SizedBox(height: 8),
+        ...[
+          ('yeniOgrenciAtandi', 'Yeni Öğrenci Atandı', Icons.person_add_outlined),
+          ('rotaGuncellendi',   'Rota Güncellendi',    Icons.route_outlined),
+          ('devamsizlikGeldi',  'Devamsızlık Geldi',   Icons.event_busy_outlined),
+          ('servisSaatiYaklasıyor', 'Servis Saati Yaklaşıyor', Icons.alarm_outlined),
+        ].map((item) => Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200)),
+          child: Row(children: [
+            Icon(item.$3, color: Colors.teal, size: 18),
+            const SizedBox(width: 12),
+            Expanded(child: Text(item.$2,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+            const Icon(Icons.check_circle, color: Colors.teal, size: 16),
+          ]),
+        )),
+      ]),
     );
   }
 }

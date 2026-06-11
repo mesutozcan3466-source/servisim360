@@ -235,6 +235,8 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
           'ucret': ucret,
           'fiyat': ucret,
           'not': _notCtrl.text.trim(),
+          'donem': '2025-2026',
+          'aktif': true,
           'olusturmaTarihi': FieldValue.serverTimestamp(),
           'guncellenmeTarihi': FieldValue.serverTimestamp(),
         });
@@ -336,19 +338,20 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: navy.withValues(alpha: 0.1)),
             ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, color: navy, size: 16),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Mahalle bos birakilirsa ilce geneli uygulanir. '
-                        'Mahalle bazli fiyat onceliklidir.',
-                    style: TextStyle(fontSize: 12, color: navy),
-                  ),
-                ),
-              ],
-            ),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.info_outline, color: navy, size: 16),
+                    SizedBox(width: 8),
+                    Expanded(child: Text(
+                        'Mahalle bos birakilirsa ilce geneli uygulanir.',
+                        style: TextStyle(fontSize: 12, color: navy))),
+                  ]),
+                  const SizedBox(height: 8),
+                  const Text('Kardes Indirimi: 2. ogr %10, 3. ogr %15',
+                      style: TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w600)),
+                ]),
           ),
           const SizedBox(height: 20),
           _etiket('Ilce *'),
