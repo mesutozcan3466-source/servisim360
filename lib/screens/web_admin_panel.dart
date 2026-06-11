@@ -1098,43 +1098,166 @@ class _YuzYuzeKayit extends StatelessWidget{
 }
 
 // ════════ SOZLESMELER ════════
-class _SozlesmelerSekme extends StatelessWidget{
-  final String firmaId;static const _navy=Color(0xFF1a3a6b);
+class _SozlesmelerSekme extends StatefulWidget {
+  final String firmaId;
   const _SozlesmelerSekme({required this.firmaId});
-  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
-      stream:FirebaseFirestore.instance.collection('contracts').where('firmaId',isEqualTo:firmaId).orderBy('tarih',descending:true).snapshots(),
-      builder:(_,snap){
-        final docs=snap.data?.docs??[];
-        return Column(children:[
-          Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
-              child:Row(children:[Text('${docs.length} Sozlesme',style:const TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
-                const Spacer(),Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
-                    decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),borderRadius:BorderRadius.circular(8)),
-                    child:const Row(children:[Icon(Icons.lock_outlined,size:14,color:Color(0xFF1a3a6b)),SizedBox(width:6),
-                      Text('Sozlesmeler silinemez',style:TextStyle(fontSize:12,color:Color(0xFF1a3a6b)))]))])),
-          Expanded(child:docs.isEmpty?_bos('Sozlesme bulunamadi','Kayit onaylandikca sozlesmeler burada gorunur.',Icons.description_outlined)
-              :ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
-              itemBuilder:(_,i){
-                final d=docs[i].data() as Map<String,dynamic>;final dur=d['durum']??'aktif';
-                final r=dur=='aktif'?Colors.green:dur=='iptal'?Colors.red:Colors.grey;
-                return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
-                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:r.withValues(alpha:0.2))),
-                    child:Row(children:[Icon(Icons.description_outlined,color:r,size:22),const SizedBox(width:12),
-                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        Text(d['kisi']??d['ogrenciAd']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
-                        Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:12,color:Colors.grey[500])),
-                        if(d['fiyat']!=null)Text('${d['fiyat']} TL/ay',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:Colors.green)),
-                      ])),
-                      Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
-                          decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
-                          child:Text(dur,style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:r))),
-                      const SizedBox(width:8),
-                      IconButton(icon:const Icon(Icons.picture_as_pdf_outlined,color:Colors.red,size:20),onPressed:(){}),
-                    ]));
-              })),
-        ]);
-      });
+  @override State<_SozlesmelerSekme> createState() => _SozlesmelerSekmeState();
 }
+
+class _SozlesmelerSekmeState extends State<_SozlesmelerSekme>
+    with SingleTickerProviderStateMixin {
+  static const _navy   = Color(0xFF1a3a6b);
+  static const _orange = Color(0xFFFF8C00);
+  late TabController _tab;
+  String _filtreDurum = 'hepsi';
+  String _filtreDonem = '';
+
+  @override void initState() { super.initState(); _tab = TabController(length: 4, vsync: this); }
+  @override void dispose()   { _tab.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      // Tab bar
+      Container(color: Colors.white, child: TabBar(
+        controller: _tab,
+        labelColor: _navy, unselectedLabelColor: Colors.grey,
+        indicatorColor: _orange, isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        tabs: const [
+          Tab(icon: Icon(Icons.pending_outlined, size: 16), text: 'Bekleyen'),
+          Tab(icon: Icon(Icons.check_circle_outline, size: 16), text: 'Imzalanan'),
+          Tab(icon: Icon(Icons.timer_off_outlined, size: 16), text: 'Suresi Dolan'),
+          Tab(icon: Icon(Icons.archive_outlined, size: 16), text: 'Arsiv'),
+        ],
+      )),
+      // Filtreler
+      Container(color: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(children: [
+            const Icon(Icons.calendar_month_outlined, size: 16, color: Colors.grey),
+            const SizedBox(width: 8),
+            Expanded(child: TextField(
+              decoration: InputDecoration(
+                  hintText: 'Donem filtre (2025-2026)',
+                  isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6)),
+              onChanged: (v) => setState(() => _filtreDonem = v.trim()),
+            )),
+            const SizedBox(width: 8),
+            const Icon(Icons.lock_outlined, size: 14, color: _navy),
+            const SizedBox(width: 4),
+            const Text('Silinemez', style: TextStyle(fontSize: 11, color: _navy)),
+          ])),
+      // İçerik
+      Expanded(child: TabBarView(controller: _tab, children: [
+        _SozListesi(firmaId: widget.firmaId, durum: 'bekliyor',     filtreDonem: _filtreDonem),
+        _SozListesi(firmaId: widget.firmaId, durum: 'imzalandi',    filtreDonem: _filtreDonem),
+        _SozListesi(firmaId: widget.firmaId, durum: 'suresi_doldu', filtreDonem: _filtreDonem),
+        _SozListesi(firmaId: widget.firmaId, durum: 'arsiv',        filtreDonem: _filtreDonem),
+      ])),
+    ]);
+  }
+}
+
+class _SozListesi extends StatelessWidget {
+  final String firmaId, durum, filtreDonem;
+  static const _navy = Color(0xFF1a3a6b);
+  const _SozListesi({required this.firmaId, required this.durum, required this.filtreDonem});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('sozlesmeler')
+          .where('firmaId', isEqualTo: firmaId)
+          .where('durum', isEqualTo: durum)
+          .orderBy('olusturmaTarihi', descending: true)
+          .snapshots(),
+      builder: (_, snap) {
+        var docs = snap.data?.docs ?? [];
+        // Dönem filtresi
+        if (filtreDonem.isNotEmpty) {
+          docs = docs.where((d) {
+            final dd = d.data() as Map<String,dynamic>;
+            return (dd['donem'] ?? '').toString().contains(filtreDonem);
+          }).toList();
+        }
+        if (docs.isEmpty) return Center(child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.description_outlined, size: 56, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          Text('$durum durumunda sozlesme yok',
+              style: const TextStyle(color: Colors.grey)),
+        ]));
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (_, i) {
+            final d = docs[i].data() as Map<String,dynamic>;
+            final Color renk = durum == 'imzalandi' ? Colors.green
+                : durum == 'bekliyor' ? Colors.orange
+                : durum == 'suresi_doldu' ? Colors.red
+                : Colors.grey;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: renk.withValues(alpha: 0.2)),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 5)]),
+              child: Row(children: [
+                Icon(Icons.description_outlined, color: renk, size: 22),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(d['ogrenciAd'] ?? d['kisi'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text('Veli: ${d['veliAd'] ?? ''}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  if ((d['donem'] ?? '').isNotEmpty)
+                    Text('Donem: ${d['donem']}',
+                        style: TextStyle(fontSize: 11, color: Colors.blue[400])),
+                  if ((d['ucret'] ?? d['fiyat'] ?? 0) > 0)
+                    Text('${d['ucret'] ?? d['fiyat']} TL/ay',
+                        style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
+                ])),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: renk.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text(durum, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: renk))),
+                  const SizedBox(height: 4),
+                  // PDF butonu
+                  GestureDetector(
+                      onTap: () {},
+                      child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                          child: const Icon(Icons.picture_as_pdf_outlined, color: Colors.red, size: 16))),
+                  const SizedBox(height: 4),
+                  // Yeni dönem / Arşivle
+                  if (durum == 'suresi_doldu')
+                    GestureDetector(
+                        onTap: () async {
+                          await FirebaseFirestore.instance
+                              .collection('sozlesmeler').doc(docs[i].id)
+                              .update({'durum': 'arsiv', 'arsivTarihi': FieldValue.serverTimestamp()});
+                        },
+                        child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                            child: const Icon(Icons.archive_outlined, color: Colors.grey, size: 16))),
+                ]),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 
 // ════════ FIYATLANDIRMA ════════
 class _FiyatlandirmaSekme extends StatefulWidget{

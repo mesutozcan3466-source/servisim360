@@ -17,7 +17,7 @@ class _WebRaporlarState extends State<WebRaporlar> {
 
   bool _yukleniyor = true;
   int _ogrenciSayi = 0, _soforSayi = 0, _devamsizlikSayi = 0, _aktifServis = 0;
-  int _atanmamisSayi = 0, _konumsuzSayi = 0;
+  double _toplamGelir = 0;
   Map<String, int> _gunlukDevamsizlik = {};
   Map<String, int> _soforDoluluk = {};
   String _firmaId = '';
@@ -50,22 +50,6 @@ class _WebRaporlarState extends State<WebRaporlar> {
       _soforSayi      = results[1].count ?? 0;
       _devamsizlikSayi = results[2].count ?? 0;
       _aktifServis    = results[3].count ?? 0;
-
-      // Atanmamis ve konumsuz ogrenciler
-      try {
-        var atQ = FirebaseFirestore.instance.collection('students')
-            .where('firmaId', isEqualTo: _firmaId).where('surucuId', isEqualTo: '');
-        var konQ = FirebaseFirestore.instance.collection('students')
-            .where('firmaId', isEqualTo: _firmaId).where('konumVar', isEqualTo: false);
-        if (projeId.isNotEmpty) {
-          atQ = atQ.where('projeId', isEqualTo: projeId);
-          konQ = konQ.where('projeId', isEqualTo: projeId);
-        }
-        final atSnap  = await atQ.count().get();
-        final konSnap = await konQ.count().get();
-        _atanmamisSayi = atSnap.count ?? 0;
-        _konumsuzSayi  = konSnap.count ?? 0;
-      } catch (_) {}
 
       // Son 7 gün devamsızlık
       final devSnap = await FirebaseFirestore.instance.collection('absence_requests')
@@ -102,6 +86,15 @@ class _WebRaporlarState extends State<WebRaporlar> {
         doluluk[ad] = sayi;
       }
       _soforDoluluk = doluluk;
+    } catch (_) {}
+    try {
+      final oSnap = await FirebaseFirestore.instance
+          .collection('students').where('firmaId', isEqualTo: _firmaId).get();
+      double g = 0;
+      for (final doc in oSnap.docs) {
+        g += ((doc.data()['fiyat'] ?? doc.data()['ucret'] ?? 0) as num).toDouble();
+      }
+      _toplamGelir = g;
     } catch (_) {}
     if (mounted) setState(() => _yukleniyor = false);
   }
@@ -298,12 +291,8 @@ class _WebRaporlarState extends State<WebRaporlar> {
           _RaporKart('Aktif Servis', '$_aktifServis', Icons.my_location_outlined, Colors.green),
           const SizedBox(width: 14),
           _RaporKart('Toplam Devamsizlik', '$_devamsizlikSayi', Icons.event_busy_outlined, Colors.red),
-          const SizedBox(width: 14),
-          _RaporKart('Atanmamis Ogr.', '$_atanmamisSayi', Icons.person_off_outlined,
-              _atanmamisSayi > 0 ? Colors.deepOrange : Colors.grey),
-          const SizedBox(width: 14),
-          _RaporKart('Konumsuz Ogr.', '$_konumsuzSayi', Icons.location_off_outlined,
-              _konumsuzSayi > 0 ? Colors.red : Colors.grey),
+          const SizedBox(width:14),
+          _RaporKart('Aylik Gelir','${_toplamGelir.toStringAsFixed(0)} TL',Icons.payments_outlined,Colors.teal),
         ]),
 
         const SizedBox(height: 20),

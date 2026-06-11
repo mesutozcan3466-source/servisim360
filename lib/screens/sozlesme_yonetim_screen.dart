@@ -135,6 +135,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
   final _firmaEmailCtrl  = TextEditingController();
   final _firmaAdresCtrl  = TextEditingController();
   final _vergiCtrl       = TextEditingController();
+  final _donemCtrl       = TextEditingController(text: '2025-2026');
 
   @override
   void initState() {
@@ -149,6 +150,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
     _firmaAdCtrl.dispose(); _yetkiliCtrl.dispose();
     _firmaTelaCtrl.dispose(); _firmaEmailCtrl.dispose();
     _firmaAdresCtrl.dispose(); _vergiCtrl.dispose();
+    _donemCtrl.dispose();
     super.dispose();
   }
 
@@ -239,6 +241,8 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
           .update({
         'maddeler'    : _hazirMaddeler.map((m) => m.toMap()).toList(),
         'ozelMaddeler': _ozelMaddeler,
+        'donem'       : _donemCtrl.text.isNotEmpty ? _donemCtrl.text.trim() : '2025-2026',
+        'durum'       : 'taslak',  // Kayit sonrasi 'aktif' yapilabilir
         'updatedAt'   : FieldValue.serverTimestamp(),
       });
       _snack('Sözleşme kaydedildi!', renk: Colors.green);
@@ -792,7 +796,7 @@ class _SozlesmeYonetimScreenState extends State<SozlesmeYonetimScreen>
               style: ElevatedButton.styleFrom(
                   backgroundColor: _navy, foregroundColor: Colors.white),
               onPressed: () {
-                if (baslikCtrl.text.trim().isEmpty) return;
+                if (baslikCtrl.text.trim().isEmpty) { return; }
                 final madde = {'baslik': baslikCtrl.text.trim(),
                   'icerik': icerikCtrl.text.trim()};
                 setState(() {

@@ -183,7 +183,7 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
     _firmaIdAl();
   }
 
@@ -230,7 +230,10 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
           'firmaId': _firmaId,
           'ilce': ilce,
           'mahalle': mahalle,
+          'bolge': mahalle.isNotEmpty ? mahalle : ilce,
+          'tip': mahalle.isNotEmpty ? 'mahalle' : 'bolge',
           'ucret': ucret,
+          'fiyat': ucret,
           'not': _notCtrl.text.trim(),
           'olusturmaTarihi': FieldValue.serverTimestamp(),
           'guncellenmeTarihi': FieldValue.serverTimestamp(),
@@ -307,6 +310,7 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
           unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.add), text: 'Fiyat Ekle'),
+            Tab(icon: Icon(Icons.edit_outlined, size: 16), text: 'Manuel'),
             Tab(icon: Icon(Icons.list), text: 'Fiyat Listesi'),
             Tab(icon: Icon(Icons.social_distance_outlined), text: 'Km Bazlı'),
           ],
@@ -314,7 +318,7 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
       ),
       body: TabBarView(
         controller: _tabCtrl,
-        children: [_eklemeFormu(), _fiyatListesi(), _kmFiyatFormu()],
+        children: [_eklemeFormu(), _fiyatListesi(), _kmFiyatFormu(), _manuelFiyatFormu()],
       ),
     );
   }
@@ -917,4 +921,73 @@ class _FiyatYonetimScreenState extends State<FiyatYonetimScreen>
     _notCtrl.dispose();
     super.dispose();
   }
+  // Manuel Fiyat - Öğrenci bazlı manuel ücret
+  Widget _manuelFiyatFormu() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('students')
+          .where('firmaId', isEqualTo: _firmaId)
+          .snapshots(),
+      builder: (_, snap) {
+        final docs = snap.data?.docs ?? [];
+        if (docs.isEmpty) return const Center(
+            child: Text('Ogrenci bulunamadi', style: TextStyle(color: Colors.grey)));
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (_, i) {
+            final d = docs[i].data() as Map<String, dynamic>;
+            final ctrl = TextEditingController(
+                text: (d['fiyat'] ?? d['ucret'] ?? 0).toString());
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200)),
+              child: Row(children: [
+                CircleAvatar(radius: 16, backgroundColor: navy.withValues(alpha: 0.08),
+                    child: Text((d['ad'] ?? '?').isNotEmpty ? (d['ad'] as String)[0].toUpperCase() : '?',
+                        style: const TextStyle(color: navy, fontWeight: FontWeight.bold, fontSize: 12))),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(d['adSoyad'] ?? d['ad'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(d['adres'] ?? '', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                ])),
+                SizedBox(width: 80, child: TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                      isDense: true, suffixText: 'TL',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6)),
+                )),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: navy, foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  onPressed: () async {
+                    final yeniUcret = double.tryParse(ctrl.text) ?? 0;
+                    await FirebaseFirestore.instance
+                        .collection('students').doc(docs[i].id)
+                        .update({'fiyat': yeniUcret, 'ucret': yeniUcret,
+                      'fiyatTuru': 'manuel'});
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ucret guncellendi'),
+                            backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+                  },
+                  child: const Text('Kaydet', style: TextStyle(fontSize: 11)),
+                ),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
 }

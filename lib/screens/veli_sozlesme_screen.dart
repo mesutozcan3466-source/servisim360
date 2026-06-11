@@ -36,7 +36,9 @@ class _VeliSozlesmeScreenState extends State<VeliSozlesmeScreen> {
   static const _turuncu = Color(0xFFFF8C00);
 
   final _pageCtrl = PageController();
-  int _sayfa = 0;
+  int  _sayfa    = 0;
+  bool _okudum   = false;
+  bool _kabul    = false;
 
   String  _firmaId  = '';
   String  _firmaAd  = '';
