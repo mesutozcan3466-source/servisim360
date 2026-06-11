@@ -55,6 +55,7 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
   @override
   void initState() {
     super.initState();
+    _girisKaydet();
     _yukle();
   }
 
@@ -79,6 +80,20 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
     final doc = await col.doc(uid).get();
     if (doc.exists) return doc;
     return null;
+  }
+
+
+  Future<void> _girisKaydet() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (uid.isEmpty) return;
+      await FirebaseFirestore.instance.collection('giris_loglari').add({
+        'kullanici': uid,
+        'rol': 'sofor',
+        'tarih': FieldValue.serverTimestamp(),
+        'cihaz': 'mobil',
+      });
+    } catch (_) {}
   }
 
   Future<void> _yukle() async {

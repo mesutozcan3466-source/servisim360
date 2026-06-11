@@ -973,6 +973,9 @@ class _SoforBilgiKarti extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(soforAdi, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),             Text('Plaka: $plaka', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          if ((soforData['sabahSaati'] ?? soforData['servisSaati'] ?? '').isNotEmpty)
+            Text('Sabah: ${soforData['sabahSaati'] ?? soforData['servisSaati'] ?? ''}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           Row(children: [
             Container(width: 7, height: 7, margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(color: servisAktif ? Colors.green : Colors.grey, shape: BoxShape.circle)),               Text(servisAktif ? 'Servis aktif' : 'Servis baslamadi',

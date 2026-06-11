@@ -420,7 +420,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
 
   BottomNavigationBar _altMenu() => BottomNavigationBar(
     currentIndex: _aktifTab,
-    onTap: (i) => setState(() => _aktifTab = i),
+    onTap: (i) { setState(() => _aktifTab = i); if (i==3) Navigator.pushNamed(context, '/harita', arguments: {'soforId': _soforId, 'firmaId': _firmaId}); if (i==4) Navigator.pushNamed(context, '/rotalar', arguments: {'soforId': _soforId}); },
     selectedItemColor: _navy,
     unselectedItemColor: Colors.grey,
     type: BottomNavigationBarType.fixed,
@@ -428,6 +428,8 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
       BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Ana'),
       BottomNavigationBarItem(icon: Icon(Icons.school_outlined), label: 'Öğrenciler'),
       BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), label: 'Yoklama'),
+      BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Harita'),
+      BottomNavigationBarItem(icon: Icon(Icons.route_outlined), label: 'Rota'),
     ],
   );
 
