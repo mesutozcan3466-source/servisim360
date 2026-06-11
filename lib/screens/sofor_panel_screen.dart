@@ -312,6 +312,10 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
       await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
         'servisAktif': false, 'servisBitis': FieldValue.serverTimestamp(),
       });
+      try {
+        await FirebaseFirestore.instance.collection('surucu_konumlar').doc(_surucuId)
+            .set({'aktif': false, 'bitisTarihi': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+      } catch (_) {}
     }
     setState(() { _aktifProjeId = yeniId; _aktifProjeAdi = yeniAdi; _servisAktif = false; _yukleniyor = true; });
     SessionService.instance.aktifProjeAyarla(yeniId, yeniAdi);
@@ -346,7 +350,20 @@ class _SoforPanelScreenState extends State<SoforPanelScreen> {
         'konum': GeoPoint(pos.latitude, pos.longitude),
         'hiz': pos.speed * 3.6,
         'konumGuncelleme': FieldValue.serverTimestamp(),
+        'servisAktif': _servisAktif,
       });
+      // Ayrıca surucu_konumlar koleksiyonuna kaydet (admin harita için)
+      if (_servisAktif && _firmaId != null) {
+        await FirebaseFirestore.instance
+            .collection('surucu_konumlar').doc(_surucuId).set({
+          'firmaId'   : _firmaId,
+          'soforId'   : _surucuId,
+          'konum'     : GeoPoint(pos.latitude, pos.longitude),
+          'hiz'       : pos.speed * 3.6,
+          'guncelleme': FieldValue.serverTimestamp(),
+          'aktif'     : true,
+        }, SetOptions(merge: true));
+      }
       // Yaklaşıyor kontrolü — her konum güncellemesinde
       await _yaklasiyorKontrol(pos);
     } catch (_) {}

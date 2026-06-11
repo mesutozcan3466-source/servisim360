@@ -48,6 +48,7 @@ class _WebHaritaState extends State<WebHarita> {
   void initState() {
     super.initState();
     _yukle();
+    _aktifAraclariDinle();
     Future.delayed(const Duration(seconds: 30), _otomatikYenile);
   }
 
@@ -71,6 +72,51 @@ class _WebHaritaState extends State<WebHarita> {
     _sub?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+
+  // Aktif araçları dinle — surucu_konumlar koleksiyonu
+  void _aktifAraclariDinle() {
+    FirebaseFirestore.instance
+        .collection('surucu_konumlar')
+        .where('firmaId', isEqualTo: _firmaId)
+        .where('aktif', isEqualTo: true)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted) return;
+      final newMarkers = <Marker>{};
+      final renkler = [
+        const Color(0xFF1a3a6b), Colors.red, Colors.green,
+        Colors.orange, Colors.purple, Colors.teal,
+      ];
+      for (int i = 0; i < snap.docs.length; i++) {
+        final d = snap.docs[i].data();
+        final konum = d['konum'];
+        if (konum is! GeoPoint) continue;
+        final pos = LatLng(konum.latitude, konum.longitude);
+        final soforId = snap.docs[i].id;
+        final renk = BitmapDescriptor.defaultMarkerWithHue(
+            i % 6 == 0 ? BitmapDescriptor.hueBlue
+                : i % 6 == 1 ? BitmapDescriptor.hueRed
+                : i % 6 == 2 ? BitmapDescriptor.hueGreen
+                : i % 6 == 3 ? BitmapDescriptor.hueOrange
+                : i % 6 == 4 ? BitmapDescriptor.hueViolet
+                : BitmapDescriptor.hueCyan);
+        newMarkers.add(Marker(
+          markerId: MarkerId('arac_$soforId'),
+          position: pos,
+          icon: renk,
+          infoWindow: InfoWindow(
+              title: 'Servis ${i + 1}',
+              snippet: '${d['hiz']?.toStringAsFixed(0) ?? '0'} km/s'),
+        ));
+      }
+      setState(() {
+        // Araç markerlarını güncelle
+        _markerlar.removeWhere((m) => m.markerId.value.startsWith('arac_'));
+        _markerlar.addAll(newMarkers);
+      });
+    });
   }
 
   Future<void> _yukle() async {

@@ -254,6 +254,23 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
   }
 
   // ── Sofor Konum Guncellemesi ────────────────────────────────────────────────
+
+  // Acil durum uyarısı
+  void _acilDurumGoster(String tur) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        const Icon(Icons.emergency_outlined, color: Colors.white, size: 20),
+        const SizedBox(width: 10),
+        Expanded(child: Text('⚠️ Acil Durum: $tur',
+            style: const TextStyle(fontWeight: FontWeight.bold))),
+      ]),
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 8),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   void _soforGuncellendi(DocumentSnapshot doc) {
     if (!doc.exists || !mounted) return;
     final data = doc.data() as Map<String, dynamic>;
@@ -265,6 +282,11 @@ class _CanliTakipScreenState extends State<CanliTakipScreen> {
     }
 
     _sofor = data;
+
+    // Acil durum kontrolu
+    if (data['acilDurum'] == true && mounted) {
+      _acilDurumGoster(data['acilDurumTur'] ?? 'Acil Durum');
+    }
 
     // Servis aktif degilse ve saat disindaysa konum gizle
     if (!_takipAktif) {
