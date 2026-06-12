@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 import 'veli_basvuru_form_screen.dart';
 
-// ════════════════════════════════════════════════════════════════
-// WEB GİRİŞ YÖNLENDİRİCİ — route tabanlı, import çakışması yok
-// ════════════════════════════════════════════════════════════════
+//
+// WEB GIRIS YONLENDIRICI  route tabanli, import cakismasi yok
+//
 class WebGirisYonlendirici extends StatefulWidget {
   const WebGirisYonlendirici({super.key});
   @override
@@ -79,7 +79,7 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
 
       if (_superAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_panel');
-      } else if (rol == 'kolejAdmin') {               // ← YENİ
+      } else if (rol == 'kolejAdmin') {               //  YENI
         Navigator.pushReplacementNamed(context, '/web_kolej');
       } else if (_firmaAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_admin');
@@ -101,7 +101,7 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
       r == 'superAdmin' || r == 'superadmin' || r == 'super_admin';
   bool _firmaAdminMi(String r) =>
       r == 'firmaAdmin' || r == 'admin' ||
-          r == 'firma_admin' || r == 'sekreter';   // kolejAdmin buradan çıktı
+          r == 'firma_admin' || r == 'sekreter';   // kolejAdmin buradan cikti
 
   @override
   Widget build(BuildContext context) {
@@ -125,9 +125,9 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
   }
 }
 
-// ════════════════════════════════════════════════════════════════
+//
 // WEB LOGIN
-// ════════════════════════════════════════════════════════════════
+//
 class _WebLoginEkrani extends StatefulWidget {
   const _WebLoginEkrani();
   @override
@@ -175,7 +175,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
 
       if (_superAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_panel');
-      } else if (rol == 'kolejAdmin') {               // ← YENİ
+      } else if (rol == 'kolejAdmin') {               //  YENI
         Navigator.pushReplacementNamed(context, '/web_kolej');
       } else if (_firmaAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_admin');
@@ -213,7 +213,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
       r == 'superAdmin' || r == 'superadmin' || r == 'super_admin';
   bool _firmaAdminMi(String r) =>
       r == 'firmaAdmin' || r == 'admin' ||
-          r == 'firma_admin' || r == 'sekreter';   // kolejAdmin buradan çıktı
+          r == 'firma_admin' || r == 'sekreter';   // kolejAdmin buradan cikti
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +336,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
                   const SizedBox(height: 6),
                   _rolBilgiSatir(Icons.admin_panel_settings_outlined,
                       'Firma Admin', 'Tam yonetim paneli', _navy),
-                  _rolBilgiSatir(Icons.school_outlined,          // ← YENİ
+                  _rolBilgiSatir(Icons.school_outlined,          //  YENI
                       'Kolej Admin', 'Servis takip paneli', Colors.blue),
                   _rolBilgiSatir(Icons.directions_bus_outlined,
                       'Sofor', 'Servis paneli', Colors.teal),
@@ -365,9 +365,9 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-// YANLIŞ ROL UYARISI
-// ════════════════════════════════════════════════════════════════
+//
+// YANLIS ROL UYARISI
+//
 class _YanlisRolEkrani extends StatelessWidget {
   final String rol;
   static const _navy    = Color(0xFF1a3a6b);

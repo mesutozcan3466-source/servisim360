@@ -1,5 +1,6 @@
-// lib/screens/web_admin_panel.dart — Servisim360 Web Admin v4 — 18 Menü
+// lib/screens/web_admin_panel.dart - Servisim360 Web Admin v5 - 21 Menu
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,10 @@ import 'web_raporlar.dart';
 import 'web_harita.dart';
 import 'web_ogrenciler.dart';
 import 'web_ayarlar.dart';
+import 'web_test_merkezi.dart';
+// web_arac_merkezi.dart - henuz kopyalanmadi, once kopyalayin
+import 'web_arsiv_merkezi.dart';
+// web_yedekleme.dart - henuz kopyalanmadi, once kopyalayin
 
 class WebAdminPanel extends StatefulWidget {
   const WebAdminPanel({super.key});
@@ -45,6 +50,10 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     _MenuItem('Raporlar',       Icons.bar_chart_outlined,        15),
     _MenuItem('Arsiv',          Icons.archive_outlined,          16),
     _MenuItem('Ayarlar',        Icons.settings_outlined,         17),
+    _MenuItem('Test Merkezi',   Icons.checklist_outlined,        18),
+    _MenuItem('Arac Yonetimi',  Icons.build_circle_outlined,     19),
+    _MenuItem('Arsiv Merkezi',  Icons.folder_special_outlined,   20),
+    _MenuItem('Yedekleme',      Icons.backup_outlined,            21),
   ];
 
   @override void initState(){super.initState();_yukle();}
@@ -136,9 +145,8 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
         _tf(adCtrl,'Proje Adi *',Icons.folder_outlined),const SizedBox(height:10),
         _tf(donemCtrl,'Donem (2025-2026)',Icons.calendar_today_outlined),const SizedBox(height:10),
         _tf(okulAdresCtrl,'Okul / Isyeri Adresi',Icons.location_on_outlined),const SizedBox(height:10),
-        _tf(baslangicCtrl,'Baslangic Tarihi (01.09.2025)',Icons.date_range_outlined),const SizedBox(height:10),
-        _tf(bitisCtrl,'Bitis Tarihi (30.06.2026)',Icons.date_range_outlined),const SizedBox(height:10),
-        // Fiyat türü
+        _tf(baslangicCtrl,'Baslangic Tarihi',Icons.date_range_outlined),const SizedBox(height:10),
+        _tf(bitisCtrl,'Bitis Tarihi',Icons.date_range_outlined),const SizedBox(height:10),
         DropdownButtonFormField<String>(
           value: secFiyatTuru,
           decoration: InputDecoration(labelText: 'Varsayilan Fiyat Turu',
@@ -188,8 +196,6 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     )));
   }
 
-
-
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
@@ -202,9 +208,7 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     return Scaffold(
       backgroundColor:const Color(0xFFF0F2F5),
       body:Row(children:[
-        // SOL MENU
         Container(width:220,color:_navy,child:Column(children:[
-          // Logo
           Container(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Row(children:[
               Container(width:36,height:36,decoration:BoxDecoration(color:_turuncu,borderRadius:BorderRadius.circular(8)),
@@ -215,7 +219,6 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
             const SizedBox(height:5),
             Text(_firmaAdi,style:TextStyle(color:Colors.white.withValues(alpha:0.55),fontSize:11),overflow:TextOverflow.ellipsis),
           ])),
-          // Proje secici
           Container(
             margin:const EdgeInsets.symmetric(horizontal:10),
             decoration:BoxDecoration(color:Colors.white.withValues(alpha:0.1),borderRadius:BorderRadius.circular(10),
@@ -271,7 +274,6 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
           ),
           const SizedBox(height:8),
           const Divider(color:Colors.white12),
-          // Menu listesi
           Expanded(child:ListView(padding:EdgeInsets.zero,children:_menuler.map((item){
             final secili=_aktifSekme==item.index;
             int badge=0;
@@ -296,7 +298,6 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
                           child:Text('$badge',style:const TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.bold))),
                     ])));
           }).toList())),
-          // Alt kullanici
           Container(padding:const EdgeInsets.all(14),
               child:Row(children:[
                 CircleAvatar(radius:14,backgroundColor:_turuncu,
@@ -311,7 +312,6 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
                     }),
               ])),
         ])),
-        // SAG ICERIK
         Expanded(child:Column(children:[
           Container(padding:const EdgeInsets.symmetric(horizontal:28,vertical:14),color:Colors.white,
               child:Row(children:[
@@ -369,6 +369,10 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
       case 15:return WebRaporlar(projeId:_projeId);
       case 16:return _ArsivSekme(firmaId:_firmaId);
       case 17:return const WebAyarlar();
+      case 18:return const WebTestMerkezi();
+      case 19:return _BosEkran(baslik:'Arac Yonetimi',ikon:Icons.build_circle_outlined);
+      case 20:return const WebArsivMerkezi();
+      case 21:return _BosEkran(baslik:'Yedekleme',ikon:Icons.backup_outlined);
       default:return const SizedBox();
     }
   }
@@ -379,7 +383,7 @@ class _MenuItem{
   const _MenuItem(this.ad,this.ikon,this.index);
 }
 
-// ════════ ANA EKRAN ════════
+//  ANA EKRAN
 class _WebAnaSayfa extends StatelessWidget{
   final String firmaId,projeId,projeAd;
   final int toplamSurucu,toplamOgrenci,toplamVeli,toplamServis,aktifServis;
@@ -442,10 +446,9 @@ class _WebAnaSayfa extends StatelessWidget{
               _HB(Icons.add_road_outlined,       'Rota Olustur',  Colors.indigo,     ()=>onNavigate(10)),
               _HB(Icons.auto_awesome_outlined,   'Otomatik Dagit',Colors.teal,       ()=>onNavigate(10)),
               _HB(Icons.event_busy_outlined,     'Devamsizlik',   Colors.red,        ()=>onNavigate(11)),
-              _HB(Icons.campaign_outlined,         'Afis Olustur',  Colors.deepPurple, ()=>onNavigate(7)),
+              _HB(Icons.campaign_outlined,       'Afis Olustur',  Colors.deepPurple, ()=>onNavigate(7)),
             ]),
             const SizedBox(height:18),
-            // Yaklasan servis saatleri
             _YaklasanServisler(firmaId:firmaId,onNavigate:onNavigate),
             const SizedBox(height:18),
             Row(children:[
@@ -468,7 +471,6 @@ class _WebAnaSayfa extends StatelessWidget{
         GestureDetector(onTap:f,child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:5),
             decoration:BoxDecoration(color:r,borderRadius:BorderRadius.circular(7)),
             child:Text(l,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:12))))]));
-
 }
 
 class _SK extends StatelessWidget{
@@ -499,7 +501,7 @@ class _HB extends StatelessWidget{
             Text(e,style:TextStyle(color:r,fontSize:11,fontWeight:FontWeight.w600))])));
 }
 
-// ════════ PROJELER ════════
+//  PROJELER
 class _ProjelerSekme extends StatelessWidget{
   final String firmaId;final List<Map<String,dynamic>> projeler;
   final void Function(String,String) onProjeAyarla;final VoidCallback onProjeEkle;
@@ -533,12 +535,42 @@ class _ProjelerSekme extends StatelessWidget{
                     Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
                         decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                         child:Text(tip,style:TextStyle(fontSize:11,color:r,fontWeight:FontWeight.bold))),
+                    const SizedBox(height:10),
+                    Row(children:[
+                      Expanded(child:OutlinedButton.icon(
+                          style:OutlinedButton.styleFrom(foregroundColor:r,side:BorderSide(color:r.withValues(alpha:0.4)),padding:const EdgeInsets.symmetric(vertical:8),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+                          onPressed:() async{
+                            await FirebaseFirestore.instance.collection('projects').add({
+                              'firmaId':firmaId,'projeAd':'${prj['projeAd']} (kopya)',
+                              'donem':prj['donem']??'','tip':tip,'aktif':true,
+                              'olusturmaTarihi':FieldValue.serverTimestamp(),
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Proje kopyalandi'),backgroundColor:Colors.green,behavior:SnackBarBehavior.floating));
+                          },
+                          icon:const Icon(Icons.copy_outlined,size:13),label:const Text('Kopyala',style:TextStyle(fontSize:11)))),
+                      const SizedBox(width:6),
+                      Expanded(child:OutlinedButton.icon(
+                          style:OutlinedButton.styleFrom(foregroundColor:Colors.grey,side:const BorderSide(color:Colors.grey),padding:const EdgeInsets.symmetric(vertical:8),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+                          onPressed:() async{
+                            final onay=await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
+                              title:const Text('Projeyi Arsivle'),
+                              content:const Text('Bu proje arsive tasinacak. Devam?'),
+                              actions:[TextButton(onPressed:()=>Navigator.pop(_,false),child:const Text('Iptal')),
+                                ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:Colors.grey),onPressed:()=>Navigator.pop(_,true),child:const Text('Arsivle',style:TextStyle(color:Colors.white)))],
+                            ));
+                            if(onay==true){
+                              await FirebaseFirestore.instance.collection('projects').doc(prj['id']).update({'aktif':false,'arsivTarihi':FieldValue.serverTimestamp()});
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Proje arsivlendi'),backgroundColor:Colors.grey,behavior:SnackBarBehavior.floating));
+                            }
+                          },
+                          icon:const Icon(Icons.archive_outlined,size:13),label:const Text('Arsivle',style:TextStyle(fontSize:11)))),
+                    ]),
                   ])));
         }).toList()),
       ]));
 }
 
-// ════════ SERVISLER ════════
+//  SERVISLER
 class _ServislerSekme extends StatefulWidget{
   final String firmaId,projeId;const _ServislerSekme({required this.firmaId,required this.projeId});
   @override State<_ServislerSekme> createState()=>_ServislerSekmeState();
@@ -585,8 +617,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>{
                     decoration:BoxDecoration(color:tip==t.$1?const Color(0xFF1a3a6b):Colors.grey[50],
                         borderRadius:BorderRadius.circular(8),border:Border.all(color:tip==t.$1?const Color(0xFF1a3a6b):Colors.grey)),
                     child:Center(child:Text(t.$2,style:TextStyle(fontSize:11,color:tip==t.$1?Colors.white:Colors.grey,
-                        fontWeight:tip==t.$1?FontWeight.bold:FontWeight.normal))))))],
-          ),
+                        fontWeight:tip==t.$1?FontWeight.bold:FontWeight.normal))))))]),
         ]))),
         actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal')),
           ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
@@ -607,8 +638,6 @@ class _ServislerSekmeState extends State<_ServislerSekme>{
               },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
         ])));
   }
-
-
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),isDense:true,
@@ -658,7 +687,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>{
       child:Text(t,style:TextStyle(fontSize:10,color:c,fontWeight:FontWeight.bold)));
 }
 
-// ════════ ARACLAR ════════
+//  ARACLAR
 class _AraclarSekme extends StatefulWidget{
   final String firmaId;const _AraclarSekme({required this.firmaId});
   @override State<_AraclarSekme> createState()=>_AraclarSekmeState();
@@ -696,8 +725,6 @@ class _AraclarSekmeState extends State<_AraclarSekme>{
               },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
         ]));
   }
-
-
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
@@ -739,14 +766,14 @@ class _AraclarSekmeState extends State<_AraclarSekme>{
   ]);
 }
 
-// ════════ VELILER ════════
+//  VELILER
 class _VelilerSekme extends StatefulWidget{
-  final String firmaId, projeId;
-  const _VelilerSekme({required this.firmaId, this.projeId=''});
+  final String firmaId,projeId;
+  const _VelilerSekme({required this.firmaId,this.projeId=''});
   @override State<_VelilerSekme> createState()=>_VelilerSekmeState();
 }
 class _VelilerSekmeState extends State<_VelilerSekme>{
-  static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  static const _t=Color(0xFFFF8C00);
   String _q='';final _c=TextEditingController();
   @override void dispose(){_c.dispose();super.dispose();}
   void _ekle(){
@@ -765,91 +792,56 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
               onPressed:() async{
                 if(aC.text.trim().isEmpty||tC.text.trim().isEmpty)return;
                 final tel=tC.text.trim();
-                final sif='S${tel.replaceAll(RegExp(r'\\D'),'').substring(0,4.clamp(0,tel.length))}';
+                final sif='S${tel.replaceAll(RegExp(r'\D'),'').substring(0,4.clamp(0,tel.length))}';
                 await FirebaseFirestore.instance.collection('parents').add({
-                  'firmaId':widget.firmaId,
-                  'ad':aC.text.trim(),
-                  'telefon':tel,
-                  'email':eC.text.trim(),
-                  'kullaniciAdi':tel,
-                  'geciciSifre':sif,
-                  'sozlesmeOnay':false,
-                  'aktif':true,
-                  'ogrenciId':'',
-                  'ogrenciAd':'',
-                  'projeId':widget.projeId,
-                  'projeAd':'',
-                  'servisId':'',
-                  'servisAd':'',
-                  'rol':'veli',
-                  'olusturmaTarihi':FieldValue.serverTimestamp(),
+                  'firmaId':widget.firmaId,'ad':aC.text.trim(),'telefon':tel,
+                  'email':eC.text.trim(),'kullaniciAdi':tel,'geciciSifre':sif,
+                  'sozlesmeOnay':false,'aktif':true,'ogrenciId':'','ogrenciAd':'',
+                  'projeId':widget.projeId,'projeAd':'','servisId':'','servisAd':'',
+                  'rol':'veli','olusturmaTarihi':FieldValue.serverTimestamp(),
                 });
                 if(mounted)Navigator.pop(context);
               },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
         ]));
   }
-
-  // ── Öğrenciye Bağla ─────────────────────────────────────────
-  void _ogrenciBaglaDialog(String veliId, Map<String,dynamic> veli) {
+  void _ogrenciBaglaDialog(String veliId,Map<String,dynamic> veli){
     String? secOgrId;
-    showDialog(context:context,builder:(_)=>StatefulBuilder(
-        builder:(dCtx,setS)=>AlertDialog(
-            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
-            title:const Text('Ogrenciye Bagla',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
-            content:SizedBox(width:360,child:FutureBuilder<QuerySnapshot>(
-                future:FirebaseFirestore.instance.collection('students')
-                    .where('firmaId',isEqualTo:widget.firmaId).get(),
-                builder:(_,snap){
-                  final ogrs=snap.data?.docs??[];
-                  return Column(mainAxisSize:MainAxisSize.min,children:[
-                    const Text('Veliye baglanacak ogrenciyi secin:',style:TextStyle(fontSize:13,color:Colors.grey)),
-                    const SizedBox(height:12),
-                    ...ogrs.map((o){
-                      final od=o.data() as Map<String,dynamic>;
-                      final secili=secOgrId==o.id;
-                      return GestureDetector(
-                          onTap:()=>setS(()=>secOgrId=o.id),
-                          child:Container(
-                              margin:const EdgeInsets.only(bottom:6),
-                              padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
-                              decoration:BoxDecoration(
-                                  color:secili?const Color(0xFF1a3a6b).withValues(alpha:0.08):Colors.grey[50],
-                                  borderRadius:BorderRadius.circular(8),
-                                  border:Border.all(color:secili?const Color(0xFF1a3a6b):Colors.grey.shade200)),
-                              child:Row(children:[
-                                Icon(Icons.school_outlined,size:14,color:secili?const Color(0xFF1a3a6b):Colors.grey),
-                                const SizedBox(width:8),
-                                Expanded(child:Text(od['adSoyad']??od['ad']??'',
-                                    style:TextStyle(fontWeight:secili?FontWeight.bold:FontWeight.normal,
-                                        color:secili?const Color(0xFF1a3a6b):Colors.grey[700]))),
-                                if(secili)const Icon(Icons.check_circle,color:Color(0xFF1a3a6b),size:14),
-                              ])));
-                    }),
-                  ]);
-                })),
-            actions:[
-              TextButton(onPressed:()=>Navigator.pop(dCtx),child:const Text('Iptal')),
-              ElevatedButton(
-                  style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),
-                  onPressed:() async{
-                    if(secOgrId==null)return;
-                    final oSnap=await FirebaseFirestore.instance.collection('students').doc(secOgrId).get();
-                    final oData=oSnap.data()??{};
-                    await FirebaseFirestore.instance.collection('parents').doc(veliId).update({
-                      'ogrenciId':secOgrId,
-                      'ogrenciAd':oData['adSoyad']??oData['ad']??'',
-                    });
-                    await FirebaseFirestore.instance.collection('students').doc(secOgrId).update({
-                      'veliId':veliId,
-                      'veliAd':veli['ad']??'',
-                      'veliTel':veli['telefon']??'',
-                    });
-                    if(dCtx.mounted)Navigator.pop(dCtx);
-                  },
-                  child:const Text('Bagla')),
-            ])));
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(dCtx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+        title:const Text('Ogrenciye Bagla',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+        content:SizedBox(width:360,child:FutureBuilder<QuerySnapshot>(
+            future:FirebaseFirestore.instance.collection('students').where('firmaId',isEqualTo:widget.firmaId).get(),
+            builder:(_,snap){
+              final ogrs=snap.data?.docs??[];
+              return Column(mainAxisSize:MainAxisSize.min,children:[
+                const Text('Veliye baglanacak ogrenciyi secin:',style:TextStyle(fontSize:13,color:Colors.grey)),
+                const SizedBox(height:12),
+                ...ogrs.map((o){
+                  final od=o.data() as Map<String,dynamic>;final secili=secOgrId==o.id;
+                  return GestureDetector(onTap:()=>setS(()=>secOgrId=o.id),
+                      child:Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                          decoration:BoxDecoration(color:secili?const Color(0xFF1a3a6b).withValues(alpha:0.08):Colors.grey[50],
+                              borderRadius:BorderRadius.circular(8),border:Border.all(color:secili?const Color(0xFF1a3a6b):Colors.grey.shade200)),
+                          child:Row(children:[Icon(Icons.school_outlined,size:14,color:secili?const Color(0xFF1a3a6b):Colors.grey),
+                            const SizedBox(width:8),
+                            Expanded(child:Text(od['adSoyad']??od['ad']??'',style:TextStyle(fontWeight:secili?FontWeight.bold:FontWeight.normal,color:secili?const Color(0xFF1a3a6b):Colors.grey[700]))),
+                            if(secili)const Icon(Icons.check_circle,color:Color(0xFF1a3a6b),size:14)])));
+                }),
+              ]);
+            })),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dCtx),child:const Text('Iptal')),
+          ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),
+              onPressed:() async{
+                if(secOgrId==null)return;
+                final oSnap=await FirebaseFirestore.instance.collection('students').doc(secOgrId).get();
+                final oData=oSnap.data()??{};
+                await FirebaseFirestore.instance.collection('parents').doc(veliId).update({'ogrenciId':secOgrId,'ogrenciAd':oData['adSoyad']??oData['ad']??''});
+                await FirebaseFirestore.instance.collection('students').doc(secOgrId).update({'veliId':veliId,'veliAd':veli['ad']??'','veliTel':veli['telefon']??''});
+                if(dCtx.mounted)Navigator.pop(dCtx);
+              },child:const Text('Bagla')),
+        ])));
   }
-
   static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
@@ -887,19 +879,11 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
                       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                         Text(d['ad']??d['email']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
                         Text(d['telefon']??d['email']??'',style:TextStyle(fontSize:12,color:Colors.grey[500])),
-                        if((d['kullaniciAdi']??'').isNotEmpty)
-                          Text('Kul:${d['kullaniciAdi']}  Sifre:${d['geciciSifre']??'---'}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
-                        if((d['ogrenciAd']??'').isNotEmpty)
-                          Text('Ogrenci: ${d['ogrenciAd']}',style:TextStyle(fontSize:11,color:Colors.blue[400])),
-                        if((d['kayitTuru']??'').isNotEmpty)
-                          Container(margin:const EdgeInsets.only(top:3),
-                              padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
-                              decoration:BoxDecoration(color:Colors.teal.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
-                              child:Text('Kayit: ${d['kayitTuru']}',style:const TextStyle(fontSize:10,color:Colors.teal,fontWeight:FontWeight.bold))),
-                        if((d['servisAd']??'').isNotEmpty)
-                          Text('Servis: ${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.teal[400])),
-                        if((d['projeAd']??'').isNotEmpty)
-                          Text('Proje: ${d['projeAd']}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
+                        if((d['kullaniciAdi']??'').isNotEmpty)Text('Kul:${d['kullaniciAdi']}  Sifre:${d['geciciSifre']??'---'}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
+                        if((d['ogrenciAd']??'').isNotEmpty)Text('Ogrenci: ${d['ogrenciAd']}',style:TextStyle(fontSize:11,color:Colors.blue[400])),
+                        if((d['kayitTuru']??'').isNotEmpty)Container(margin:const EdgeInsets.only(top:3),padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.teal.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),child:Text('Kayit: ${d['kayitTuru']}',style:const TextStyle(fontSize:10,color:Colors.teal,fontWeight:FontWeight.bold))),
+                        if((d['servisAd']??'').isNotEmpty)Text('Servis: ${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.teal[400])),
+                        if((d['projeAd']??'').isNotEmpty)Text('Proje: ${d['projeAd']}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
                       ])),
                       Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
                         Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
@@ -907,53 +891,31 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
                             child:Text(sozl?'Onaylandi':'Bekleniyor',style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:sozl?Colors.green:Colors.orange))),
                         const SizedBox(height:6),
                         Row(mainAxisSize:MainAxisSize.min,children:[
-                          // WhatsApp giriş bilgisi
                           if((d['telefon']??'').isNotEmpty)
-                            GestureDetector(
-                                onTap:() async{
-                                  final tel=(d['telefon'] as String).replaceAll(RegExp(r'[^0-9]'),'');
-                                  final kul=d['kullaniciAdi']??'';
-                                  final sif=d['geciciSifre']??'';
-                                  final msg=Uri.encodeComponent('Servisim360 giris bilgileriniz:\nKullanici Adi: '+kul+'\nSifre: '+sif+'\nservisim.org.tr');
-                                  final uri=Uri.parse('https://wa.me/90'+tel+'?text='+msg);
-                                  if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);
-                                },
-                                child:Container(padding:const EdgeInsets.all(6),
-                                    decoration:BoxDecoration(color:const Color(0xFF25D366).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                            GestureDetector(onTap:() async{
+                              final tel=(d['telefon'] as String).replaceAll(RegExp(r'[^0-9]'),'');
+                              final kul=d['kullaniciAdi']??'';final sif=d['geciciSifre']??'';
+                              final msg=Uri.encodeComponent('Servisim360 giris bilgileriniz:\nKullanici Adi: '+kul+'\nSifre: '+sif+'\nservisim.org.tr');
+                              final uri=Uri.parse('https://wa.me/90'+tel+'?text='+msg);
+                              if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);},
+                                child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:const Color(0xFF25D366).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                                     child:const Icon(Icons.chat_outlined,size:16,color:Color(0xFF25D366)))),
                           const SizedBox(width:4),
-                          // Ogrenciye bagla
-                          GestureDetector(
-                              onTap:()=>_ogrenciBaglaDialog(docs[i].id,d),
-                              child:Container(padding:const EdgeInsets.all(6),
-                                  decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          GestureDetector(onTap:()=>_ogrenciBaglaDialog(docs[i].id,d),
+                              child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                                   child:const Icon(Icons.link_outlined,size:16,color:Colors.blue))),
                           const SizedBox(width:4),
-                          // Sifre yenile
-                          GestureDetector(
-                              onTap:() async{
-                                final yeniSifre='S${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-                                await FirebaseFirestore.instance.collection('parents').doc(docs[i].id)
-                                    .update({'geciciSifre':yeniSifre});
-                                if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                    content:Text('Yeni sifre: $yeniSifre'),backgroundColor:Colors.blue,behavior:SnackBarBehavior.floating));
-                              },
-                              child:Container(padding:const EdgeInsets.all(6),
-                                  decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          GestureDetector(onTap:() async{
+                            final yeniSifre='S${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                            await FirebaseFirestore.instance.collection('parents').doc(docs[i].id).update({'geciciSifre':yeniSifre});
+                            if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Yeni sifre: $yeniSifre'),backgroundColor:Colors.blue,behavior:SnackBarBehavior.floating));},
+                              child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                                   child:const Icon(Icons.key_outlined,size:16,color:Colors.blue))),
                           const SizedBox(width:4),
-                          // Aktif toggle
-                          GestureDetector(
-                              onTap:() async{
-                                await FirebaseFirestore.instance.collection('parents').doc(docs[i].id)
-                                    .update({'aktif':!(d['aktif']??true)});
-                              },
+                          GestureDetector(onTap:() async{await FirebaseFirestore.instance.collection('parents').doc(docs[i].id).update({'aktif':!(d['aktif']??true)});},
                               child:Container(padding:const EdgeInsets.all(6),
-                                  decoration:BoxDecoration(
-                                      color:((d['aktif']??true)?Colors.green:Colors.grey).withValues(alpha:0.1),
-                                      borderRadius:BorderRadius.circular(6)),
-                                  child:Icon((d['aktif']??true)?Icons.toggle_on_outlined:Icons.toggle_off_outlined,
-                                      size:16,color:(d['aktif']??true)?Colors.green:Colors.grey))),
+                                  decoration:BoxDecoration(color:((d['aktif']??true)?Colors.green:Colors.grey).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:Icon((d['aktif']??true)?Icons.toggle_on_outlined:Icons.toggle_off_outlined,size:16,color:(d['aktif']??true)?Colors.green:Colors.grey))),
                         ]),
                       ]),
                     ]));
@@ -962,7 +924,7 @@ class _VelilerSekmeState extends State<_VelilerSekme>{
   ]);
 }
 
-// ════════ KAYIT SİSTEMİ ════════
+//  KAYIT SISTEMI
 class _KayitSistemiSekme extends StatefulWidget{
   final String firmaId;const _KayitSistemiSekme({required this.firmaId});
   @override State<_KayitSistemiSekme> createState()=>_KayitSistemiSekmeState();
@@ -1024,7 +986,7 @@ class _BekleyenBasvurular extends StatelessWidget{
 }
 
 class _KayitLinki extends StatelessWidget{
-  final String firmaId;static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  final String firmaId;static const _navy=Color(0xFF1a3a6b);
   const _KayitLinki({required this.firmaId});
   @override Widget build(BuildContext context){
     final link='https://servisim.org.tr/#/kayit?firma=$firmaId';
@@ -1042,18 +1004,22 @@ class _KayitLinki extends StatelessWidget{
           Row(children:[
             Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_navy,foregroundColor:Colors.white,
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
-                onPressed:(){},icon:const Icon(Icons.copy_outlined,size:16),label:const Text('Linki Kopyala'))),
+                onPressed:() async{await Clipboard.setData(ClipboardData(text:link));ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Link kopyalandi!'),backgroundColor:Colors.green,behavior:SnackBarBehavior.floating));},icon:const Icon(Icons.copy_outlined,size:16),label:const Text('Linki Kopyala'))),
             const SizedBox(width:12),
             Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF25D366),foregroundColor:Colors.white,
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
-                onPressed:(){},icon:const Icon(Icons.send_outlined,size:16),label:const Text('WhatsApp'))),
+                onPressed:() async{
+                  final msg=Uri.encodeComponent('Servisim360 kayit linki:\n$link');
+                  final uri=Uri.parse('https://wa.me/?text='+msg);
+                  if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);
+                },icon:const Icon(Icons.send_outlined,size:16),label:const Text('WhatsApp'))),
           ]),
         ])));
   }
 }
 
 class _QrKayit extends StatelessWidget{
-  final String firmaId;static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  final String firmaId;static const _t=Color(0xFFFF8C00);
   const _QrKayit({required this.firmaId});
   @override Widget build(BuildContext context)=>Center(child:Container(width:400,padding:const EdgeInsets.all(32),margin:const EdgeInsets.all(24),
       decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.06),blurRadius:12)]),
@@ -1087,7 +1053,7 @@ class _YuzYuzeKayit extends StatelessWidget{
         Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),shape:BoxShape.circle),
             child:const Icon(Icons.person_add_outlined,color:Color(0xFF1a3a6b),size:40)),
         const SizedBox(height:20),const Text('Yuz Yuze Kayit',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
-        const SizedBox(height:8),const Text('Velinin bilgilerini siz girin. Ogrenci ve veli kaydi aninda olusturulur.',textAlign:TextAlign.center,style:TextStyle(color:Colors.grey,fontSize:13)),
+        const SizedBox(height:8),const Text('Velinin bilgilerini siz girin.',textAlign:TextAlign.center,style:TextStyle(color:Colors.grey,fontSize:13)),
         const SizedBox(height:24),
         SizedBox(width:double.infinity,child:ElevatedButton.icon(
             style:ElevatedButton.styleFrom(backgroundColor:_navy,foregroundColor:Colors.white,
@@ -1097,169 +1063,84 @@ class _YuzYuzeKayit extends StatelessWidget{
       ])));
 }
 
-// ════════ SOZLESMELER ════════
-class _SozlesmelerSekme extends StatefulWidget {
-  final String firmaId;
-  const _SozlesmelerSekme({required this.firmaId});
-  @override State<_SozlesmelerSekme> createState() => _SozlesmelerSekmeState();
+//  SOZLESMELER
+class _SozlesmelerSekme extends StatefulWidget{
+  final String firmaId;const _SozlesmelerSekme({required this.firmaId});
+  @override State<_SozlesmelerSekme> createState()=>_SozlesmelerSekmeState();
+}
+class _SozlesmelerSekmeState extends State<_SozlesmelerSekme> with SingleTickerProviderStateMixin{
+  static const _navy=Color(0xFF1a3a6b);static const _orange=Color(0xFFFF8C00);
+  late TabController _tab;String _filtreDonem='';
+  @override void initState(){super.initState();_tab=TabController(length:4,vsync:this);}
+  @override void dispose(){_tab.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(color:Colors.white,child:TabBar(controller:_tab,labelColor:_navy,unselectedLabelColor:Colors.grey,
+        indicatorColor:_orange,isScrollable:true,tabAlignment:TabAlignment.start,
+        tabs:const[Tab(icon:Icon(Icons.pending_outlined,size:16),text:'Bekleyen'),
+          Tab(icon:Icon(Icons.check_circle_outline,size:16),text:'Imzalanan'),
+          Tab(icon:Icon(Icons.timer_off_outlined,size:16),text:'Suresi Dolan'),
+          Tab(icon:Icon(Icons.archive_outlined,size:16),text:'Arsiv')])),
+    Container(color:Colors.white,padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),
+        child:Row(children:[const Icon(Icons.calendar_month_outlined,size:16,color:Colors.grey),const SizedBox(width:8),
+          Expanded(child:TextField(decoration:InputDecoration(hintText:'Donem filtre (2025-2026)',isDense:true,
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(8)),contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:6)),
+              onChanged:(v)=>setState(()=>_filtreDonem=v.trim()))),
+          const SizedBox(width:8),const Icon(Icons.lock_outlined,size:14,color:_navy),const SizedBox(width:4),
+          const Text('Silinemez',style:TextStyle(fontSize:11,color:_navy))])),
+    Expanded(child:TabBarView(controller:_tab,children:[
+      _SozListesi(firmaId:widget.firmaId,durum:'bekliyor',filtreDonem:_filtreDonem),
+      _SozListesi(firmaId:widget.firmaId,durum:'imzalandi',filtreDonem:_filtreDonem),
+      _SozListesi(firmaId:widget.firmaId,durum:'suresi_doldu',filtreDonem:_filtreDonem),
+      _SozListesi(firmaId:widget.firmaId,durum:'arsiv',filtreDonem:_filtreDonem),
+    ])),
+  ]);
 }
 
-class _SozlesmelerSekmeState extends State<_SozlesmelerSekme>
-    with SingleTickerProviderStateMixin {
-  static const _navy   = Color(0xFF1a3a6b);
-  static const _orange = Color(0xFFFF8C00);
-  late TabController _tab;
-  String _filtreDurum = 'hepsi';
-  String _filtreDonem = '';
-
-  @override void initState() { super.initState(); _tab = TabController(length: 4, vsync: this); }
-  @override void dispose()   { _tab.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(children: [
-      // Tab bar
-      Container(color: Colors.white, child: TabBar(
-        controller: _tab,
-        labelColor: _navy, unselectedLabelColor: Colors.grey,
-        indicatorColor: _orange, isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        tabs: const [
-          Tab(icon: Icon(Icons.pending_outlined, size: 16), text: 'Bekleyen'),
-          Tab(icon: Icon(Icons.check_circle_outline, size: 16), text: 'Imzalanan'),
-          Tab(icon: Icon(Icons.timer_off_outlined, size: 16), text: 'Suresi Dolan'),
-          Tab(icon: Icon(Icons.archive_outlined, size: 16), text: 'Arsiv'),
-        ],
-      )),
-      // Filtreler
-      Container(color: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(children: [
-            const Icon(Icons.calendar_month_outlined, size: 16, color: Colors.grey),
-            const SizedBox(width: 8),
-            Expanded(child: TextField(
-              decoration: InputDecoration(
-                  hintText: 'Donem filtre (2025-2026)',
-                  isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6)),
-              onChanged: (v) => setState(() => _filtreDonem = v.trim()),
-            )),
-            const SizedBox(width: 8),
-            const Icon(Icons.lock_outlined, size: 14, color: _navy),
-            const SizedBox(width: 4),
-            const Text('Silinemez', style: TextStyle(fontSize: 11, color: _navy)),
-          ])),
-      // İçerik
-      Expanded(child: TabBarView(controller: _tab, children: [
-        _SozListesi(firmaId: widget.firmaId, durum: 'bekliyor',     filtreDonem: _filtreDonem),
-        _SozListesi(firmaId: widget.firmaId, durum: 'imzalandi',    filtreDonem: _filtreDonem),
-        _SozListesi(firmaId: widget.firmaId, durum: 'suresi_doldu', filtreDonem: _filtreDonem),
-        _SozListesi(firmaId: widget.firmaId, durum: 'arsiv',        filtreDonem: _filtreDonem),
-      ])),
-    ]);
-  }
+class _SozListesi extends StatelessWidget{
+  final String firmaId,durum,filtreDonem;
+  const _SozListesi({required this.firmaId,required this.durum,required this.filtreDonem});
+  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
+      stream:FirebaseFirestore.instance.collection('sozlesmeler').where('firmaId',isEqualTo:firmaId)
+          .where('durum',isEqualTo:durum).orderBy('olusturmaTarihi',descending:true).snapshots(),
+      builder:(_,snap){
+        var docs=snap.data?.docs??[];
+        if(filtreDonem.isNotEmpty)docs=docs.where((d){final dd=d.data() as Map<String,dynamic>;return(dd['donem']??'').toString().contains(filtreDonem);}).toList();
+        if(docs.isEmpty)return Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+          Icon(Icons.description_outlined,size:56,color:Colors.grey[300]),const SizedBox(height:12),
+          Text('$durum durumunda sozlesme yok',style:const TextStyle(color:Colors.grey))]));
+        return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+            itemBuilder:(_,i){
+              final d=docs[i].data() as Map<String,dynamic>;
+              final Color renk=durum=='imzalandi'?Colors.green:durum=='bekliyor'?Colors.orange:durum=='suresi_doldu'?Colors.red:Colors.grey;
+              return Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(14),
+                  decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
+                      border:Border.all(color:renk.withValues(alpha:0.2)),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:5)]),
+                  child:Row(children:[Icon(Icons.description_outlined,color:renk,size:22),const SizedBox(width:12),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(d['ogrenciAd']??d['kisi']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
+                      Text('Veli: ${d['veliAd']??''}',style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                      if((d['donem']??'').isNotEmpty)Text('Donem: ${d['donem']}',style:TextStyle(fontSize:11,color:Colors.blue[400])),
+                      if((d['ucret']??d['fiyat']??0)>0)Text('${d['ucret']??d['fiyat']} TL/ay',style:const TextStyle(fontSize:12,color:Colors.green,fontWeight:FontWeight.w600)),
+                    ])),
+                    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                      Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                          decoration:BoxDecoration(color:renk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:Text(durum,style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:renk))),
+                      const SizedBox(height:4),
+                      GestureDetector(onTap:(){},child:Container(padding:const EdgeInsets.all(6),
+                          decoration:BoxDecoration(color:Colors.red.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:const Icon(Icons.picture_as_pdf_outlined,color:Colors.red,size:16))),
+                      if(durum=='suresi_doldu')...[const SizedBox(height:4),
+                        GestureDetector(onTap:()async{await FirebaseFirestore.instance.collection('sozlesmeler').doc(docs[i].id).update({'durum':'arsiv','arsivTarihi':FieldValue.serverTimestamp()});},
+                            child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                child:const Icon(Icons.archive_outlined,color:Colors.grey,size:16)))],
+                    ]),
+                  ]));
+            });
+      });
 }
 
-class _SozListesi extends StatelessWidget {
-  final String firmaId, durum, filtreDonem;
-  static const _navy = Color(0xFF1a3a6b);
-  const _SozListesi({required this.firmaId, required this.durum, required this.filtreDonem});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('sozlesmeler')
-          .where('firmaId', isEqualTo: firmaId)
-          .where('durum', isEqualTo: durum)
-          .orderBy('olusturmaTarihi', descending: true)
-          .snapshots(),
-      builder: (_, snap) {
-        var docs = snap.data?.docs ?? [];
-        // Dönem filtresi
-        if (filtreDonem.isNotEmpty) {
-          docs = docs.where((d) {
-            final dd = d.data() as Map<String,dynamic>;
-            return (dd['donem'] ?? '').toString().contains(filtreDonem);
-          }).toList();
-        }
-        if (docs.isEmpty) return Center(child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.description_outlined, size: 56, color: Colors.grey[300]),
-          const SizedBox(height: 12),
-          Text('$durum durumunda sozlesme yok',
-              style: const TextStyle(color: Colors.grey)),
-        ]));
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          itemBuilder: (_, i) {
-            final d = docs[i].data() as Map<String,dynamic>;
-            final Color renk = durum == 'imzalandi' ? Colors.green
-                : durum == 'bekliyor' ? Colors.orange
-                : durum == 'suresi_doldu' ? Colors.red
-                : Colors.grey;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: renk.withValues(alpha: 0.2)),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 5)]),
-              child: Row(children: [
-                Icon(Icons.description_outlined, color: renk, size: 22),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(d['ogrenciAd'] ?? d['kisi'] ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text('Veli: ${d['veliAd'] ?? ''}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  if ((d['donem'] ?? '').isNotEmpty)
-                    Text('Donem: ${d['donem']}',
-                        style: TextStyle(fontSize: 11, color: Colors.blue[400])),
-                  if ((d['ucret'] ?? d['fiyat'] ?? 0) > 0)
-                    Text('${d['ucret'] ?? d['fiyat']} TL/ay',
-                        style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
-                ])),
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: renk.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text(durum, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: renk))),
-                  const SizedBox(height: 4),
-                  // PDF butonu
-                  GestureDetector(
-                      onTap: () {},
-                      child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                          child: const Icon(Icons.picture_as_pdf_outlined, color: Colors.red, size: 16))),
-                  const SizedBox(height: 4),
-                  // Yeni dönem / Arşivle
-                  if (durum == 'suresi_doldu')
-                    GestureDetector(
-                        onTap: () async {
-                          await FirebaseFirestore.instance
-                              .collection('sozlesmeler').doc(docs[i].id)
-                              .update({'durum': 'arsiv', 'arsivTarihi': FieldValue.serverTimestamp()});
-                        },
-                        child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                            child: const Icon(Icons.archive_outlined, color: Colors.grey, size: 16))),
-                ]),
-              ]),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-
-// ════════ FIYATLANDIRMA ════════
+//  FIYATLANDIRMA
 class _FiyatlandirmaSekme extends StatefulWidget{
   final String firmaId;const _FiyatlandirmaSekme({required this.firmaId});
   @override State<_FiyatlandirmaSekme> createState()=>_FiyatlandirmaSekmeState();
@@ -1286,58 +1167,46 @@ class _FiyatlandirmaSekmeState extends State<_FiyatlandirmaSekme>{
                 return Column(children:docs.map((doc){
                   final d=doc.data() as Map<String,dynamic>;
                   return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
-                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
-                          boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
-                      child:Row(children:[Container(padding:const EdgeInsets.all(8),
-                          decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                      child:Row(children:[Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
                           child:const Icon(Icons.location_on_outlined,color:Colors.green,size:18)),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                           Text(d['bolge']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
-                          Text(d['tip']??'bolge',style:TextStyle(fontSize:12,color:Colors.grey[500])),
-                        ])),
+                          Text(d['tip']??'bolge',style:TextStyle(fontSize:12,color:Colors.grey[500]))])),
                         Text('${d['fiyat']} TL/ay',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:Colors.green)),
                         const SizedBox(width:10),
-                        IconButton(icon:const Icon(Icons.delete_outline,color:Colors.red,size:18),
-                            onPressed:()=>FirebaseFirestore.instance.collection('fiyatlar').doc(doc.id).delete()),
+                        IconButton(icon:const Icon(Icons.delete_outline,color:Colors.red,size:18),onPressed:()=>FirebaseFirestore.instance.collection('fiyatlar').doc(doc.id).delete()),
                       ]));
                 }).toList());
               }),
         ])),
         const SizedBox(width:24),
         Container(width:300,padding:const EdgeInsets.all(24),
-            decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),
-                boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
+            decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
             child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               const Text('Yeni Fiyat Ekle',style:TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
               const SizedBox(height:12),
               Row(children:[for(final t in[('bolge','Bolge'),('mahalle','Mahalle'),('km','Km'),('manuel','Manuel')])
                 Expanded(child:GestureDetector(onTap:()=>setState(()=>_tip=t.$1),
                     child:Container(margin:const EdgeInsets.only(right:4),padding:const EdgeInsets.symmetric(vertical:8),
-                        decoration:BoxDecoration(color:_tip==t.$1?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(7),
-                            border:Border.all(color:_tip==t.$1?_navy:Colors.grey)),
-                        child:Center(child:Text(t.$2,style:TextStyle(fontSize:10,color:_tip==t.$1?Colors.white:Colors.grey,
-                            fontWeight:_tip==t.$1?FontWeight.bold:FontWeight.normal))))))]),
+                        decoration:BoxDecoration(color:_tip==t.$1?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(7),border:Border.all(color:_tip==t.$1?_navy:Colors.grey)),
+                        child:Center(child:Text(t.$2,style:TextStyle(fontSize:10,color:_tip==t.$1?Colors.white:Colors.grey,fontWeight:_tip==t.$1?FontWeight.bold:FontWeight.normal))))))]),
               const SizedBox(height:12),
-              TextField(controller:_bC,decoration:InputDecoration(labelText:'Bolge / Mahalle',
-                  prefixIcon:const Icon(Icons.location_on_outlined,color:Color(0xFF1a3a6b),size:18),
-                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                  contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12))),
+              TextField(controller:_bC,decoration:InputDecoration(labelText:'Bolge / Mahalle',prefixIcon:const Icon(Icons.location_on_outlined,color:Color(0xFF1a3a6b),size:18),
+                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12))),
               const SizedBox(height:10),
-              TextField(controller:_fC,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:'Aylik Fiyat (TL)',
-                  prefixIcon:const Icon(Icons.payments_outlined,color:Color(0xFF1a3a6b),size:18),
-                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                  contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12))),
+              TextField(controller:_fC,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:'Aylik Fiyat (TL)',prefixIcon:const Icon(Icons.payments_outlined,color:Color(0xFF1a3a6b),size:18),
+                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12))),
               const SizedBox(height:14),
-              SizedBox(width:double.infinity,child:ElevatedButton(
-                  style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
-                      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+              SizedBox(width:double.infinity,child:ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
                   onPressed:_ekle,child:const Text('Fiyat Ekle',style:TextStyle(fontWeight:FontWeight.bold)))),
             ])),
       ]));
 }
 
-// ════════ DEVAMSIZLIK ════════
+//  DEVAMSIZLIK
 class _DevamsizlikSekme extends StatefulWidget{
   final String firmaId;const _DevamsizlikSekme({required this.firmaId});
   @override State<_DevamsizlikSekme> createState()=>_DevamsizlikSekmeState();
@@ -1347,27 +1216,23 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
   Color _r(String d)=>d=='onaylandi'?Colors.green:d=='reddedildi'?Colors.red:Colors.orange;
   @override Widget build(BuildContext context)=>Column(children:[
     Container(padding:const EdgeInsets.all(14),color:Colors.white,
-        child:Row(children:[const Text('Filtre:',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
-          const SizedBox(width:12),
-          ...['Tumu','bekliyor','onaylandi','reddedildi'].map((d){
-            final sec=_f==d;
-            return GestureDetector(onTap:()=>setState(()=>_f=d),
-                child:Container(margin:const EdgeInsets.only(right:8),padding:const EdgeInsets.symmetric(horizontal:14,vertical:6),
-                    decoration:BoxDecoration(color:sec?_navy:Colors.grey[100],borderRadius:BorderRadius.circular(20)),
-                    child:Text(d,style:TextStyle(color:sec?Colors.white:Colors.grey[700],fontSize:12,fontWeight:sec?FontWeight.bold:FontWeight.normal))));
+        child:Row(children:[const Text('Filtre:',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),const SizedBox(width:12),
+          ...['Tumu','bekliyor','onaylandi','reddedildi'].map((d){final sec=_f==d;
+          return GestureDetector(onTap:()=>setState(()=>_f=d),
+              child:Container(margin:const EdgeInsets.only(right:8),padding:const EdgeInsets.symmetric(horizontal:14,vertical:6),
+                  decoration:BoxDecoration(color:sec?_navy:Colors.grey[100],borderRadius:BorderRadius.circular(20)),
+                  child:Text(d,style:TextStyle(color:sec?Colors.white:Colors.grey[700],fontSize:12,fontWeight:sec?FontWeight.bold:FontWeight.normal))));
           }),
         ])),
     Expanded(child:StreamBuilder<QuerySnapshot>(
-        stream:_f=='Tumu'?FirebaseFirestore.instance.collection('absence_requests')
-            .where('firmaId',isEqualTo:widget.firmaId).orderBy('tarih',descending:true).snapshots()
-            :FirebaseFirestore.instance.collection('absence_requests')
-            .where('firmaId',isEqualTo:widget.firmaId).where('durum',isEqualTo:_f).orderBy('tarih',descending:true).snapshots(),
+        stream:_f=='Tumu'?FirebaseFirestore.instance.collection('absence_requests').where('firmaId',isEqualTo:widget.firmaId).orderBy('tarih',descending:true).snapshots()
+            :FirebaseFirestore.instance.collection('absence_requests').where('firmaId',isEqualTo:widget.firmaId).where('durum',isEqualTo:_f).orderBy('tarih',descending:true).snapshots(),
         builder:(_,snap){
           final docs=snap.data?.docs??[];
           if(docs.isEmpty)return _bos('Devamsizlik bildirimi yok','',Icons.event_busy_outlined);
           return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
               itemBuilder:(_,i){
-                final d=docs[i].data() as Map<String,dynamic>;final dur=d['durum'] as String??'bekliyor';
+                final d=docs[i].data() as Map<String,dynamic>;final dur=d['durum'] as String? ??'bekliyor';
                 final r=_r(dur);final tip=d['tip']??d['tur']??'tum_gun';
                 return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
                     decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:r.withValues(alpha:0.2))),
@@ -1377,21 +1242,15 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
                           Text(d['ogrenciAd']??'Ogrenci',style:const TextStyle(fontWeight:FontWeight.bold)),
                           Row(children:[
                             if((d['veliAd']??'').isNotEmpty)Text('Veli:${d['veliAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
-                            if((d['servisAd']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),
-                              Text('Servis:${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500]))],
-                            if((d['projeAd']??d['projeId']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),
-                              Text('Proje:${d['projeAd']??d['projeId']}',style:TextStyle(fontSize:11,color:Colors.blue[400]))],
+                            if((d['servisAd']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),Text('Servis:${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500]))],
+                            if((d['projeAd']??d['projeId']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),Text('Proje:${d['projeAd']??d['projeId']}',style:TextStyle(fontSize:11,color:Colors.blue[400]))],
                           ]),
                           Row(children:[
-                            Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:11,color:Colors.grey[400])),
-                            const SizedBox(width:8),
-                            Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
-                                decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
-                                child:Text(tip=='sabah'?'Sadece Sabah':tip=='aksam'?'Sadece Aksam':'Tum Gun',
-                                    style:const TextStyle(fontSize:10,color:Colors.blue,fontWeight:FontWeight.bold))),
+                            Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:11,color:Colors.grey[400])),const SizedBox(width:8),
+                            Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
+                                child:Text(tip=='sabah'?'Sadece Sabah':tip=='aksam'?'Sadece Aksam':'Tum Gun',style:const TextStyle(fontSize:10,color:Colors.blue,fontWeight:FontWeight.bold))),
                           ]),
-                          if((d['aciklama']??d['not']??'').isNotEmpty)
-                            Text('Sebep:${d['aciklama']??d['not']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
+                          if((d['aciklama']??d['not']??'').isNotEmpty)Text('Sebep:${d['aciklama']??d['not']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
                         ])),
                         if(dur=='bekliyor')Row(children:[
                           _AksBtn('Onayla',Colors.green,()async=>FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'durum':'onaylandi','rotaGuncellendi':true,'onayTarihi':FieldValue.serverTimestamp()})),
@@ -1400,26 +1259,15 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
                           const SizedBox(width:6),
                           _AksBtn('Not Ekle',Colors.blue,()async{
                             final notCtrl=TextEditingController(text:d['not']??'');
-                            final sonuc=await showDialog<String>(
-                                context:context,
-                                builder:(_)=>AlertDialog(
-                                    shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-                                    title:const Text('Not Ekle',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
-                                    content:TextField(controller:notCtrl,maxLines:3,
-                                        decoration:InputDecoration(hintText:'Notunuzu yazin...',
-                                            border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                                            contentPadding:const EdgeInsets.all(12))),
-                                    actions:[
-                                      TextButton(onPressed:()=>Navigator.pop(_),child:const Text('Iptal')),
-                                      ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),
-                                          onPressed:()=>Navigator.pop(_,notCtrl.text.trim()),child:const Text('Kaydet')),
-                                    ]));
-                            if(sonuc!=null&&sonuc.isNotEmpty){
-                              await FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'not':sonuc});
-                            }
+                            final sonuc=await showDialog<String>(context:context,builder:(_)=>AlertDialog(
+                                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+                                title:const Text('Not Ekle',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+                                content:TextField(controller:notCtrl,maxLines:3,decoration:InputDecoration(hintText:'Notunuzu yazin...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.all(12))),
+                                actions:[TextButton(onPressed:()=>Navigator.pop(_),child:const Text('Iptal')),
+                                  ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),onPressed:()=>Navigator.pop(_,notCtrl.text.trim()),child:const Text('Kaydet'))]));
+                            if(sonuc!=null&&sonuc.isNotEmpty)await FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'not':sonuc});
                           }),
-                        ])else Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
-                            decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                        ])else Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
                             child:Text(dur,style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:r))),
                       ]),
                     ]));
@@ -1428,17 +1276,14 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
   ]);
 }
 
-// ════════ PLAKA TANIMA ════════
+//  PLAKA TANIMA
 class _PlakaTanimaSekme extends StatelessWidget{
-  final String firmaId;static const _navy=Color(0xFF1a3a6b);
-  const _PlakaTanimaSekme({required this.firmaId});
+  final String firmaId;const _PlakaTanimaSekme({required this.firmaId});
   @override Widget build(BuildContext context)=>Column(children:[
     Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
         child:Row(children:[const Text('Plaka Tanima Kayitlari',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
-          const Spacer(),Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
-              decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
-              child:const Row(children:[Icon(Icons.camera_alt_outlined,size:14,color:Colors.green),SizedBox(width:6),
-                Text('Sistem Aktif',style:TextStyle(fontSize:12,color:Colors.green,fontWeight:FontWeight.bold))]))])),
+          const Spacer(),Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+              child:const Row(children:[Icon(Icons.camera_alt_outlined,size:14,color:Colors.green),SizedBox(width:6),Text('Sistem Aktif',style:TextStyle(fontSize:12,color:Colors.green,fontWeight:FontWeight.bold))]))])),
     Expanded(child:StreamBuilder<QuerySnapshot>(
         stream:FirebaseFirestore.instance.collection('plate_logs').where('firmaId',isEqualTo:firmaId).orderBy('tarih',descending:true).limit(50).snapshots(),
         builder:(_,snap){
@@ -1448,32 +1293,27 @@ class _PlakaTanimaSekme extends StatelessWidget{
               itemBuilder:(_,i){
                 final d=docs[i].data() as Map<String,dynamic>;final esl=d['eslesti']==true;
                 return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
-                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
-                        border:Border.all(color:(esl?Colors.green:Colors.red).withValues(alpha:0.25))),
-                    child:Row(children:[Icon(Icons.directions_car_outlined,color:esl?Colors.green:Colors.red,size:22),
-                      const SizedBox(width:12),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:(esl?Colors.green:Colors.red).withValues(alpha:0.25))),
+                    child:Row(children:[Icon(Icons.directions_car_outlined,color:esl?Colors.green:Colors.red,size:22),const SizedBox(width:12),
                       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                         Text(d['plaka']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:16,letterSpacing:1.2)),
                         if((d['soforAd']??'').isNotEmpty)Text(d['soforAd'],style:TextStyle(fontSize:12,color:Colors.grey[500])),
-                        Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400])),
-                      ])),
-                      Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
-                          decoration:BoxDecoration(color:(esl?Colors.green:Colors.red).withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
-                          child:Text(esl?'Eslesti':'Uyari',style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:esl?Colors.green:Colors.red))),
-                    ]));
+                        Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400]))])),
+                      Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),decoration:BoxDecoration(color:(esl?Colors.green:Colors.red).withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                          child:Text(esl?'Eslesti':'Uyari',style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:esl?Colors.green:Colors.red)))]));
               });
         })),
   ]);
 }
 
-// ════════ KAREKOD / QR ════════
+//  KAREKOD / QR
 class _KarekodQrSekme extends StatelessWidget{
-  final String firmaId;static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  final String firmaId;static const _navy=Color(0xFF1a3a6b);
   const _KarekodQrSekme({required this.firmaId});
   @override Widget build(BuildContext context)=>SingleChildScrollView(padding:const EdgeInsets.all(24),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('QR / Karekod Yonetimi',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
-        const SizedBox(height:6),const Text('Proje bazli QR olusturun. Okul afisine asin veya WhatsApp ile gonderin.',style:TextStyle(color:Colors.grey,fontSize:13)),
+        const SizedBox(height:6),const Text('Proje bazli QR olusturun.',style:TextStyle(color:Colors.grey,fontSize:13)),
         const SizedBox(height:24),
         Wrap(spacing:20,runSpacing:20,children:[
           _qrKart('Ogrenci Kayit QR',Icons.school_outlined,Colors.blue,'Veli QR okutunca kayit formuna gider.',context),
@@ -1483,29 +1323,25 @@ class _KarekodQrSekme extends StatelessWidget{
         ]),
       ]));
   Widget _qrKart(String b,IconData i,Color r,String a,BuildContext context)=>Container(width:280,padding:const EdgeInsets.all(20),
-      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),border:Border.all(color:r.withValues(alpha:0.15)),
-          boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),border:Border.all(color:r.withValues(alpha:0.15)),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Row(children:[Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(10)),
-            child:Icon(i,color:r,size:24)),const Spacer(),
-          Container(width:60,height:60,decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(8),border:Border.all(color:Colors.grey)),
+        Row(children:[Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(10)),child:Icon(i,color:r,size:24)),
+          const Spacer(),Container(width:60,height:60,decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(8),border:Border.all(color:Colors.grey)),
               child:const Center(child:Icon(Icons.qr_code_outlined,size:40,color:Colors.black87)))]),
         const SizedBox(height:14),Text(b,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
         const SizedBox(height:4),Text(a,style:TextStyle(fontSize:12,color:Colors.grey[500])),
         const SizedBox(height:14),
         Row(children:[
-          Expanded(child:OutlinedButton.icon(style:OutlinedButton.styleFrom(foregroundColor:r,side:BorderSide(color:r),
-              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:10)),
+          Expanded(child:OutlinedButton.icon(style:OutlinedButton.styleFrom(foregroundColor:r,side:BorderSide(color:r),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:10)),
               onPressed:(){},icon:const Icon(Icons.download_outlined,size:14),label:const Text('Indir',style:TextStyle(fontSize:12)))),
           const SizedBox(width:8),
-          Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF25D366),foregroundColor:Colors.white,
-              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:10)),
+          Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF25D366),foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:10)),
               onPressed:(){},icon:const Icon(Icons.send_outlined,size:14),label:const Text('WA',style:TextStyle(fontSize:12)))),
         ]),
       ]));
 }
 
-// ════════ BİLDİRİMLER ════════
+//  BILDIRIMLER
 class _BildirimlerSekme extends StatefulWidget{
   final String firmaId;const _BildirimlerSekme({required this.firmaId});
   @override State<_BildirimlerSekme> createState()=>_BildirimlerSekmeState();
@@ -1515,8 +1351,7 @@ class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
   final _mC=TextEditingController();bool _g=false;String _h='veliler';
   Future<void> _gonder() async{
     if(_mC.text.trim().isEmpty)return;setState(()=>_g=true);
-    await FirebaseFirestore.instance.collection('bildirimler').add({'firmaId':widget.firmaId,
-      'mesaj':_mC.text.trim(),'hedef':_h,'tarih':FieldValue.serverTimestamp(),'gonderen':'admin'});
+    await FirebaseFirestore.instance.collection('bildirimler').add({'firmaId':widget.firmaId,'mesaj':_mC.text.trim(),'hedef':_h,'tarih':FieldValue.serverTimestamp(),'gonderen':'admin'});
     _mC.clear();setState(()=>_g=false);
   }
   @override Widget build(BuildContext context)=>Row(children:[
@@ -1533,43 +1368,29 @@ class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
                   final d=docs[i].data() as Map<String,dynamic>;final h=d['hedef']??'veliler';
                   final r=h=='veliler'?Colors.blue:h=='soforler'?_navy:Colors.purple;
                   return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
-                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
-                          boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
-                      child:Row(children:[Container(padding:const EdgeInsets.all(8),
-                          decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
-                          child:Icon(Icons.notifications_outlined,color:r,size:18)),
-                        const SizedBox(width:12),
-                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                      child:Row(children:[Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),child:Icon(Icons.notifications_outlined,color:r,size:18)),
+                        const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                           Text(d['mesaj']??'',style:const TextStyle(fontWeight:FontWeight.w500)),
-                          Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400])),
-                        ])),
-                        Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                            decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
-                            child:Text(h,style:TextStyle(fontSize:10,color:r,fontWeight:FontWeight.bold))),
-                      ]));
+                          Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400]))])),
+                        Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                            child:Text(h,style:TextStyle(fontSize:10,color:r,fontWeight:FontWeight.bold)))]));
                 });
           })),
     ])),
     Container(width:300,color:Colors.white,padding:const EdgeInsets.all(24),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Bildirim Gonder',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
-          const SizedBox(height:18),const Text('Hedef Kitle',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),
-          const SizedBox(height:10),
+          const SizedBox(height:18),const Text('Hedef Kitle',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),const SizedBox(height:10),
           ...['veliler','soforler','herkese'].map((h)=>GestureDetector(onTap:()=>setState(()=>_h=h),
               child:Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
-                  decoration:BoxDecoration(color:_h==h?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(10),
-                      border:Border.all(color:_h==h?_navy:Colors.grey)),
-                  child:Row(children:[Icon(_h==h?Icons.radio_button_checked:Icons.radio_button_off,
-                      color:_h==h?Colors.white:Colors.grey,size:16),const SizedBox(width:10),
+                  decoration:BoxDecoration(color:_h==h?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(10),border:Border.all(color:_h==h?_navy:Colors.grey)),
+                  child:Row(children:[Icon(_h==h?Icons.radio_button_checked:Icons.radio_button_off,color:_h==h?Colors.white:Colors.grey,size:16),const SizedBox(width:10),
                     Text(h[0].toUpperCase()+h.substring(1),style:TextStyle(color:_h==h?Colors.white:Colors.grey[700],fontWeight:FontWeight.w500))])))),
-          const SizedBox(height:14),const Text('Mesaj',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),
-          const SizedBox(height:8),
-          TextField(controller:_mC,maxLines:5,decoration:InputDecoration(hintText:'Bildirim mesajini yazin...',
-              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.all(14))),
+          const SizedBox(height:14),const Text('Mesaj',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),const SizedBox(height:8),
+          TextField(controller:_mC,maxLines:5,decoration:InputDecoration(hintText:'Bildirim mesajini yazin...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.all(14))),
           const SizedBox(height:14),
-          SizedBox(width:double.infinity,child:ElevatedButton.icon(
-              style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
-                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+          SizedBox(width:double.infinity,child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
               onPressed:_g?null:_gonder,
               icon:_g?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.send_outlined,size:16),
               label:const Text('Gonder',style:TextStyle(fontWeight:FontWeight.bold)))),
@@ -1577,7 +1398,7 @@ class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
   ]);
 }
 
-// ════════ ARŞİV ════════
+//  ARSIV
 class _ArsivSekme extends StatefulWidget{
   final String firmaId;const _ArsivSekme({required this.firmaId});
   @override State<_ArsivSekme> createState()=>_ArsivSekmeState();
@@ -1593,28 +1414,22 @@ class _ArsivSekmeState extends State<_ArsivSekme>{
                     decoration:BoxDecoration(border:Border(bottom:BorderSide(color:_s==item.$1?_t:Colors.transparent,width:2))),
                     child:Text(item.$2,style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:_s==item.$1?_t:Colors.grey)))),
         ])),
-    Expanded(child:StreamBuilder<QuerySnapshot>(
-        stream:_str(),
-        builder:(_,snap){
-          final docs=snap.data?.docs??[];
-          if(docs.isEmpty)return _bos('Arsiv bos','Arsivlenen kayitlar burada gorunecek.',Icons.archive_outlined);
-          return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
-              itemBuilder:(_,i){
-                final d=docs[i].data() as Map<String,dynamic>;
-                return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
-                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
-                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
-                    child:Row(children:[Icon(Icons.archive_outlined,color:Colors.grey[400],size:20),const SizedBox(width:12),
-                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        Text(d['ad']??d['ogrenciAd']??d['kisi']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
-                        Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:12,color:Colors.grey[500])),
-                      ])),
-                      Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                          decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
-                          child:const Text('Arsiv',style:TextStyle(fontSize:10,color:Colors.grey,fontWeight:FontWeight.bold))),
-                    ]));
-              });
-        })),
+    Expanded(child:StreamBuilder<QuerySnapshot>(stream:_str(),builder:(_,snap){
+      final docs=snap.data?.docs??[];
+      if(docs.isEmpty)return _bos('Arsiv bos','Arsivlenen kayitlar burada gorunecek.',Icons.archive_outlined);
+      return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+          itemBuilder:(_,i){
+            final d=docs[i].data() as Map<String,dynamic>;
+            return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                child:Row(children:[Icon(Icons.archive_outlined,color:Colors.grey[400],size:20),const SizedBox(width:12),
+                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Text(d['ad']??d['ogrenciAd']??d['kisi']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+                    Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:12,color:Colors.grey[500]))])),
+                  Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                      child:const Text('Arsiv',style:TextStyle(fontSize:10,color:Colors.grey,fontWeight:FontWeight.bold)))]));
+          });
+    })),
   ]);
   Stream<QuerySnapshot> _str(){
     switch(_s){
@@ -1626,119 +1441,43 @@ class _ArsivSekmeState extends State<_ArsivSekme>{
   }
 }
 
-// ════════ YAKLAŞAN SERVİSLER ════════
+//  YAKLASAN SERVISLER
 class _YaklasanServisler extends StatelessWidget{
-  final String firmaId;
-  final void Function(int) onNavigate;
+  final String firmaId;final void Function(int) onNavigate;
   const _YaklasanServisler({required this.firmaId,required this.onNavigate});
-
-  @override
-  Widget build(BuildContext context){
-    return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[
-        const Text('Yaklasan Servis Saatleri',
-            style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
-        const Spacer(),
-        GestureDetector(
-            onTap:()=>onNavigate(2),
-            child:const Text('Tum Servisler',
-                style:TextStyle(color:Color(0xFF1a3a6b),fontSize:12,fontWeight:FontWeight.bold))),
-      ]),
-      const SizedBox(height:8),
-      StreamBuilder<QuerySnapshot>(
-          stream:FirebaseFirestore.instance.collection('services')
-              .where('firmaId',isEqualTo:firmaId)
-              .where('aktif',isEqualTo:true)
-              .snapshots(),
-          builder:(ctx,snap){
-            final docs=snap.data?.docs??[];
-            if(docs.isEmpty){
-              return Container(
-                  padding:const EdgeInsets.all(12),
-                  decoration:BoxDecoration(
-                      color:Colors.white,borderRadius:BorderRadius.circular(10)),
-                  child:const Row(children:[
-                    Icon(Icons.directions_bus_outlined,color:Colors.grey,size:16),
-                    SizedBox(width:8),
-                    Text('Aktif servis yok',style:TextStyle(color:Colors.grey,fontSize:12)),
-                  ]));
-            }
-            final servisler=docs.where((d){
-              final data=d.data() as Map<String,dynamic>;
-              return(data['sabahSaati']??'').isNotEmpty||(data['aksamSaati']??'').isNotEmpty;
-            }).take(4).toList();
-            if(servisler.isEmpty){
-              return Container(
-                  padding:const EdgeInsets.all(12),
-                  decoration:BoxDecoration(
-                      color:Colors.white,borderRadius:BorderRadius.circular(10)),
-                  child:const Row(children:[
-                    Icon(Icons.access_time_outlined,color:Colors.grey,size:16),
-                    SizedBox(width:8),
-                    Text('Servis saati girilmemis',style:TextStyle(color:Colors.grey,fontSize:12)),
-                  ]));
-            }
-            return Column(
-                children:servisler.map((doc){
-                  final d=doc.data() as Map<String,dynamic>;
-                  final sab=d['sabahSaati'] as String? ??'';
-                  final aks=d['aksamSaati'] as String? ??'';
-                  return GestureDetector(
-                      onTap:()=>_ServisDuzenleDialog.goster(ctx,doc.id,d,firmaId),
-                      child:Container(
-                          margin:const EdgeInsets.only(bottom:6),
-                          padding:const EdgeInsets.all(10),
-                          decoration:BoxDecoration(
-                              color:Colors.white,
-                              borderRadius:BorderRadius.circular(10),
-                              border:Border.all(
-                                  color:const Color(0xFF1a3a6b).withValues(alpha:0.12))),
-                          child:Row(children:[
-                            const Icon(Icons.directions_bus_outlined,
-                                color:Color(0xFF1a3a6b),size:16),
-                            const SizedBox(width:8),
-                            Expanded(child:Text(d['ad']??'',
-                                style:const TextStyle(
-                                    fontWeight:FontWeight.w600,fontSize:12))),
-                            if(sab.isNotEmpty)
-                              Container(
-                                  margin:const EdgeInsets.only(right:6),
-                                  padding:const EdgeInsets.symmetric(
-                                      horizontal:8,vertical:3),
-                                  decoration:BoxDecoration(
-                                      color:Colors.orange.withValues(alpha:0.1),
-                                      borderRadius:BorderRadius.circular(6)),
-                                  child:Row(mainAxisSize:MainAxisSize.min,children:[
-                                    const Icon(Icons.wb_sunny_outlined,
-                                        size:11,color:Colors.orange),
-                                    const SizedBox(width:3),
-                                    Text(sab,style:const TextStyle(
-                                        fontSize:11,color:Colors.orange,
-                                        fontWeight:FontWeight.bold)),
-                                  ])),
-                            if(aks.isNotEmpty)
-                              Container(
-                                  padding:const EdgeInsets.symmetric(
-                                      horizontal:8,vertical:3),
-                                  decoration:BoxDecoration(
-                                      color:Colors.indigo.withValues(alpha:0.1),
-                                      borderRadius:BorderRadius.circular(6)),
-                                  child:Row(mainAxisSize:MainAxisSize.min,children:[
-                                    const Icon(Icons.nights_stay_outlined,
-                                        size:11,color:Colors.indigo),
-                                    const SizedBox(width:3),
-                                    Text(aks,style:const TextStyle(
-                                        fontSize:11,color:Colors.indigo,
-                                        fontWeight:FontWeight.bold)),
-                                  ])),
-                          ])));
-                }).toList());
-          }),
-    ]);
-  }
+  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Row(children:[const Text('Yaklasan Servis Saatleri',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+      const Spacer(),GestureDetector(onTap:()=>onNavigate(2),child:const Text('Tum Servisler',style:TextStyle(color:Color(0xFF1a3a6b),fontSize:12,fontWeight:FontWeight.bold)))]),
+    const SizedBox(height:8),
+    StreamBuilder<QuerySnapshot>(
+        stream:FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:firmaId).where('aktif',isEqualTo:true).snapshots(),
+        builder:(ctx,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),
+              child:const Row(children:[Icon(Icons.directions_bus_outlined,color:Colors.grey,size:16),SizedBox(width:8),Text('Aktif servis yok',style:TextStyle(color:Colors.grey,fontSize:12))]));
+          final servisler=docs.where((d){final data=d.data() as Map<String,dynamic>;return(data['sabahSaati']??'').isNotEmpty||(data['aksamSaati']??'').isNotEmpty;}).take(4).toList();
+          if(servisler.isEmpty)return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),
+              child:const Row(children:[Icon(Icons.access_time_outlined,color:Colors.grey,size:16),SizedBox(width:8),Text('Servis saati girilmemis',style:TextStyle(color:Colors.grey,fontSize:12))]));
+          return Column(children:servisler.map((doc){
+            final d=doc.data() as Map<String,dynamic>;final sab=d['sabahSaati'] as String? ??'';final aks=d['aksamSaati'] as String? ??'';
+            return GestureDetector(onTap:()=>_ServisDuzenleDialog.goster(ctx,doc.id,d,firmaId),
+                child:Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.all(10),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10),border:Border.all(color:const Color(0xFF1a3a6b).withValues(alpha:0.12))),
+                    child:Row(children:[const Icon(Icons.directions_bus_outlined,color:Color(0xFF1a3a6b),size:16),const SizedBox(width:8),
+                      Expanded(child:Text(d['ad']??'',style:const TextStyle(fontWeight:FontWeight.w600,fontSize:12))),
+                      if(sab.isNotEmpty)Container(margin:const EdgeInsets.only(right:6),padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                          decoration:BoxDecoration(color:Colors.orange.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:Row(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.wb_sunny_outlined,size:11,color:Colors.orange),const SizedBox(width:3),Text(sab,style:const TextStyle(fontSize:11,color:Colors.orange,fontWeight:FontWeight.bold))])),
+                      if(aks.isNotEmpty)Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                          decoration:BoxDecoration(color:Colors.indigo.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:Row(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.nights_stay_outlined,size:11,color:Colors.indigo),const SizedBox(width:3),Text(aks,style:const TextStyle(fontSize:11,color:Colors.indigo,fontWeight:FontWeight.bold))])),
+                    ])));
+          }).toList());
+        }),
+  ]);
 }
 
-// ════════ SHARED ════════
+//  SHARED
 class _SonDevamsizliklar extends StatelessWidget{
   final String firmaId;const _SonDevamsizliklar({required this.firmaId});
   @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
@@ -1748,18 +1487,16 @@ class _SonDevamsizliklar extends StatelessWidget{
         if(docs.isEmpty)return Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12)),
             child:const Row(children:[Icon(Icons.check_circle_outline,color:Colors.green,size:16),SizedBox(width:8),Text('Bekleyen devamsizlik yok',style:TextStyle(color:Colors.grey))]));
         return Column(children:docs.map((doc){
-          final d=doc.data() as Map<String,dynamic>;final dur=d['durum'] as String??'bekliyor';
+          final d=doc.data() as Map<String,dynamic>;final dur=d['durum'] as String? ??'bekliyor';
           final r=dur=='onaylandi'?Colors.green:dur=='reddedildi'?Colors.red:Colors.orange;
           return Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.all(10),
               decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10),border:Border.all(color:r.withValues(alpha:0.3))),
               child:Row(children:[Icon(Icons.event_busy_outlined,color:r,size:15),const SizedBox(width:8),
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Text(d['ogrenciAd']??'Ogrenci',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:12)),
-                  Text(d['aciklama']??'',style:TextStyle(fontSize:10,color:Colors.grey[500]),maxLines:1,overflow:TextOverflow.ellipsis),
-                ])),
+                  Text(d['aciklama']??'',style:TextStyle(fontSize:10,color:Colors.grey[500]),maxLines:1,overflow:TextOverflow.ellipsis)])),
                 Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(5)),
-                    child:Text(dur,style:TextStyle(fontSize:9,fontWeight:FontWeight.bold,color:r))),
-              ]));
+                    child:Text(dur,style:TextStyle(fontSize:9,fontWeight:FontWeight.bold,color:r)))]));
         }).toList());
       });
 }
@@ -1773,206 +1510,67 @@ class _AksBtn extends StatelessWidget{
           child:Text(label,style:TextStyle(fontSize:11,color:renk,fontWeight:FontWeight.bold))));
 }
 
-
-// ════════ SERVİS DÜZENLEME DİYALOGU ════════
-class _ServisDuzenleDialog {
-  static void goster(BuildContext context, String servisId, Map<String,dynamic> servis, String firmaId) {
-    final adCtrl    = TextEditingController(text: servis['ad']         ?? '');
-    final kapCtrl   = TextEditingController(text: servis['kapasite']?.toString() ?? '17');
-    final sabahCtrl = TextEditingController(text: servis['sabahSaati'] ?? '');
-    final aksamCtrl = TextEditingController(text: servis['aksamSaati'] ?? '');
-    String? secSoforId  = servis['soforId']?.toString().isNotEmpty  == true ? servis['soforId']  : null;
-    String? secProjeId  = servis['projeId']?.toString().isNotEmpty  == true ? servis['projeId']  : null;
-    bool    aktif       = servis['aktif'] == true;
-    bool    otoBaslat   = servis['autoStartEnabled'] == true;
-    bool    kaydediliyor= false;
-
-
-
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: EdgeInsets.zero,
-        content: SizedBox(width: 460, child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Baslik
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-                color: Color(0xFF1a3a6b),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-            child: Row(children: [
-              const Icon(Icons.directions_bus_outlined, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
-              Expanded(child: Text(adCtrl.text.isNotEmpty ? adCtrl.text : 'Servis Duzenle',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              IconButton(icon: const Icon(Icons.close, color: Colors.white54, size: 18),
-                  onPressed: () => Navigator.pop(ctx),
-                  padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-            ]),
-          ),
-          // Form
-          Flexible(child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(children: [
-              // Servis adi + kapasite
-              Row(children: [
-                Expanded(child: _tf(adCtrl, 'Servis Adi *', Icons.directions_bus_outlined)),
-                const SizedBox(width: 10),
-                Expanded(child: _tf(kapCtrl, 'Kapasite', Icons.people_outlined)),
-              ]),
-              const SizedBox(height: 10),
-              // Proje
-              FutureBuilder(
-                future: FirebaseFirestore.instance.collection('projects')
-                    .where('firmaId', isEqualTo: firmaId).where('aktif', isEqualTo: true).get(),
-                builder: (_, snap) {
-                  final prjList = snap.data?.docs.map((d) => {'id': d.id, ...d.data()}).toList() ?? [];
-                  return DropdownButtonFormField<String?>(
-                    value: secProjeId,
-                    decoration: const InputDecoration(
-                        labelText: 'Bagli Proje',
-                        prefixIcon: Icon(Icons.folder_outlined, size: 18, color: Color(0xFF1a3a6b)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
-                        isDense: true),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('Proje Sec...')),
-                      ...prjList.map((p) => DropdownMenuItem<String?>(
-                          value: p['id'] as String,
-                          child: Text(p['projeAd'] ?? ''))),
-                    ],
-                    onChanged: (v) => setS(() => secProjeId = v),
-                  );
+//  SERVIS DUZENLEME DIYALOGU
+class _ServisDuzenleDialog{
+  static void goster(BuildContext context,String servisId,Map<String,dynamic> servis,String firmaId){
+    final adCtrl=TextEditingController(text:servis['ad']??'');
+    final kapCtrl=TextEditingController(text:servis['kapasite']?.toString()??'17');
+    final sabahCtrl=TextEditingController(text:servis['sabahSaati']??'');
+    final aksamCtrl=TextEditingController(text:servis['aksamSaati']??'');
+    String? secSoforId=servis['soforId']?.toString().isNotEmpty==true?servis['soforId']:null;
+    String? secProjeId=servis['projeId']?.toString().isNotEmpty==true?servis['projeId']:null;
+    bool aktif=servis['aktif']==true;bool otoBaslat=servis['autoStartEnabled']==true;bool kaydediliyor=false;
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),contentPadding:EdgeInsets.zero,
+        content:SizedBox(width:460,child:Column(mainAxisSize:MainAxisSize.min,children:[
+          Container(padding:const EdgeInsets.all(16),decoration:const BoxDecoration(color:Color(0xFF1a3a6b),borderRadius:BorderRadius.vertical(top:Radius.circular(16))),
+              child:Row(children:[const Icon(Icons.directions_bus_outlined,color:Colors.white,size:20),const SizedBox(width:10),
+                Expanded(child:Text(adCtrl.text.isNotEmpty?adCtrl.text:'Servis Duzenle',style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold))),
+                IconButton(icon:const Icon(Icons.close,color:Colors.white54,size:18),onPressed:()=>Navigator.pop(ctx),padding:EdgeInsets.zero,constraints:const BoxConstraints())])),
+          Flexible(child:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(children:[
+            Row(children:[Expanded(child:_tf(adCtrl,'Servis Adi *',Icons.directions_bus_outlined)),const SizedBox(width:10),Expanded(child:_tf(kapCtrl,'Kapasite',Icons.people_outlined))]),
+            const SizedBox(height:10),
+            FutureBuilder(future:FirebaseFirestore.instance.collection('projects').where('firmaId',isEqualTo:firmaId).where('aktif',isEqualTo:true).get(),
+                builder:(_,snap){final prjList=snap.data?.docs.map((d)=>{'id':d.id,...d.data()}).toList()??[];
+                return DropdownButtonFormField<String?>(value:secProjeId,decoration:const InputDecoration(labelText:'Bagli Proje',prefixIcon:Icon(Icons.folder_outlined,size:18,color:Color(0xFF1a3a6b)),border:OutlineInputBorder(borderRadius:BorderRadius.all(Radius.circular(10))),isDense:true),
+                    items:[const DropdownMenuItem<String?>(value:null,child:Text('Proje Sec...')),
+                      ...prjList.map((p)=>DropdownMenuItem<String?>(value:p['id'] as String,child:Text(p['projeAd']??'')))],onChanged:(v)=>setS(()=>secProjeId=v));}),
+            const SizedBox(height:10),
+            FutureBuilder(future:FirebaseFirestore.instance.collection('drivers').where('firmaId',isEqualTo:firmaId).get(),
+                builder:(_,snap){final sofList=snap.data?.docs.map((d)=>{'id':d.id,...d.data()}).toList()??[];
+                return DropdownButtonFormField<String?>(value:secSoforId,decoration:const InputDecoration(labelText:'Bagli Sofor',prefixIcon:Icon(Icons.person_outlined,size:18,color:Color(0xFF1a3a6b)),border:OutlineInputBorder(borderRadius:BorderRadius.all(Radius.circular(10))),isDense:true),
+                    items:[const DropdownMenuItem<String?>(value:null,child:Text('Sofor Sec...')),
+                      ...sofList.map((s)=>DropdownMenuItem<String?>(value:s['id'] as String,child:Text(s['ad']??s['adSoyad']??'Sofor')))],onChanged:(v)=>setS(()=>secSoforId=v));}),
+            const SizedBox(height:10),
+            Row(children:[Expanded(child:_tf(sabahCtrl,'Sabah Saati',Icons.wb_sunny_outlined)),const SizedBox(width:10),Expanded(child:_tf(aksamCtrl,'Aksam Saati',Icons.nights_stay_outlined))]),
+            const SizedBox(height:12),
+            Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:8),decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(10)),
+                child:Column(children:[
+                  Row(children:[const Icon(Icons.power_settings_new_outlined,size:18,color:Color(0xFF1a3a6b)),const SizedBox(width:10),const Expanded(child:Text('Aktif',style:TextStyle(fontWeight:FontWeight.w600))),Switch(value:aktif,activeColor:Colors.green,onChanged:(v)=>setS(()=>aktif=v))]),
+                  Row(children:[const Icon(Icons.alarm_outlined,size:18,color:Color(0xFF1a3a6b)),const SizedBox(width:10),const Expanded(child:Text('Otomatik Baslat',style:TextStyle(fontWeight:FontWeight.w600))),Switch(value:otoBaslat,activeColor:Color(0xFFFF8C00),onChanged:(v)=>setS(()=>otoBaslat=v))]),
+                ])),
+          ]))),
+          Padding(padding:const EdgeInsets.all(16),child:Row(children:[
+            Expanded(child:OutlinedButton(style:OutlinedButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:13),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal'))),
+            const SizedBox(width:12),
+            Expanded(flex:2,child:ElevatedButton.icon(
+                style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white,padding:const EdgeInsets.symmetric(vertical:13),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                onPressed:kaydediliyor?null:() async{
+                  if(adCtrl.text.trim().isEmpty)return;setS(()=>kaydediliyor=true);
+                  try{
+                    await FirebaseFirestore.instance.collection('services').doc(servisId).update({'ad':adCtrl.text.trim(),'kapasite':int.tryParse(kapCtrl.text)??17,'projeId':secProjeId??'','soforId':secSoforId??'','sabahSaati':sabahCtrl.text.trim(),'aksamSaati':aksamCtrl.text.trim(),'aktif':aktif,'autoStartEnabled':otoBaslat,'updatedAt':FieldValue.serverTimestamp()});
+                    if(secSoforId!=null&&secSoforId!.isNotEmpty)await FirebaseFirestore.instance.collection('drivers').doc(secSoforId).update({'servisId':servisId,'servisAd':adCtrl.text.trim(),'projeId':secProjeId??'','durum':'projeye_dahil','updatedAt':FieldValue.serverTimestamp()});
+                    if(ctx.mounted){Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content:Text('Servis guncellendi'),backgroundColor:Colors.green,behavior:SnackBarBehavior.floating));}
+                  }catch(e){setS(()=>kaydediliyor=false);}
                 },
-              ),
-              const SizedBox(height: 10),
-              // Sofor
-              FutureBuilder(
-                future: FirebaseFirestore.instance.collection('drivers')
-                    .where('firmaId', isEqualTo: firmaId).get(),
-                builder: (_, snap) {
-                  final sofList = snap.data?.docs.map((d) => {'id': d.id, ...d.data()}).toList() ?? [];
-                  return DropdownButtonFormField<String?>(
-                    value: secSoforId,
-                    decoration: const InputDecoration(
-                        labelText: 'Bagli Sofor',
-                        prefixIcon: Icon(Icons.person_outlined, size: 18, color: Color(0xFF1a3a6b)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
-                        isDense: true),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('Sofor Sec...')),
-                      ...sofList.map((s) => DropdownMenuItem<String?>(
-                          value: s['id'] as String,
-                          child: Text(s['ad'] ?? s['adSoyad'] ?? 'Sofor'))),
-                    ],
-                    onChanged: (v) => setS(() => secSoforId = v),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              // Saatler
-              Row(children: [
-                Expanded(child: _tf(sabahCtrl, 'Sabah Saati', Icons.wb_sunny_outlined)),
-                const SizedBox(width: 10),
-                Expanded(child: _tf(aksamCtrl, 'Aksam Saati', Icons.nights_stay_outlined)),
-              ]),
-              const SizedBox(height: 12),
-              // Toggle'lar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(color: const Color(0xFFF5F7FA), borderRadius: BorderRadius.circular(10)),
-                child: Column(children: [
-                  Row(children: [
-                    const Icon(Icons.power_settings_new_outlined, size: 18, color: Color(0xFF1a3a6b)),
-                    const SizedBox(width: 10),
-                    const Expanded(child: Text('Aktif', style: TextStyle(fontWeight: FontWeight.w600))),
-                    Switch(value: aktif, activeColor: Colors.green,
-                        onChanged: (v) => setS(() => aktif = v)),
-                  ]),
-                  Row(children: [
-                    const Icon(Icons.alarm_outlined, size: 18, color: Color(0xFF1a3a6b)),
-                    const SizedBox(width: 10),
-                    const Expanded(child: Text('Otomatik Baslat', style: TextStyle(fontWeight: FontWeight.w600))),
-                    Switch(value: otoBaslat, activeColor: const Color(0xFFFF8C00),
-                        onChanged: (v) => setS(() => otoBaslat = v)),
-                  ]),
-                ]),
-              ),
-            ]),
-          )),
-          // Kaydet
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Expanded(child: OutlinedButton(
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Iptal'),
-              )),
-              const SizedBox(width: 12),
-              Expanded(flex: 2, child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: kaydediliyor ? null : () async {
-                  if (adCtrl.text.trim().isEmpty) return;
-                  setS(() => kaydediliyor = true);
-                  try {
-                    await FirebaseFirestore.instance.collection('services').doc(servisId).update({
-                      'ad':              adCtrl.text.trim(),
-                      'kapasite':        int.tryParse(kapCtrl.text) ?? 17,
-                      'projeId':         secProjeId ?? '',
-                      'soforId':         secSoforId ?? '',
-                      'sabahSaati':      sabahCtrl.text.trim(),
-                      'aksamSaati':      aksamCtrl.text.trim(),
-                      'aktif':           aktif,
-                      'autoStartEnabled':otoBaslat,
-                      'updatedAt':       FieldValue.serverTimestamp(),
-                    });
-                    // Soforu de guncelle
-                    if (secSoforId != null && secSoforId!.isNotEmpty) {
-                      await FirebaseFirestore.instance.collection('drivers').doc(secSoforId).update({
-                        'servisId':  servisId,
-                        'servisAd':  adCtrl.text.trim(),
-                        'projeId':   secProjeId ?? '',
-                        'durum':     'projeye_dahil',
-                        'updatedAt': FieldValue.serverTimestamp(),
-                      });
-                    }
-                    if (ctx.mounted) {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(content: Text('Servis guncellendi'),
-                              backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
-                    }
-                  } catch (e) {
-                    setS(() => kaydediliyor = false);
-                  }
-                },
-                icon: kaydediliyor
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save_outlined, size: 16),
-                label: Text(kaydediliyor ? 'Kaydediliyor...' : 'Kaydet',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-              )),
-            ]),
-          ),
-        ])),
-      )),
-    );
+                icon:kaydediliyor?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.save_outlined,size:16),
+                label:Text(kaydediliyor?'Kaydediliyor...':'Kaydet',style:const TextStyle(fontWeight:FontWeight.bold)))),
+          ])),
+        ])))));
   }
-
-
-
-  static TextField _tf(TextEditingController c, String l, IconData i) =>
-      TextField(controller: c, decoration: InputDecoration(
-          labelText: l,
-          prefixIcon: Icon(i, color: const Color(0xFF1a3a6b), size: 18),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12)));
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12)));
 }
 
 class _TipBtn extends StatelessWidget{
@@ -1982,8 +1580,7 @@ class _TipBtn extends StatelessWidget{
     final aktif=secili==deger;const navy=Color(0xFF1a3a6b);
     return Expanded(child:GestureDetector(onTap:()=>onSec(deger),
         child:Container(padding:const EdgeInsets.symmetric(vertical:10),
-            decoration:BoxDecoration(color:aktif?navy:Colors.grey[50],borderRadius:BorderRadius.circular(8),
-                border:Border.all(color:aktif?navy:Colors.grey)),
+            decoration:BoxDecoration(color:aktif?navy:Colors.grey[50],borderRadius:BorderRadius.circular(8),border:Border.all(color:aktif?navy:Colors.grey)),
             child:Column(children:[Icon(ikon,color:aktif?Colors.white:Colors.grey,size:18),const SizedBox(height:4),
               Text(etiket,style:TextStyle(fontSize:11,color:aktif?Colors.white:Colors.grey,fontWeight:aktif?FontWeight.bold:FontWeight.normal))]))));
   }
@@ -1994,3 +1591,27 @@ Widget _bos(String b,String a,IconData i)=>Center(child:Column(mainAxisAlignment
   Text(b,style:const TextStyle(fontSize:16,color:Colors.grey,fontWeight:FontWeight.bold)),
   if(a.isNotEmpty)...[const SizedBox(height:8),Text(a,style:TextStyle(fontSize:13,color:Colors.grey[400]),textAlign:TextAlign.center)],
 ]));
+
+class _BosEkran extends StatelessWidget {
+  final String baslik;
+  final IconData ikon;
+  const _BosEkran({required this.baslik, required this.ikon});
+  @override
+  Widget build(BuildContext context) => Center(child: Column(
+    mainAxisAlignment: MainAxisAlignment.center, children: [
+    Container(padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.grey.withValues(alpha:0.1), shape: BoxShape.circle),
+        child: Icon(ikon, size: 56, color: Colors.grey[300])),
+    const SizedBox(height: 16),
+    Text(baslik, style: const TextStyle(
+        fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1a3a6b))),
+    const SizedBox(height: 8),
+    Text('Bu modul henuz aktif degil.',
+        style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+    const SizedBox(height: 4),
+    Text('Dosyayi lib/screens/ klasorune kopyalayinca aktif olacak.',
+        style: TextStyle(color: Colors.grey[300], fontSize: 11),
+        textAlign: TextAlign.center),
+  ],
+  ));
+}
