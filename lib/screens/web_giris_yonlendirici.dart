@@ -69,6 +69,7 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(user.uid).get();
       final rol     = doc.data()?['rol']     as String? ?? '';
+      final durum   = doc.data()?['durum']   as String? ?? '';
       final firmaId = doc.data()?['firmaId'] as String? ?? '';
 
       if (firmaId.isNotEmpty) {
@@ -76,6 +77,19 @@ class _WebGirisYonlendiriciState extends State<WebGirisYonlendirici> {
       }
 
       if (!mounted) return;
+
+      // superAdmin icin durum kontrolu bypass
+      if (!_superAdminMi(rol)) {
+        if (durum == 'beklemede' || durum == 'lisans_bitis') {
+          Navigator.pushReplacementNamed(context, '/onay_bekleme');
+          return;
+        }
+        if (durum == 'reddedildi' || durum == 'askida') {
+          await FirebaseAuth.instance.signOut();
+          setState(() { _yukleniyor = false; _hataMesaj = 'Hesabiniz askiya alinmis.'; });
+          return;
+        }
+      }
 
       if (_superAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_panel');
@@ -165,6 +179,7 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(cred.user!.uid).get();
       final rol     = doc.data()?['rol']     as String? ?? '';
+      final durum   = doc.data()?['durum']   as String? ?? '';
       final firmaId = doc.data()?['firmaId'] as String? ?? '';
 
       if (firmaId.isNotEmpty) {
@@ -172,6 +187,22 @@ class _WebLoginEkraniState extends State<_WebLoginEkrani> {
       }
 
       if (!mounted) return;
+
+      // superAdmin icin durum kontrolu bypass
+      if (!_superAdminMi(rol)) {
+        if (durum == 'beklemede' || durum == 'lisans_bitis') {
+          Navigator.pushReplacementNamed(context, '/onay_bekleme');
+          return;
+        }
+        if (durum == 'reddedildi' || durum == 'askida') {
+          await FirebaseAuth.instance.signOut();
+          setState(() {
+            _hata = 'Hesabiniz askiya alinmis. Yoneticinizle iletisime gecin.';
+            _yukleniyor = false;
+          });
+          return;
+        }
+      }
 
       if (_superAdminMi(rol)) {
         Navigator.pushReplacementNamed(context, '/web_panel');

@@ -22,11 +22,13 @@ class WebYedekleme extends StatefulWidget {
 class _WebYedeklemeState extends State<WebYedekleme> {
   int    _tab      = 0;
   String _firmaId  = '';
+  String _projeId  = '';
 
   @override
   void initState() {
     super.initState();
     _firmaId = SessionService.instance.cachedFirmaId ?? '';
+    _projeId = SessionService.instance.aktifProjeId ?? '';
     if (_firmaId.isEmpty) _yukleId();
   }
 
@@ -88,11 +90,11 @@ class _WebYedeklemeState extends State<WebYedekleme> {
 
   Widget _tabIcerigi() {
     switch (_tab) {
-      case 0: return _ManuelYedek(firmaId: _firmaId);
+      case 0: return _ManuelYedek(firmaId: _firmaId, projeId: _projeId);
       case 1: return _OtomatikYedek(firmaId: _firmaId);
       case 2: return _YedekGecmisi(firmaId: _firmaId);
       case 3: return _GeriYukleme(firmaId: _firmaId);
-      default: return _ManuelYedek(firmaId: _firmaId);
+      default: return _ManuelYedek(firmaId: _firmaId, projeId: _projeId);
     }
   }
 }
@@ -102,7 +104,8 @@ class _WebYedeklemeState extends State<WebYedekleme> {
 // ======================================================================
 class _ManuelYedek extends StatefulWidget {
   final String firmaId;
-  const _ManuelYedek({required this.firmaId});
+  final String projeId;
+  const _ManuelYedek({required this.firmaId, this.projeId = ''});
   @override
   State<_ManuelYedek> createState() => _ManuelYedekState();
 }
@@ -145,10 +148,12 @@ class _ManuelYedekState extends State<_ManuelYedek> {
       for (final e in _secimler.entries) {
         if (!e.value) continue;
         final kol = _koleksiyonlar[e.key]!;
-        final snap = await FirebaseFirestore.instance
-            .collection(kol)
-            .where('firmaId', isEqualTo: widget.firmaId)
-            .count().get();
+        var q1 = FirebaseFirestore.instance.collection(kol)
+            .where('firmaId', isEqualTo: widget.firmaId);
+        if (widget.projeId.isNotEmpty && kol != 'projects' && kol != 'fiyatlar') {
+          q1 = q1.where('projeId', isEqualTo: widget.projeId);
+        }
+        final snap = await q1.count().get();
         s[e.key] = snap.count ?? 0;
       }
       if (mounted) setState(() { _sayilar = s; _yukleniyor = false; });
@@ -172,10 +177,12 @@ class _ManuelYedekState extends State<_ManuelYedek> {
       for (final e in _secimler.entries) {
         if (!e.value) continue;
         final kol = _koleksiyonlar[e.key]!;
-        final snap = await FirebaseFirestore.instance
-            .collection(kol)
-            .where('firmaId', isEqualTo: widget.firmaId)
-            .get();
+        var q2 = FirebaseFirestore.instance.collection(kol)
+            .where('firmaId', isEqualTo: widget.firmaId);
+        if (widget.projeId.isNotEmpty && kol != 'projects' && kol != 'fiyatlar' && kol != 'bildirimler') {
+          q2 = q2.where('projeId', isEqualTo: widget.projeId);
+        }
+        final snap = await q2.get();
         final liste = snap.docs.map((d) {
           final data = d.data();
           // Timestamp alanlarini string'e cevir
@@ -195,8 +202,9 @@ class _ManuelYedekState extends State<_ManuelYedek> {
 
       // Firestore'a yedek kaydini yaz
       final user = FirebaseAuth.instance.currentUser;
-      await FirebaseFirestore.instance.collection('yedekler').add({
+      await FirebaseFirestore.instance.collection('backups').add({
         'firmaId':    widget.firmaId,
+        'projeId':    widget.projeId,
         'tarih':      FieldValue.serverTimestamp(),
         'tip':        'manuel',
         'kayitSayisi': toplamKayit,

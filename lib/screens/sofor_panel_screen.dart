@@ -1,1441 +1,2533 @@
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  DOSYA: lib/screens/sofor_panel_screen.dart
-// ║  PROJE: servisim360
-// ║  GÜNCELLEME: Boşta şoför ekranı eklendi
-// ╚══════════════════════════════════════════════════════════════╝
+// lib/screens/web_admin_panel.dart - Servisim360 Web Admin v5 - 21 Menu
 import 'package:flutter/material.dart';
-import 'ai_widget.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'dart:async';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import '../services/arka_plan_konum_servisi.dart';
-import 'sesli_yonlendirme_servisi.dart';
-import '../screens/acil_durum_widget.dart';
-import '../screens/qr_checkin_screen.dart';
-import '../screens/sofor_rota_screen.dart';
-import '../screens/sofor_ai_asistan_widget.dart';
-import '../screens/sifre_degistir_screen.dart';
 import '../services/session_service.dart';
+import 'web_soforler.dart';
+import 'web_raporlar.dart';
+import 'web_harita.dart';
+import 'web_ogrenciler.dart';
+import 'web_ayarlar.dart';
+import 'web_test_merkezi.dart';
+import 'web_aracmerkezi.dart';
+import 'web_arsiv_merkezi.dart';
+import 'rotalar_screen.dart';
+import 'web_yedekleme_arsiv.dart';
 
-class SoforPanelScreen extends StatefulWidget {
-  const SoforPanelScreen({super.key});
-  @override
-  State<SoforPanelScreen> createState() => _SoforPanelScreenState();
+class WebAdminPanel extends StatefulWidget {
+  const WebAdminPanel({super.key});
+  @override State<WebAdminPanel> createState() => _WebAdminPanelState();
 }
 
-class _SoforPanelScreenState extends State<SoforPanelScreen> {
+class _WebAdminPanelState extends State<WebAdminPanel> {
   static const _navy    = Color(0xFF1a3a6b);
   static const _turuncu = Color(0xFFFF8C00);
+  int    _aktifSekme    = 0;
+  String _firmaAdi='', _kullaniciAd='', _firmaId='', _projeId='', _projeAd='';
+  bool   _yukleniyor=true, _projeMenuAcik=false;
+  int _toplamSurucu=0,_toplamOgrenci=0,_toplamVeli=0,_toplamServis=0;
+  int _aktifServis=0,_bekleyenDevamsizlik=0,_bekleyenBasvuru=0;
+  int _atanmamisOgrenci=0,_konumsuzOgrenci=0;
+  List<Map<String,dynamic>> _projeler=[];
 
-  Map<String, dynamic> _soforData  = {};
-  Map<String, dynamic> _driverDoc  = {};
-  Map<String, dynamic> _servisDoc  = {};  // services koleksiyonundan
-  List<Map<String, dynamic>> _ogrenciler = [];
-  bool   _yukleniyor       = true;
-  bool   _servisAktif      = false;
-  bool   _surucuBulunamadi = false;
-  bool   _aiAcik           = false;
+  static const List<_MenuItem> _menuler=[
+    _MenuItem('Ana Ekran',      Icons.home_outlined,             0),
+    _MenuItem('Projeler',       Icons.folder_outlined,           1),
+    _MenuItem('Servisler',      Icons.directions_bus_outlined,   2),
+    _MenuItem('Araclar',        Icons.directions_car_outlined,   3),
+    _MenuItem('Soforler',       Icons.person_outlined,           4),
+    _MenuItem('Ogrenciler',     Icons.school_outlined,           5),
+    _MenuItem('Veliler',        Icons.family_restroom_outlined,  6),
+    _MenuItem('Kayit Sistemi',  Icons.app_registration_outlined, 7),
+    _MenuItem('Sozlesmeler',    Icons.description_outlined,      8),
+    _MenuItem('Fiyatlandirma',  Icons.payments_outlined,         9),
+    _MenuItem('Harita & Rota',  Icons.map_outlined,              10),
+    _MenuItem('Devamsizlik',    Icons.event_busy_outlined,       11),
+    _MenuItem('Plaka Tanima',   Icons.camera_alt_outlined,       12),
+    _MenuItem('Karekod / QR',   Icons.qr_code_outlined,          13),
+    _MenuItem('Bildirimler',    Icons.notifications_outlined,    14),
+    _MenuItem('Raporlar',       Icons.bar_chart_outlined,        15),
+    _MenuItem('Arsiv',          Icons.archive_outlined,          16),
+    _MenuItem('Ayarlar',        Icons.settings_outlined,         17),
+    _MenuItem('Test Merkezi',   Icons.checklist_outlined,        18),
+    _MenuItem('Arac Yonetimi',  Icons.build_circle_outlined,     19),
+    _MenuItem('Arsiv Merkezi',  Icons.folder_special_outlined,   20),
+    _MenuItem('Yedekleme',      Icons.backup_outlined,            21),
+    _MenuItem('Guzergahlar',    Icons.alt_route_outlined,          22),
+  ];
 
-  final _sesli = SesliYonlendirmeServisi();
-  String  _surucuId = '';
-  String  _soforAd  = '';
-  String? _firmaId;
-
-  List<Map<String, dynamic>> _projeler  = [];
-  String? _aktifProjeId;
-  String? _aktifProjeAdi;
-
-  StreamSubscription<Position>?      _konumStream;
-  StreamSubscription<QuerySnapshot>? _notifStream;
-  Timer?    _konumTimer;
-  Position? _sonKonum;
-
-  @override
-  void initState() {
-    super.initState();
-    _girisKaydet();
-    _yukle();
-  }
-
-  @override
-  void dispose() {
-    _konumStream?.cancel();
-    _konumTimer?.cancel();
-    _notifStream?.cancel();
-    super.dispose();
-  }
-
-  Future<DocumentSnapshot?> _surucuDokumaniBul(String uid, String? email) async {
-    final col = FirebaseFirestore.instance.collection('drivers');
-    var q = await col.where('firmaId', isEqualTo: _firmaId).where('uid', isEqualTo: uid).limit(1).get();
-    if (q.docs.isNotEmpty) return q.docs.first;
-    q = await col.where('uid', isEqualTo: uid).limit(1).get();
-    if (q.docs.isNotEmpty) return q.docs.first;
-    if (email != null && email.isNotEmpty) {
-      q = await col.where('email', isEqualTo: email).limit(1).get();
-      if (q.docs.isNotEmpty) return q.docs.first;
-    }
-    final doc = await col.doc(uid).get();
-    if (doc.exists) return doc;
-    return null;
-  }
-
-
-  Future<void> _girisKaydet() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      if (uid.isEmpty) return;
-      await FirebaseFirestore.instance.collection('giris_loglari').add({
-        'kullanici': uid,
-        'rol': 'sofor',
-        'tarih': FieldValue.serverTimestamp(),
-        'cihaz': 'mobil',
-      });
-    } catch (_) {}
-  }
+  @override void initState(){super.initState();_yukle();}
 
   Future<void> _yukle() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() { _yukleniyor = false; _surucuBulunamadi = true; });
-      return;
-    }
-    _firmaId = await SessionService.instance.firmaldAl();
-    try {
-      final kulDoc = await FirebaseFirestore.instance.collection('kullanicilar').doc(user.uid).get();
-      _soforData = kulDoc.data() ?? {};
-      final driverDoc = await _surucuDokumaniBul(user.uid, user.email);
-      if (driverDoc != null) {
-        _driverDoc   = driverDoc.data() as Map<String, dynamic>;
-        _servisAktif = _driverDoc['servisAktif'] ?? false;
-        _surucuId    = driverDoc.id;
-        final data = driverDoc.data() as Map<String, dynamic>?;
-        _soforAd = (_driverDoc['ad'] ?? _driverDoc['adSoyad'] ?? '').toString();
-        if (data != null && !data.containsKey('uid')) {
-          try { await driverDoc.reference.update({'uid': user.uid}); } catch (_) {}
-        }
-        _aktifProjeId  = SessionService.instance.aktifProjeId ?? _driverDoc['aktifProjeId']  as String?;
-        _aktifProjeAdi = SessionService.instance.aktifProjeAdi ?? _driverDoc['aktifProjeAdi'] as String?;
-        await _projeleriYukle();
-        await _ogrencileriYukle();
-      } else {
-        _surucuBulunamadi = true;
+    setState(()=>_yukleniyor=true);
+    final user=FirebaseAuth.instance.currentUser;
+    if(user==null)return;
+    try{
+      final fId=await SessionService.instance.firmaIdAl();
+      _firmaId=fId??'';
+      final kulDoc=await FirebaseFirestore.instance.collection('kullanicilar').doc(user.uid).get();
+      _kullaniciAd=kulDoc.data()?['ad']??user.email??'';
+      if(_firmaId.isNotEmpty){
+        final firmaDoc=await FirebaseFirestore.instance.collection('firms').doc(_firmaId).get();
+        _firmaAdi=firmaDoc.data()?['firmaAdi']??firmaDoc.data()?['ad']??'';
+        final projSnap=await FirebaseFirestore.instance.collection('projects')
+            .where('firmaId',isEqualTo:_firmaId).where('aktif',isEqualTo:true)
+            .orderBy('olusturmaTarihi',descending:true).get();
+        _projeler=projSnap.docs.map((d)=>{'id':d.id,...d.data()}).toList();
+        _projeId=SessionService.instance.aktifProjeld??'';
+        _projeAd=SessionService.instance.aktifProjeAdi??'';
+        await _istatistikYukle();
       }
-    } catch (e) {
-      debugPrint('Sofor yukle hata: $e');
-    }
-    if (mounted) setState(() => _yukleniyor = false);
-    if (_surucuId.isNotEmpty) {
-      if (_servisAktif) _gpsBaslat();
-      _notifDinle();
-      _fcmTokenKaydet();
-      _servisSaatiKontrol();
-      _gelmeyecekDinle(); // Veli gelmeyecek seçince anlık güncelle
-      _sesli.baslat();
-      await ArkaplanKonumServisi.baslatServisi();
-    }
+    }catch(e){debugPrint('panel hata:$e');}
+    if(mounted)setState(()=>_yukleniyor=false);
   }
 
-  Future<void> _projeleriYukle() async {
-    if (_surucuId.isEmpty || _firmaId == null) return;
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('projects').where('firmaId', isEqualTo: _firmaId).get();
-      final liste = <Map<String, dynamic>>[];
-      for (final doc in snap.docs) {
-        final data      = doc.data();
-        final surucular = data['surucular'];
-        final projeIds  = _driverDoc['projeIds'];
-        bool atanmis    = false;
-        if (surucular is List) {
-          atanmis = surucular.contains(_surucuId) ||
-              surucular.contains(FirebaseAuth.instance.currentUser?.uid);
-        }
-        if (projeIds is List) atanmis = atanmis || projeIds.contains(doc.id);
-        if (atanmis || (surucular == null && projeIds == null)) {
-          liste.add({'id': doc.id, 'ad': data['ad'] ?? data['projeAdi'] ?? doc.id, ...data});
-        }
+  Future<void> _istatistikYukle() async {
+    try{
+      var sofQ=FirebaseFirestore.instance.collection('drivers').where('firmaId',isEqualTo:_firmaId);
+      var ogrQ=FirebaseFirestore.instance.collection('students').where('firmaId',isEqualTo:_firmaId);
+      var veliQ=FirebaseFirestore.instance.collection('parents').where('firmaId',isEqualTo:_firmaId);
+      var serQ=FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:_firmaId);
+      var devQ=FirebaseFirestore.instance.collection('absence_requests')
+          .where('firmaId',isEqualTo:_firmaId).where('durum',isEqualTo:'bekliyor');
+      var basQ=FirebaseFirestore.instance.collection('kayit_basvurulari')
+          .where('firmaId',isEqualTo:_firmaId).where('durum',isEqualTo:'bekliyor');
+      if(_projeId.isNotEmpty){
+        ogrQ=ogrQ.where('projeId',isEqualTo:_projeId);
+        sofQ=sofQ.where('projeId',isEqualTo:_projeId);
+        serQ=serQ.where('projeId',isEqualTo:_projeId);
       }
-      _projeler = liste;
-      if ((_aktifProjeId == null || _aktifProjeId!.isEmpty) && _projeler.isNotEmpty) {
-        _aktifProjeId  = _projeler.first['id'];
-        _aktifProjeAdi = _projeler.first['ad'];
-        SessionService.instance.aktifProjeAyarla(_aktifProjeId!, _aktifProjeAdi ?? '');
-        // Saate gore en yakın servisi liste başına taşı
-        final now = TimeOfDay.now();
-        final nowMin = now.hour * 60 + now.minute;
-        _projeler.sort((a, b) {
-          int saatFark(Map<String,dynamic> p) {
-            final s = (p['saatBaslangic'] ?? p['sabahSaati'] ?? '').toString();
-            if (!s.contains(':')) return 999999;
-            final parts = s.split(':');
-            final sMin = (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
-            return (sMin - nowMin).abs();
-          }
-          return saatFark(a).compareTo(saatFark(b));
-        });
-      }
-    } catch (e) {
-      debugPrint('Proje yukle hata: $e');
-    }
-  }
-
-  Future<void> _ogrencileriYukle() async {
-    if (_surucuId.isEmpty) return;
-    try {
-      var q = FirebaseFirestore.instance.collection('students').where('surucuId', isEqualTo: _surucuId);
-      if (_aktifProjeId != null && _aktifProjeId!.isNotEmpty) {
-        q = q.where('projeId', isEqualTo: _aktifProjeId);
-      }
-      final snap = await q.get();
-      _ogrenciler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    } catch (e) {
-      debugPrint('Ogrenci yukle hata: $e');
-    }
-    // services koleksiyonundan servis bilgisi yükle
-    try {
-      final servisId = _driverDoc['servisId'] as String? ?? '';
-      if (servisId.isNotEmpty) {
-        final sDoc = await FirebaseFirestore.instance
-            .collection('services').doc(servisId).get();
-        if (sDoc.exists && mounted) {
-          setState(() => _servisDoc = sDoc.data() ?? {});
-        }
-      }
-    } catch (_) {}
-  }
-
-  // ── ÇOKLU GÖREV SEÇİM EKRANI ────────────────────────────────
-  Widget _cokluGorevSecimEkrani() {
-    final ad = _soforData['ad'] ?? _driverDoc['adSoyad'] ?? 'Şoför';
-    return Scaffold(
-      backgroundColor: _navy,
-      body: SafeArea(child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(children: [
-          // Üst bar
-          Row(children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
-                  style: const TextStyle(color: Colors.white,
-                      fontWeight: FontWeight.bold, fontSize: 18)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(ad,
-                style: const TextStyle(color: Colors.white,
-                    fontWeight: FontWeight.bold, fontSize: 16))),
-            IconButton(
-                icon: const Icon(Icons.logout_outlined, color: Colors.white54),
-                onPressed: () async {
-                  await SessionService.instance.cikisYap();
-                  if (mounted) Navigator.pushReplacementNamed(context, '/login');
-                }),
-          ]),
-          const Spacer(),
-
-          // Başlık
-          const Icon(Icons.work_history_outlined, color: Colors.white54, size: 56),
-          const SizedBox(height: 20),
-          const Text('Servis Seçin', style: TextStyle(
-              color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Bugün ${_projeler.length} göreviniz var.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
-          const SizedBox(height: 32),
-
-          // Proje/servis kartları
-          ..._projeler.map((proje) {
-            final projeAd  = proje['ad'] as String? ?? proje['projeAd'] ?? 'Proje';
-            final tip      = proje['tip'] ?? proje['servisTuru'] ?? '';
-            final saat     = proje['saatBaslangic'] ?? '';
-            final saatBitis = proje['saatBitis'] ?? '';
-
-            Color tipRenk = Colors.white;
-            IconData tipIkon = Icons.directions_bus_rounded;
-            if (tip == 'sabah') { tipRenk = Colors.orange; tipIkon = Icons.wb_sunny_outlined; }
-            else if (tip == 'aksam') { tipRenk = Colors.indigo.shade200; tipIkon = Icons.nights_stay_outlined; }
-            else if (tip == 'ogle') { tipRenk = Colors.teal.shade200; tipIkon = Icons.wb_twilight_outlined; }
-
-            return GestureDetector(
-              onTap: () => _projeGec(proje),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.2))),
-                child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                        color: tipRenk.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Icon(tipIkon, color: tipRenk, size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(projeAd, style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                    if (saat.isNotEmpty)
-                      Text('$saat — $saatBitis',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
-                  ])),
-                  Icon(Icons.arrow_forward_ios_rounded,
-                      color: Colors.white.withValues(alpha: 0.5), size: 16),
-                ]),
-              ),
-            );
-          }),
-
-          const Spacer(),
-          Text('Göreve başlamak için servis seçin',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-        ]),
-      )),
-    );
-  }
-
-  Future<void> _projeGec(Map<String, dynamic> proje) async {
-    final yeniId  = proje['id'] as String;
-    final yeniAdi = proje['ad'] as String;
-    if (yeniId == _aktifProjeId) return;
-    if (_servisAktif) {
-      _gpsDurdur();
-      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
-        'servisAktif': false, 'servisBitis': FieldValue.serverTimestamp(),
+      final r=await Future.wait([sofQ.get(),ogrQ.get(),veliQ.get(),devQ.get(),basQ.get(),serQ.get()]);
+      final aktif=r[0].docs.where((d)=>(d.data())['servisAktif']==true).length;
+      int atanmamis=0,konumsuz=0;
+      try{
+        var atQ=FirebaseFirestore.instance.collection('students')
+            .where('firmaId',isEqualTo:_firmaId).where('surucuId',isEqualTo:'');
+        var konQ=FirebaseFirestore.instance.collection('students')
+            .where('firmaId',isEqualTo:_firmaId).where('konumVar',isEqualTo:false);
+        if(_projeId.isNotEmpty){atQ=atQ.where('projeId',isEqualTo:_projeId);konQ=konQ.where('projeId',isEqualTo:_projeId);}
+        final atSnap=await atQ.count().get();final konSnap=await konQ.count().get();
+        atanmamis=atSnap.count??0;konumsuz=konSnap.count??0;
+      }catch(_){}
+      if(mounted)setState((){
+        _toplamSurucu=r[0].docs.length;_toplamOgrenci=r[1].docs.length;
+        _toplamVeli=r[2].docs.length;_bekleyenDevamsizlik=r[3].docs.length;
+        _bekleyenBasvuru=r[4].docs.length;_toplamServis=r[5].docs.length;
+        _aktifServis=aktif;_atanmamisOgrenci=atanmamis;_konumsuzOgrenci=konumsuz;
       });
-      try {
-        await FirebaseFirestore.instance.collection('surucu_konumlar').doc(_surucuId)
-            .set({'aktif': false, 'bitisTarihi': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-      } catch (_) {}
-    }
-    setState(() { _aktifProjeId = yeniId; _aktifProjeAdi = yeniAdi; _servisAktif = false; _yukleniyor = true; });
-    SessionService.instance.aktifProjeAyarla(yeniId, yeniAdi);
-    try {
-      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId)
-          .update({'aktifProjeId': yeniId, 'aktifProjeAdi': yeniAdi});
-    } catch (_) {}
-    await _ogrencileriYukle();
-    if (mounted) setState(() => _yukleniyor = false);
+    }catch(_){}
   }
 
-  Future<void> _gpsBaslat() async {
-    final izin = await Geolocator.requestPermission();
-    if (izin == LocationPermission.denied || izin == LocationPermission.deniedForever) return;
-    _konumStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 30),
-    ).listen((pos) { _sonKonum = pos; _firestoreKaydet(pos); });
-    _konumTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (_sonKonum != null) _firestoreKaydet(_sonKonum!);
-    });
+  void _projeAyarla(String pid,String pad){
+    SessionService.instance.aktifProjeAyarla(pid,pad);
+    setState((){_projeId=pid;_projeAd=pad;_projeMenuAcik=false;});
+    _istatistikYukle();
+  }
+  void _projeTumFirma(){
+    SessionService.instance.projeTemizle();
+    setState((){_projeId='';_projeAd='';_projeMenuAcik=false;});
+    _istatistikYukle();
   }
 
-  void _gpsDurdur() {
-    _konumStream?.cancel(); _konumTimer?.cancel();
-    _konumStream = null; _konumTimer = null;
-  }
-
-  Future<void> _firestoreKaydet(Position pos) async {
-    if (_surucuId.isEmpty) return;
-    try {
-      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
-        'konum': GeoPoint(pos.latitude, pos.longitude),
-        'hiz': pos.speed * 3.6,
-        'konumGuncelleme': FieldValue.serverTimestamp(),
-        'servisAktif': _servisAktif,
-      });
-      // Ayrıca surucu_konumlar koleksiyonuna kaydet (admin harita için)
-      if (_servisAktif && _firmaId != null) {
-        await FirebaseFirestore.instance
-            .collection('surucu_konumlar').doc(_surucuId).set({
-          'firmaId'   : _firmaId,
-          'soforId'   : _surucuId,
-          'konum'     : GeoPoint(pos.latitude, pos.longitude),
-          'hiz'       : pos.speed * 3.6,
-          'guncelleme': FieldValue.serverTimestamp(),
-          'aktif'     : true,
-        }, SetOptions(merge: true));
-      }
-      // Yaklaşıyor kontrolü — her konum güncellemesinde
-      await _yaklasiyorKontrol(pos);
-    } catch (_) {}
-  }
-
-  // ── YAKLAŞIYOR BİLDİRİMİ ─────────────────────────────────────
-  final Set<String> _yaklasiyorBildirimGonderildi = {};
-
-  Future<void> _yaklasiyorKontrol(Position soforPos) async {
-    // Gelmeyecek öğrencileri filtrele
-    final bekleyenler = _ogrenciler.where((o) {
-      if (o['bindi'] == true) return false;
-      if (o['bugunGelmeyecek'] == true) return false;
-      return true;
-    }).toList();
-
-    for (final ogr in bekleyenler) {
-      final konum = ogr['konum'];
-      if (konum == null) continue;
-      double ogrLat, ogrLng;
-      if (konum is GeoPoint) { ogrLat = konum.latitude; ogrLng = konum.longitude; }
-      else continue;
-
-      final mesafe = Geolocator.distanceBetween(
-          soforPos.latitude, soforPos.longitude, ogrLat, ogrLng);
-
-      final ogrId = ogr['id'] as String;
-
-      // 700m — Servis yaklaşıyor bildirimi
-      if (mesafe <= 700 && !_yaklasiyorBildirimGonderildi.contains('700_$ogrId')) {
-        _yaklasiyorBildirimGonderildi.add('700_$ogrId');
-        final dakika = (mesafe / 300).ceil(); // 300m/dk ortalama hız
-        await _veliBildirimGonder(ogr, '🚍 Servis Yaklaşıyor',
-            'Servis ${mesafe.toInt()} metre uzakta, tahmini $dakika dakika.');
-      }
-
-      // 100m — Kapınızdayız bildirimi
-      if (mesafe <= 100 && !_yaklasiyorBildirimGonderildi.contains('100_$ogrId')) {
-        _yaklasiyorBildirimGonderildi.add('100_$ogrId');
-        await _veliBildirimGonder(ogr, '🚍 Kapınızdayız',
-            'Servis kapınızda bekliyor. Lütfen hazır olun!');
-      }
-    }
-  }
-
-  Future<void> _veliBildirimGonder(
-      Map<String, dynamic> ogr, String baslik, String mesaj) async {
-    try {
-      final veliId = ogr['veliId'] ?? ogr['id'];
-      await FirebaseFirestore.instance.collection('bildirimler').add({
-        'aliciId'  : veliId,
-        'firmaId'  : _firmaId,
-        'surucuId' : _surucuId,
-        'ogrenciId': ogr['id'],
-        'baslik'   : baslik,
-        'mesaj'    : mesaj,
-        'tip'      : 'yaklasıyor',
-        'okundu'   : false,
-        'tarih'    : FieldValue.serverTimestamp(),
-      });
-    } catch (e) { debugPrint('Bildirim hata: $e'); }
-  }
-
-  // ── BUGÜN GELMEYECEK — ROTA GÜNCELLEMESİ ────────────────────
-  Future<void> _gelmeyecekGuncelle() async {
-    // Firestore'dan güncel gelmeyecek durumunu çek
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('students')
-          .where('surucuId', isEqualTo: _surucuId)
-          .get();
-
-      final guncelliste = snap.docs.map((d) {
-        final data = d.data();
-        return {
-          'id'              : d.id,
-          ...data,
-          // Gelmeyecek öğrencileri listede tut ama filtrele
-          'bugunGelmeyecek': data['bugunGelmeyecek'] ?? false,
-        };
-      }).toList();
-
-      // Sırala: gelmeyecekler sona
-      guncelliste.sort((a, b) {
-        final aGelm = a['bugunGelmeyecek'] == true ? 1 : 0;
-        final bGelm = b['bugunGelmeyecek'] == true ? 1 : 0;
-        return aGelm.compareTo(bGelm);
-      });
-
-      if (mounted) setState(() => _ogrenciler = guncelliste);
-    } catch (e) { debugPrint('Gelmeyecek güncelle hata: $e'); }
-  }
-
-  Future<void> _fcmTokenKaydet() async {
-    if (_surucuId.isEmpty) return;
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null && token.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('drivers').doc(_surucuId)
-            .update({'fcmToken': token});
-      }
-    } catch (e) {
-      debugPrint('FCM token hata: $e');
-    }
-  }
-
-  void _servisSaatiKontrol() {
-    Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (!mounted) { timer.cancel(); return; }
-      final now    = TimeOfDay.now();
-      final sabahB = _saatParse(_driverDoc['servisSaati']?['sabahBaslangic'] ?? '06:30');
-      final sabahE = _saatParse(_driverDoc['servisSaati']?['sabahBitis']     ?? '09:30');
-      final aksamB = _saatParse(_driverDoc['servisSaati']?['aksamBaslangic'] ?? '15:00');
-      final aksamE = _saatParse(_driverDoc['servisSaati']?['aksamBitis']     ?? '18:30');
-      final saatAktif = _saatAraliginda(now, sabahB, sabahE) || _saatAraliginda(now, aksamB, aksamE);
-      if (saatAktif && !_servisAktif && _surucuId.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Servis saati basladi. Servisi baslatmak ister misiniz?'),
-            backgroundColor: _navy, duration: Duration(seconds: 8), behavior: SnackBarBehavior.floating,
-          ));
-        }
-      }
-      if (!saatAktif && _servisAktif) {
-        _gpsDurdur();
-        FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
-          'servisAktif': false, 'servisBitis': FieldValue.serverTimestamp(),
-        });
-        if (mounted) {
-          setState(() => _servisAktif = false);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Servis saati bitti — Servis otomatik durduruldu.'),
-            backgroundColor: Colors.orange, behavior: SnackBarBehavior.floating,
-          ));
-        }
-      }
-    });
-  }
-
-  TimeOfDay _saatParse(String saat) {
-    try {
-      final p = saat.split(':');
-      return TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
-    } catch (_) {
-      return const TimeOfDay(hour: 0, minute: 0);
-    }
-  }
-
-  bool _saatAraliginda(TimeOfDay now, TimeOfDay bas, TimeOfDay bit) {
-    final nowMin = now.hour * 60 + now.minute;
-    final basMin = bas.hour * 60 + bas.minute;
-    final bitMin = bit.hour * 60 + bit.minute;
-    return nowMin >= basMin && nowMin <= bitMin;
-  }
-
-  void _gelmeyecekDinle() {
-    if (_surucuId.isEmpty) return;
-    // Öğrencilerin bugunGelmeyecek alanını dinle — veli değiştirince anlık güncelle
-    FirebaseFirestore.instance
-        .collection('students')
-        .where('surucuId', isEqualTo: _surucuId)
-        .snapshots()
-        .listen((snap) {
-      if (!mounted) return;
-      final liste = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      liste.sort((a, b) {
-        final aGelm = a['bugunGelmeyecek'] == true ? 1 : 0;
-        final bGelm = b['bugunGelmeyecek'] == true ? 1 : 0;
-        return aGelm.compareTo(bGelm);
-      });
-      setState(() => _ogrenciler = liste);
-    });
-  }
-
-  void _notifDinle() {
-    if (_surucuId.isEmpty) return;
-    _notifStream = FirebaseFirestore.instance
-        .collection('notifications')
-        .where('aliciId', isEqualTo: _surucuId)
-        .where('okundu', isEqualTo: false)
-        .snapshots()
-        .listen((snap) {
-      for (final doc in snap.docs) {
-        final data = doc.data();
-        if (!mounted) return;
-        final tip = data['tip'] ?? '';
-
-        // Rota önerisi — özel dialog
-        if (tip == 'rota_oneri') {
-          _rotaOneriGoster(
-            data['baslik'] ?? 'Rota Önerisi',
-            data['mesaj']  ?? '',
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Row(children: [
-              const Icon(Icons.notifications_outlined, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(data['baslik'] ?? 'Bildirim', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
-                Text(data['mesaj'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.white70)),
-              ])),
-            ]),
-            backgroundColor: _navy, duration: const Duration(seconds: 5), behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(label: 'Tamam', textColor: _turuncu, onPressed: () {}),
-          ));
-        }
-        doc.reference.update({'okundu': true});
-      }
-    });
-  }
-
-  void _rotaOneriGoster(String baslik, String mesaj) {
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: Colors.blue.shade50,
-        title: Row(children: [
-          Container(padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.alt_route_outlined,
-                  color: Colors.blue, size: 24)),
-          const SizedBox(width: 10),
-          Expanded(child: Text(baslik,
-              style: const TextStyle(color: Colors.blue,
-                  fontWeight: FontWeight.bold, fontSize: 15))),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(mesaj,
-              style: const TextStyle(fontSize: 13, height: 1.6)),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10)),
-            child: const Row(children: [
-              Icon(Icons.info_outline, color: Colors.blue, size: 14),
-              SizedBox(width: 6),
-              Expanded(child: Text(
-                  'Google Maps açarak trafik durumunu kontrol edebilirsiniz.',
-                  style: TextStyle(fontSize: 11, color: Colors.blue))),
-            ]),
-          ),
-        ]),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(_),
-              child: const Text('Kapat')),
-          ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue, foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10))),
-              onPressed: () {
-                Navigator.pop(_);
-                _navigasyonAc(); // Navigasyonu doğrudan aç
-              },
-              icon: const Icon(Icons.navigation_outlined, size: 16),
-              label: const Text('Navigasyonu Aç')),
-        ],
-      ),
-    );
-  }
-
-  Widget _bostaSatir(IconData icon, String text, bool tamam) =>
-      Row(children: [
-        Icon(icon,
-            color: tamam ? Colors.greenAccent : Colors.white38,
-            size: 18),
-        const SizedBox(width: 12),
-        Text(text, style: TextStyle(
-            color: tamam ? Colors.white : Colors.white54,
-            fontSize: 13)),
-      ]);
-
-  Future<void> _servisBaslatDurdur() async {
-    if (_surucuId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Sofor kaydi bulunamadi'), backgroundColor: Colors.red));
-      return;
-    }
-    final yeniDurum = !_servisAktif;
-    if (yeniDurum) {
-      final izin = await Geolocator.requestPermission();
-      if (izin == LocationPermission.denied || izin == LocationPermission.deniedForever) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Konum izni gerekli'), backgroundColor: Colors.red));
-        }
-        return;
-      }
-      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
-        'servisAktif': true, 'servisBaslangic': FieldValue.serverTimestamp(),
-      });
-      setState(() => _servisAktif = true);
-      _gpsBaslat();
-      if (mounted) Navigator.pushNamed(context, '/canli_rota');
-    } else {
-      _gpsDurdur();
-      ArkaplanKonumServisi.durdur();
-      await FirebaseFirestore.instance.collection('drivers').doc(_surucuId).update({
-        'servisAktif': false, 'servisBitis': FieldValue.serverTimestamp(),
-      });
-      setState(() => _servisAktif = false);
-    }
-  }
-
-  Future<void> _navigasyonAc() async {
-    if (_ogrenciler.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Atanmis ogrenci bulunamadi'), backgroundColor: Colors.orange));
-      return;
-    }
-    final ilk = _ogrenciler.firstWhere((o) => !(o['bindi'] ?? false), orElse: () => _ogrenciler.first);
-    final konum = ilk['konum'];
-    double? lat, lng;
-    if (konum is GeoPoint) { lat = konum.latitude; lng = konum.longitude; }
-    if (lat != null && lng != null) {
-      final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
-      if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) Navigator.pushNamed(context, '/canli_rota');
-    }
-  }
-
-
-
-  void _gunlukRaporGoster() {
-    final bindi  = _ogrenciler.where((o) => o['bindi'] == true).length;
-    final gelmed = _ogrenciler.where((o) => o['gelmedi'] == true).length;
-    final bekl   = _ogrenciler.length - bindi - gelmed;
-    showDialog(context: context, builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Row(children: [
-          Icon(Icons.assessment_outlined, color: Color(0xFF1a3a6b)),
-          SizedBox(width: 10),
-          Text('Gunluk Raporlarim', style: TextStyle(fontWeight: FontWeight.bold)),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          _raporSatir('Toplam Ogrenci', '${_ogrenciler.length}', Icons.people_outlined, Colors.blue),
-          _raporSatir('Araca Bindi',    '$bindi',  Icons.check_circle_outline, Colors.green),
-          _raporSatir('Gelmedi',        '$gelmed', Icons.person_off_outlined,  Colors.red),
-          _raporSatir('Bekliyor',       '$bekl',   Icons.hourglass_empty,      Colors.orange),
-          const Divider(),
-          _raporSatir('Servis Durumu',  _servisAktif ? 'Aktif' : 'Tamamlandi', Icons.directions_bus_outlined,
-              _servisAktif ? Colors.green : Colors.grey),
-        ]),
-        actions: [
-          ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
-              onPressed: () => Navigator.pop(_),
-              child: const Text('Kapat')),
-        ]));
-  }
-
-  Widget _raporSatir(String baslik, String deger, IconData ikon, Color renk) =>
-      Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [
-        Icon(ikon, size: 18, color: renk),
-        const SizedBox(width: 10),
-        Expanded(child: Text(baslik, style: const TextStyle(fontSize: 13))),
-        Text(deger, style: TextStyle(fontWeight: FontWeight.bold, color: renk, fontSize: 14)),
-      ]));
-
-  void _acilDurumDialog() {
-    String? seciliTur;
-    showDialog(
-        context: context,
-        builder: (_) => StatefulBuilder(
-            builder: (dCtx, setS) => AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                title: const Row(children: [
-                  Icon(Icons.emergency_outlined, color: Colors.red, size: 24),
-                  SizedBox(width: 10),
-                  Text('Acil Durum', style: TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.bold)),
-                ]),
-                content: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('Acil durum turunu secin:',
-                      style: TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 12),
-                  ...['Arac Arizasi','Trafik Kazasi','Trafik Yogunlugu',
-                    'Gecikme','Saglik Durumu','Diger'].map((tur) =>
-                      GestureDetector(
-                          onTap: () => setS(() => seciliTur = tur),
-                          child: Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            decoration: BoxDecoration(
-                                color: seciliTur == tur
-                                    ? Colors.red.withValues(alpha: 0.08) : Colors.grey[50],
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: seciliTur == tur ? Colors.red : Colors.grey.shade200)),
-                            child: Text(tur, style: TextStyle(
-                                fontWeight: seciliTur == tur
-                                    ? FontWeight.bold : FontWeight.normal,
-                                color: seciliTur == tur ? Colors.red : Colors.grey[700])),
-                          ))),
-                ]),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(dCtx),
-                      child: const Text('Iptal')),
-                  ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red, foregroundColor: Colors.white),
-                      onPressed: seciliTur == null ? null : () async {
-                        await FirebaseFirestore.instance.collection('acil_durumlar').add({
-                          'firmaId'  : _firmaId,
-                          'soforId'  : _surucuId,
-                          'soforAd'  : _soforAd,
-                          'tur'      : seciliTur,
-                          'tarih'    : FieldValue.serverTimestamp(),
-                          'durum'    : 'bekliyor',
-                        });
-                        if (dCtx.mounted) {
-                          Navigator.pop(dCtx);
-                          ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(
-                              content: Text('Acil durum bildirimi gonderildi'),
-                              backgroundColor: Colors.red,
-                              behavior: SnackBarBehavior.floating));
-                        }
-                      },
-                      child: const Text('Gonder')),
-                ])));
-  }
-
-
-  void _konumKaydet(Map<String, dynamic> ogr) async {
-    final pos = await Geolocator.getCurrentPosition();
-    final id  = ogr['id'] ?? ogr['docId'] ?? '';
-    if (id.isEmpty) return;
-    await FirebaseFirestore.instance.collection('students').doc(id).update({
-      'konum': {'lat': pos.latitude, 'lng': pos.longitude},
-      'konumVar': true,
-    });
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Konum kaydedildi'), backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating));
-  }
-
-  void _rotaYonetimine() {
-    final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
-    Navigator.push(context, MaterialPageRoute(
-        builder: (_) => SoforRotaScreen(surucuId: _surucuId, surucuAd: ad))).then((_) => _yukle());
-  }
-
-  void _velerileriAra() {
-    showModalBottomSheet(
-        context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
-        builder: (_) => _VeliAraSheet(ogrenciler: _ogrenciler));
-  }
-
-  void _projeSecimAc() {
-    if (_projeler.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Size atanmis baska proje yok'), backgroundColor: Colors.orange));
-      return;
-    }
-    showModalBottomSheet(
-      context: context, backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-          const Text('Proje Sec', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _navy)),
-          const SizedBox(height: 16),
-          ..._projeler.map((proje) {
-            final secili = proje['id'] == _aktifProjeId;
-            return GestureDetector(
-              onTap: () { Navigator.pop(context); _projeGec(proje); },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: secili ? _navy : Colors.grey[50], borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: secili ? _navy : Colors.grey.shade200),
-                ),
-                child: Row(children: [
-                  Icon(Icons.folder_outlined, color: secili ? Colors.white : _navy, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(proje['ad'] ?? '',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14,
-                          color: secili ? Colors.white : Colors.black87))),
-                  if (secili) const Icon(Icons.check_circle_outlined, color: _turuncu, size: 20),
-                ]),
-              ),
-            );
-          }),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_yukleniyor) {
-      return const Scaffold(backgroundColor: _navy,
-          body: Center(child: CircularProgressIndicator(color: _turuncu)));
-    }
-    if (_surucuBulunamadi) {
-      return Scaffold(backgroundColor: _navy,
-          body: Center(child: Padding(padding: const EdgeInsets.all(32),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.person_off_outlined, color: Colors.white54, size: 64),
-                const SizedBox(height: 20),
-                const Text('Sofor Kaydi Bulunamadi',
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                Text('Hesabiniz henuz bir sofor profiline baglanmamis.\nYoneticinizle iletisime gecin.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
-                    textAlign: TextAlign.center),
-                const SizedBox(height: 30),
-                OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white38)),
-                    onPressed: () async {
-                      await SessionService.instance.cikisYap();
-                      if (mounted) Navigator.pushReplacementNamed(context, '/login');
-                    },
-                    icon: const Icon(Icons.logout_outlined),
-                    label: const Text('Cikis Yap')),
-              ]))));
-    }
-
-    // ── ÇOKLU GÖREV / BEKLEME EKRANLARI ─────────────────────────
-    final soforDurum = (_driverDoc['soforDurum'] ?? _soforData['soforDurum'] ?? _soforData['durum']) as String? ?? 'bosta';
-    final projeSayisi = _projeler.length;
-
-    // Birden fazla proje varsa ve aktif proje seçilmemişse → SEÇIM EKRANI
-    if (projeSayisi > 1 && (_aktifProjeId == null || _aktifProjeId!.isEmpty)) {
-      return _cokluGorevSecimEkrani();
-    }
-
-    if (soforDurum == 'bosta' && projeSayisi == 0) {
-      final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
-      final firmaAd = _soforData['firmaAd'] ?? '';
-      return Scaffold(
-        backgroundColor: _navy,
-        body: SafeArea(child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(children: [
-            // Üst: Avatar + ad
-            Row(children: [
-              CircleAvatar(radius: 24,
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'S',
-                      style: const TextStyle(color: Colors.white,
-                          fontWeight: FontWeight.bold, fontSize: 20))),
-              const SizedBox(width: 14),
-              Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(ad, style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-                    if (firmaAd.isNotEmpty)
-                      Text(firmaAd, style: const TextStyle(
-                          color: Colors.white54, fontSize: 12)),
-                  ])),
-              IconButton(
-                  icon: const Icon(Icons.logout_outlined,
-                      color: Colors.white54),
-                  onPressed: () async {
-                    await SessionService.instance.cikisYap();
-                    if (mounted) Navigator.pushReplacementNamed(
-                        context, '/login');
-                  }),
-            ]),
-
-            const Spacer(),
-
-            // Ana ikon
-            Container(
-                width: 100, height: 100,
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    shape: BoxShape.circle),
-                child: const Icon(Icons.pending_actions_outlined,
-                    color: Colors.white54, size: 56)),
-            const SizedBox(height: 24),
-
-            const Text('Servis Ataması Bekleniyor',
-                style: TextStyle(color: Colors.white,
-                    fontSize: 22, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            Text(
-              'Yöneticiniz size bir proje ve servis atadığında '
-                  'bu ekran otomatik olarak açılacak.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 14, height: 1.6),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Durum kartları
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12))),
-              child: Column(children: [
-                _bostaSatir(Icons.check_circle_outline,
-                    'Sisteme kayıt edildiniz', true),
-                const SizedBox(height: 12),
-                _bostaSatir(Icons.radio_button_unchecked,
-                    'Proje ataması bekleniyor', false),
-                const SizedBox(height: 12),
-                _bostaSatir(Icons.radio_button_unchecked,
-                    'Öğrenci/personel listesi bekleniyor', false),
-                const SizedBox(height: 12),
-                _bostaSatir(Icons.radio_button_unchecked,
-                    'Güzergah bağlantısı bekleniyor', false),
-              ]),
-            ),
-
-            const Spacer(),
-
-            // Alt: Profil + Çıkış
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                onPressed: () => Navigator.pushNamed(context, '/sifre_degistir'),
-                icon: const Icon(Icons.key_outlined),
-                label: const Text('Şifre Değiştir'),
-              )),
-              const SizedBox(width: 12),
-              Expanded(child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.redAccent,
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                onPressed: () async {
-                  await SessionService.instance.cikisYap();
-                  if (mounted) Navigator.pushReplacementNamed(
-                      context, '/login');
-                },
-                icon: const Icon(Icons.logout_outlined),
-                label: const Text('Çıkış Yap'),
-              )),
-            ]),
-            const SizedBox(height: 16),
-          ]),
-        )),
-      );
-    }
-
-    final ad = _soforData['ad'] ?? _soforData['email'] ?? 'Sofor';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(child: Column(children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-          decoration: const BoxDecoration(gradient: LinearGradient(
-              colors: [_navy, Color(0xFF2a5298)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight)),
-          child: Column(children: [
-            Row(children: [
-              CircleAvatar(radius: 22, backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'S',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18))),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(ad, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                Row(children: [
-                  Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 5),
-                      decoration: BoxDecoration(color: _servisAktif ? Colors.green : Colors.white38, shape: BoxShape.circle)),
-                  Text(_servisAktif ? 'Servis Aktif' : 'Hazir',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                ]),
-              ])),
-              GestureDetector(
-                  onTap: () => setState(() => _aiAcik = !_aiAcik),
-                  child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: _aiAcik ? _turuncu : Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Icon(Icons.psychology_outlined,
-                          color: _aiAcik ? Colors.white : Colors.white70, size: 20))),
-              const SizedBox(width: 4),
-              IconButton(icon: const Icon(Icons.key_outlined, color: Colors.white70),
-                  onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const SifreDegistirScreen(rol: 'sofor')))),
-              IconButton(icon: const Icon(Icons.logout_outlined, color: Colors.white70),
-                  onPressed: () async {
-                    await SessionService.instance.cikisYap();
-                    if (mounted) Navigator.pushReplacementNamed(context, '/login');
-                  }),
-            ]),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: _projeSecimAc,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.folder_outlined, color: _turuncu, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(
-                    _aktifProjeAdi?.isNotEmpty == true ? _aktifProjeAdi!
-                        : (_projeler.isEmpty ? 'Proje atanmamis' : 'Proje sec'),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
-                  )),
-                  if (_projeler.length > 1)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(color: _turuncu.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(6)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.swap_horiz, color: _turuncu, size: 14),
-                        const SizedBox(width: 4),
-                        Text('${_projeler.length} proje',
-                            style: const TextStyle(color: _turuncu, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ]),
-                    ),
-                ]),
-              ),
-            ),
-          ]),
+  void _projeEkleDialog(){
+    final adCtrl=TextEditingController();
+    final donemCtrl=TextEditingController(text:'2025-2026');
+    final okulAdresCtrl=TextEditingController();
+    final baslangicCtrl=TextEditingController(text:'01.09.2025');
+    final bitisCtrl=TextEditingController(text:'30.06.2026');
+    String secFiyatTuru='mahalle';
+    String tip='okul';
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+      title:const Row(children:[Icon(Icons.folder_outlined,color:Color(0xFF1a3a6b)),SizedBox(width:10),
+        Text('Yeni Proje',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold,fontSize:16))]),
+      content:SizedBox(width:380,child:Column(mainAxisSize:MainAxisSize.min,children:[
+        _tf(adCtrl,'Proje Adi *',Icons.folder_outlined),const SizedBox(height:10),
+        _tf(donemCtrl,'Donem (2025-2026)',Icons.calendar_today_outlined),const SizedBox(height:10),
+        _tf(okulAdresCtrl,'Okul / Isyeri Adresi',Icons.location_on_outlined),const SizedBox(height:10),
+        _tf(baslangicCtrl,'Baslangic Tarihi',Icons.date_range_outlined),const SizedBox(height:10),
+        _tf(bitisCtrl,'Bitis Tarihi',Icons.date_range_outlined),const SizedBox(height:10),
+        DropdownButtonFormField<String>(
+          value: secFiyatTuru,
+          decoration: InputDecoration(labelText: 'Varsayilan Fiyat Turu',
+              prefixIcon: const Icon(Icons.attach_money_outlined, color: Color(0xFF1a3a6b), size:18),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true),
+          items: const [
+            DropdownMenuItem(value: 'mahalle', child: Text('Mahalle Bazli')),
+            DropdownMenuItem(value: 'bolge',   child: Text('Bolge Bazli')),
+            DropdownMenuItem(value: 'km',      child: Text('KM Bazli')),
+            DropdownMenuItem(value: 'manuel',  child: Text('Manuel')),
+          ],
+          onChanged: (v) => setS(() => secFiyatTuru = v ?? 'mahalle'),
         ),
-        if (_firmaId != null) AcilDurumPaneli(firmaId: _firmaId!),
-        Expanded(child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(children: [
-            if (_aiAcik) ...[
-              SoforAiAsistanWidget(
-                surucuAd: ad, surucuId: _surucuId, aracPlaka: _driverDoc['aracPlaka'] ?? '',
-                ogrenciler: _ogrenciler,
-                alinanSayisi: _ogrenciler.where((o) => o['bindi'] == true).length,
-                servisDurumu: _servisAktif ? 'basladi' : 'bekleniyor',
-                sabahBaslangic: _driverDoc['servisSaati']?['sabahBaslangic'] ?? '06:30',
-                sabahBitis: _driverDoc['servisSaati']?['sabahBitis'] ?? '09:30',
-                aksamBaslangic: _driverDoc['servisSaati']?['aksamBaslangic'] ?? '15:00',
-                aksamBitis: _driverDoc['servisSaati']?['aksamBitis'] ?? '18:30',
-              ),
-              const SizedBox(height: 12),
-            ],
-            SizedBox(
-              width: double.infinity, height: 72,
-              child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: _servisAktif ? Colors.red : Colors.green,
-                      foregroundColor: Colors.white, elevation: 6,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                  onPressed: _servisBaslatDurdur,
-                  icon: Icon(_servisAktif ? Icons.stop_circle_outlined : Icons.play_circle_outlined, size: 30),
-                  label: Text(_servisAktif ? 'Servisi Durdur' : 'Servisi Baslat',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-            ),
-            const SizedBox(height: 16),
-            Row(children: [
-              Expanded(child: _BuyukButon(ikon: Icons.navigation_outlined, etiket: 'Navigasyon', renk: Colors.blue, onTap: _navigasyonAc)),
-              const SizedBox(width: 12),
-              Expanded(child: _BuyukButon(ikon: Icons.route, etiket: 'Rota\n${_ogrenciler.length} kisi', renk: _navy, onTap: _rotaYonetimine)),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _BuyukButon(ikon: Icons.phone_outlined, etiket: 'Veli Ara', renk: Colors.green, onTap: _velerileriAra)),
-              const SizedBox(width: 12),
-              Expanded(child: _BuyukButon(ikon: Icons.map_outlined, etiket: 'Harita', renk: Colors.teal,
-                  onTap: () => Navigator.pushNamed(context, '/canli_rota'))),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: _BuyukButon(ikon: Icons.emergency_outlined, etiket: 'Acil Durum',
-                  renk: Colors.red, onTap: _acilDurumDialog)),
-              const SizedBox(width: 12),
-              Expanded(child: _BuyukButon(ikon: Icons.assessment_outlined, etiket: 'Raporlarim',
-                  renk: Colors.purple, onTap: _gunlukRaporGoster)),
-            ]),
-            const SizedBox(height: 12),
-            if (_servisAktif) ...[
-              Row(children: [
-                Expanded(child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    icon: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 20),
-                    label: const Text('Binis Tara', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    onPressed: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const QrCheckInScreen(tip: 'binis'))).then((_) => _yukle()))),
-                const SizedBox(width: 12),
-                Expanded(child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: _turuncu,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    icon: const Icon(Icons.qr_code_scanner, color: Colors.white, size: 20),
-                    label: const Text('Inis Tara', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    onPressed: () => Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const QrCheckInScreen(tip: 'inis'))).then((_) => _yukle()))),
-              ]),
-              const SizedBox(height: 12),
-            ],
-            if (_surucuId.isNotEmpty)
-              AcilDurumButonu(surucuId: _surucuId, surucuAd: ad, plaka: _soforData['aracPlaka']),
-            const SizedBox(height: 12),
-            if (_servisAktif)
-              Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                    _MiniIstat('${_ogrenciler.where((o) => o['bindi'] == true).length}', 'Bindi', Icons.check_circle_outline, Colors.green),
-                    _MiniIstat('${_ogrenciler.where((o) => !(o['bindi'] ?? false)).length}', 'Bekliyor', Icons.hourglass_empty, Colors.orange),
-                    _MiniIstat('${_ogrenciler.length}', 'Toplam', Icons.people_outline, _navy),
-                  ])),
-            const SizedBox(height: 80),
-          ]),
-        )),
+        const SizedBox(height:12),
+        Row(children:[
+          _TipBtn('okul','Okul',Icons.school_outlined,tip,(t)=>setS(()=>tip=t)),const SizedBox(width:8),
+          _TipBtn('kolej','Kolej',Icons.account_balance_outlined,tip,(t)=>setS(()=>tip=t)),const SizedBox(width:8),
+          _TipBtn('personel','Personel',Icons.badge_outlined,tip,(t)=>setS(()=>tip=t)),
+        ]),
       ])),
-    );
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal')),
+        ElevatedButton.icon(
+          style:ElevatedButton.styleFrom(backgroundColor:_turuncu,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+          onPressed:() async {
+            if(adCtrl.text.trim().isEmpty)return;
+            final ref=await FirebaseFirestore.instance.collection('projects').add({
+              'firmaId':_firmaId,'projeAd':adCtrl.text.trim(),
+              'donem':donemCtrl.text.trim(),'tip':tip,
+              'okulAdresi':okulAdresCtrl.text.trim(),
+              'baslangicTarihi':baslangicCtrl.text.trim(),
+              'bitisTarihi':bitisCtrl.text.trim(),
+              'fiyatTuru':secFiyatTuru,
+              'aktif':true,'olusturmaTarihi':FieldValue.serverTimestamp(),
+            });
+            if(ctx.mounted){
+              Navigator.pop(ctx);
+              _projeler.add({'id':ref.id,'projeAd':adCtrl.text.trim(),'tip':tip});
+              _projeAyarla(ref.id,adCtrl.text.trim());
+            }
+          },
+          icon:const Icon(Icons.add,size:16),
+          label:const Text('Olustur',style:TextStyle(fontWeight:FontWeight.bold)),
+        ),
+      ],
+    )));
   }
-}
 
-class _BuyukButon extends StatelessWidget {
-  final IconData ikon; final String etiket; final Color renk; final VoidCallback onTap;
-  const _BuyukButon({required this.ikon, required this.etiket, required this.renk, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(height: 80,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8)]),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(ikon, color: renk, size: 28),
-          const SizedBox(height: 6),
-          Text(etiket, style: TextStyle(color: renk, fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
-        ])),
-  );
-}
-
-class _MiniIstat extends StatelessWidget {
-  final String deger, etiket; final IconData ikon; final Color renk;
-  const _MiniIstat(this.deger, this.etiket, this.ikon, this.renk);
-  @override
-  Widget build(BuildContext context) => Column(children: [
-    Icon(ikon, color: renk, size: 16),
-    Text(deger, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: renk)),
-    Text(etiket, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-  ]);
-}
-
-// ── ÖĞRENCİ DETAY KARTI ─────────────────────────────────────
-class _OgrenciDetaySheet extends StatelessWidget {
-  final Map<String, dynamic> ogr;
-  static const _navy    = Color(0xFF1a3a6b);
-  static const _turuncu = Color(0xFFFF8C00);
-
-  const _OgrenciDetaySheet({required this.ogr});
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+          contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12)));
 
   @override
-  Widget build(BuildContext context) {
-    final ad      = '${ogr['ad'] ?? ''} ${ogr['soyad'] ?? ''}'.trim();
-    final adres   = ogr['adres'] ?? ogr['address'] ?? '-';
-    final babaTel = ogr['babaTel'] ?? ogr['veliTel'] ?? '';
-    final anneTel = ogr['anneTel'] ?? '';
-    final ogrTel  = ogr['ogrenciTel'] ?? '';
-    final sinif   = ogr['sinif'] ?? '';
-    final okul    = ogr['okul'] ?? '';
-    final notlar  = ogr['notlar'] ?? ogr['not'] ?? '';
-    final bindi   = ogr['bindi'] ?? false;
-
-    return Container(
-      decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      padding: const EdgeInsets.all(20),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 40, height: 4,
-            decoration: BoxDecoration(color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 16),
-
-        // Öğrenci başlık
-        Row(children: [
-          CircleAvatar(radius: 24,
-              backgroundColor: _navy.withValues(alpha: 0.1),
-              child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : '?',
-                  style: const TextStyle(color: _navy,
-                      fontWeight: FontWeight.bold, fontSize: 18))),
-          const SizedBox(width: 14),
-          Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(ad, style: const TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 17)),
-            if (sinif.isNotEmpty || okul.isNotEmpty)
-              Text('$sinif${sinif.isNotEmpty && okul.isNotEmpty ? " • " : ""}$okul',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+  Widget build(BuildContext context){
+    if(_yukleniyor)return const Scaffold(backgroundColor:Color(0xFF1a3a6b),
+        body:Center(child:CircularProgressIndicator(color:Color(0xFFFF8C00))));
+    return Scaffold(
+      backgroundColor:const Color(0xFFF0F2F5),
+      body:Row(children:[
+        Container(width:220,color:_navy,child:Column(children:[
+          Container(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Row(children:[
+              Container(width:36,height:36,decoration:BoxDecoration(color:_turuncu,borderRadius:BorderRadius.circular(8)),
+                  child:const Center(child:Text('S',style:TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:18)))),
+              const SizedBox(width:10),
+              const Expanded(child:Text('Servisim360',style:TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:14))),
+            ]),
+            const SizedBox(height:5),
+            Text(_firmaAdi,style:TextStyle(color:Colors.white.withValues(alpha:0.55),fontSize:11),overflow:TextOverflow.ellipsis),
           ])),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-                color: bindi ? Colors.green.shade50 : Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8)),
-            child: Text(bindi ? '✅ Bindi' : '⏳ Bekliyor',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,
-                    color: bindi ? Colors.green : Colors.orange)),
+            margin:const EdgeInsets.symmetric(horizontal:10),
+            decoration:BoxDecoration(color:Colors.white.withValues(alpha:0.1),borderRadius:BorderRadius.circular(10),
+                border:Border.all(color:_projeId.isNotEmpty?_turuncu.withValues(alpha:0.6):Colors.white24)),
+            child:Column(children:[
+              GestureDetector(onTap:()=>setState(()=>_projeMenuAcik=!_projeMenuAcik),
+                  child:Padding(padding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
+                      child:Row(children:[
+                        Icon(Icons.folder_outlined,color:_projeId.isNotEmpty?_turuncu:Colors.white54,size:16),
+                        const SizedBox(width:8),
+                        Expanded(child:Text(_projeAd.isNotEmpty?_projeAd:'Tum Firma',
+                            style:TextStyle(color:_projeAd.isNotEmpty?_turuncu:Colors.white70,fontSize:12,fontWeight:FontWeight.w600),
+                            overflow:TextOverflow.ellipsis)),
+                        Icon(_projeMenuAcik?Icons.expand_less:Icons.expand_more,color:Colors.white54,size:16),
+                      ]))),
+              if(_projeMenuAcik)...[
+                const Divider(color:Colors.white12,height:1),
+                GestureDetector(onTap:_projeTumFirma,
+                    child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                        decoration:BoxDecoration(color:_projeId.isEmpty?Colors.white.withValues(alpha:0.1):Colors.transparent),
+                        child:Row(children:[
+                          Icon(Icons.business_outlined,color:_projeId.isEmpty?Colors.white:Colors.white54,size:14),
+                          const SizedBox(width:8),
+                          Expanded(child:Text('Tum Firma',style:TextStyle(color:_projeId.isEmpty?Colors.white:Colors.white60,
+                              fontSize:11,fontWeight:_projeId.isEmpty?FontWeight.bold:FontWeight.normal))),
+                          if(_projeId.isEmpty)const Icon(Icons.check,color:Color(0xFFFF8C00),size:12),
+                        ]))),
+                ..._projeler.map((prj){
+                  final secili=_projeId==prj['id'];
+                  return GestureDetector(onTap:()=>_projeAyarla(prj['id'],prj['projeAd']??''),
+                      child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                          decoration:BoxDecoration(color:secili?_turuncu.withValues(alpha:0.15):Colors.transparent),
+                          child:Row(children:[
+                            Icon(Icons.folder_outlined,color:secili?_turuncu:Colors.white54,size:14),
+                            const SizedBox(width:8),
+                            Expanded(child:Text(prj['projeAd']??'',style:TextStyle(color:secili?_turuncu:Colors.white60,
+                                fontSize:11,fontWeight:secili?FontWeight.bold:FontWeight.normal),overflow:TextOverflow.ellipsis)),
+                            if(secili)const Icon(Icons.check,color:Color(0xFFFF8C00),size:12),
+                          ])));
+                }),
+                const Divider(color:Colors.white12,height:1),
+                GestureDetector(onTap:(){setState(()=>_projeMenuAcik=false);_projeEkleDialog();},
+                    child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
+                        child:Row(children:[
+                          Container(padding:const EdgeInsets.all(3),
+                              decoration:BoxDecoration(color:_turuncu.withValues(alpha:0.2),borderRadius:BorderRadius.circular(4)),
+                              child:const Icon(Icons.add,color:Color(0xFFFF8C00),size:12)),
+                          const SizedBox(width:8),
+                          const Text('Yeni Proje Olustur',style:TextStyle(color:Color(0xFFFF8C00),fontSize:11,fontWeight:FontWeight.bold)),
+                        ]))),
+              ],
+            ]),
           ),
-          const SizedBox(width: 8),
-          // Devamsız uyarısı
-          if (ogr['bugunGelmeyecek'] == true || ogr['devamsiz'] == true)
-            Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                child: const Text('⚠️ Devamsiz', style: TextStyle(fontSize: 12,
-                    fontWeight: FontWeight.bold, color: Colors.red))),
-        ]),
-        const SizedBox(height: 8),
-        // Gelmedi / Bırakıldı butonları
-        Row(children: [
-          Expanded(child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () async {
-              final sid = ogr['id'] ?? ogr['docId'] ?? '';
-              if (sid.isNotEmpty) {
-                await FirebaseFirestore.instance
-                    .collection('students').doc(sid)
-                    .update({'gelmedi': true, 'bugunDurumu': 'gelmedi'});
-                await FirebaseFirestore.instance
-                    .collection('absence_requests').add({
-                  'firmaId': ogr['firmaId'] ?? '',
-                  'ogrenciId': sid,
-                  'ogrenciAd': ogr['adSoyad'] ?? ogr['ad'] ?? '',
-                  'tarih': FieldValue.serverTimestamp(),
-                  'durum': 'onaylandi', 'kaynak': 'sofor',
-                });
-              }
-              Navigator.pop(context);
-            },
-            icon: const Icon(Icons.person_off_outlined, size: 16),
-            label: const Text('Gelmedi', style: TextStyle(fontSize: 12)),
-          )),
-          const SizedBox(width: 8),
-          Expanded(child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () async {
-              final id = ogr['id'] ?? ogr['docId'] ?? '';
-              if (id.isNotEmpty) {
-                await FirebaseFirestore.instance.collection('students').doc(id)
-                    .update({'bindi': true, 'bugunDurumu': 'bindi'});
-              }
-              Navigator.pop(context);
-            },
-            icon: const Icon(Icons.check_circle_outline, size: 16),
-            label: const Text('Bindi', style: TextStyle(fontSize: 12)),
-          )),
-        ]),
-        const Divider(height: 20),
-
-        // Adres
-        _detayRow(Icons.location_on_outlined, 'Adres', adres, Colors.blue),
-        if (notlar.isNotEmpty)
-          _detayRow(Icons.notes_outlined, 'Not', notlar, Colors.purple),
-        const SizedBox(height: 12),
-
-        // Telefon butonları
-        if (babaTel.isNotEmpty)
-          _telBtn('Baba / Veli', babaTel, Colors.green, context),
-        if (anneTel.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _telBtn('Anne', anneTel, Colors.pink, context),
-        ],
-        if (ogrTel.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _telBtn('Öğrenci', ogrTel, _navy, context),
-        ],
-        const SizedBox(height: 8),
+          const SizedBox(height:8),
+          const Divider(color:Colors.white12),
+          Expanded(child:ListView(padding:EdgeInsets.zero,children:_menuler.map((item){
+            final secili=_aktifSekme==item.index;
+            int badge=0;
+            if(item.index==7)badge=_bekleyenBasvuru;
+            if(item.index==11)badge=_bekleyenDevamsizlik;
+            return GestureDetector(onTap:()=>setState(()=>_aktifSekme=item.index),
+                child:Container(
+                    margin:const EdgeInsets.symmetric(horizontal:10,vertical:2),
+                    padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
+                    decoration:BoxDecoration(
+                      color:secili?Colors.white.withValues(alpha:0.1):Colors.transparent,
+                      borderRadius:BorderRadius.circular(10),
+                      border:secili?Border.all(color:_turuncu.withValues(alpha:0.5)):null,
+                    ),
+                    child:Row(children:[
+                      Icon(item.ikon,color:secili?_turuncu:Colors.white54,size:17),
+                      const SizedBox(width:10),
+                      Expanded(child:Text(item.ad,style:TextStyle(color:secili?Colors.white:Colors.white60,
+                          fontWeight:secili?FontWeight.bold:FontWeight.normal,fontSize:12))),
+                      if(badge>0)Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
+                          decoration:BoxDecoration(color:Colors.red,borderRadius:BorderRadius.circular(10)),
+                          child:Text('$badge',style:const TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.bold))),
+                    ])));
+          }).toList())),
+          Container(padding:const EdgeInsets.all(14),
+              child:Row(children:[
+                CircleAvatar(radius:14,backgroundColor:_turuncu,
+                    child:Text(_kullaniciAd.isNotEmpty?_kullaniciAd[0].toUpperCase():'A',
+                        style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:12))),
+                const SizedBox(width:8),
+                Expanded(child:Text(_kullaniciAd,style:const TextStyle(color:Colors.white70,fontSize:11),overflow:TextOverflow.ellipsis)),
+                IconButton(icon:const Icon(Icons.logout_outlined,color:Colors.white38,size:16),
+                    onPressed:() async {
+                      await SessionService.instance.cikisYap();
+                      if(mounted)Navigator.pushReplacementNamed(context,'/');
+                    }),
+              ])),
+        ])),
+        Expanded(child:Column(children:[
+          Container(padding:const EdgeInsets.symmetric(horizontal:28,vertical:14),color:Colors.white,
+              child:Row(children:[
+                Text(_menuler[_aktifSekme].ad,style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+                if(_projeAd.isNotEmpty)...[
+                  const SizedBox(width:10),
+                  Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
+                      decoration:BoxDecoration(color:_turuncu.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8),
+                          border:Border.all(color:_turuncu.withValues(alpha:0.3))),
+                      child:Row(mainAxisSize:MainAxisSize.min,children:[
+                        const Icon(Icons.folder_outlined,color:Color(0xFFFF8C00),size:12),const SizedBox(width:4),
+                        Text(_projeAd,style:const TextStyle(color:Color(0xFFFF8C00),fontSize:11,fontWeight:FontWeight.bold)),
+                        const SizedBox(width:6),
+                        GestureDetector(onTap:_projeTumFirma,child:const Icon(Icons.close,color:Color(0xFFFF8C00),size:12)),
+                      ])),
+                ],
+                const Spacer(),
+                if(_aktifServis>0)Container(
+                    padding:const EdgeInsets.symmetric(horizontal:12,vertical:5),
+                    decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(20),
+                        border:Border.all(color:Colors.green.withValues(alpha:0.3))),
+                    child:Row(children:[
+                      Container(width:8,height:8,decoration:const BoxDecoration(color:Colors.green,shape:BoxShape.circle)),
+                      const SizedBox(width:6),
+                      Text('$_aktifServis Aktif Servis',style:const TextStyle(color:Colors.green,fontWeight:FontWeight.bold,fontSize:12)),
+                    ])),
+              ])),
+          Expanded(child:_sekmeIcerigi()),
+        ])),
       ]),
     );
   }
 
-  Widget _detayRow(IconData ikon, String label, String deger, Color renk) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(ikon, size: 16, color: renk),
-          const SizedBox(width: 8),
-          Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-            Text(deger, style: const TextStyle(fontSize: 13)),
-          ])),
-        ]),
-      );
-
-  Widget _telBtn(String label, String tel, Color renk, BuildContext ctx) =>
-      SizedBox(width: double.infinity, child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-            backgroundColor: renk, foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10))),
-        onPressed: () async {
-          final uri = Uri.parse('tel:$tel');
-          try {
-            // ignore: deprecated_member_use
-            await launchUrl(uri);
-          } catch (_) {}
-        },
-        icon: const Icon(Icons.phone_outlined, size: 18),
-        label: Text('$label — $tel',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-      ));
+  Widget _sekmeIcerigi(){
+    switch(_aktifSekme){
+      case 0:return _WebAnaSayfa(firmaId:_firmaId,projeId:_projeId,projeAd:_projeAd,
+          toplamSurucu:_toplamSurucu,toplamOgrenci:_toplamOgrenci,toplamVeli:_toplamVeli,
+          toplamServis:_toplamServis,aktifServis:_aktifServis,bekleyenDevamsizlik:_bekleyenDevamsizlik,
+          bekleyenBasvuru:_bekleyenBasvuru,atanmamisOgrenci:_atanmamisOgrenci,konumsuzOgrenci:_konumsuzOgrenci,
+          onNavigate:(i)=>setState(()=>_aktifSekme=i));
+      case 1:return _ProjelerSekme(firmaId:_firmaId,projeler:_projeler,onProjeAyarla:_projeAyarla,onProjeEkle:_projeEkleDialog);
+      case 2:return _ServislerSekme(firmaId:_firmaId,projeId:_projeId);
+      case 3:return _AraclarSekme(firmaId:_firmaId);
+      case 4:return WebSoforler(firmaId:_firmaId);
+      case 5:return const WebOgrenciler();
+      case 6:return _VelilerSekme(firmaId:_firmaId,projeId:_projeId);
+      case 7:return _KayitSistemiSekme(firmaId:_firmaId);
+      case 8:return _SozlesmelerSekme(firmaId:_firmaId);
+      case 9:return _FiyatlandirmaSekme(firmaId:_firmaId);
+      case 10:return WebHarita(firmaId:_firmaId,projeId:_projeId);
+      case 11:return _DevamsizlikSekme(firmaId:_firmaId);
+      case 12:return _PlakaTanimaSekme(firmaId:_firmaId);
+      case 13:return _KarekodQrSekme(firmaId:_firmaId);
+      case 14:return _BildirimlerSekme(firmaId:_firmaId);
+      case 15:return WebRaporlar(projeId:_projeId);
+      case 16:return _ArsivSekme(firmaId:_firmaId);
+      case 17:return const WebAyarlar();
+      case 18:return const WebTestMerkezi();
+      case 19:return const WebAracMerkezi();
+      case 20:return const WebArsivMerkezi();
+      case 21:return const WebYedekleme();
+      case 22:return const _WebRotalarWrapper();
+      default:return const SizedBox();
+    }
+  }
 }
 
-class _VeliAraSheet extends StatelessWidget {
-  final List<Map<String, dynamic>> ogrenciler;
-  static const _navy = Color(0xFF1a3a6b);
-  const _VeliAraSheet({required this.ogrenciler});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
-      const SizedBox(height: 16),
-      const Text('Veli Ara', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _navy)),
-      const SizedBox(height: 16),
-      if (ogrenciler.isEmpty)
-        const Padding(padding: EdgeInsets.all(20), child: Text('Atanmis ogrenci yok', style: TextStyle(color: Colors.grey)))
-      else
-        ...ogrenciler.map((ogr) {
-          final tel = ogr['veliTel'] ?? ogr['veliTelefon'] ?? '';
-          return ListTile(
-              leading: CircleAvatar(backgroundColor: _navy.withValues(alpha: 0.1),
-                  child: Text((ogr['ad'] ?? '?')[0].toUpperCase(),
-                      style: const TextStyle(color: _navy, fontWeight: FontWeight.bold))),
-              title: Text(ogr['ad'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(tel.isNotEmpty ? tel : 'Telefon yok', style: TextStyle(color: Colors.grey[500])),
-              trailing: tel.isNotEmpty ? Row(mainAxisSize: MainAxisSize.min, children: [
-                IconButton(icon: const Icon(Icons.phone_outlined, color: Colors.green),
-                    onPressed: () async { final url = Uri.parse('tel:$tel'); if (await canLaunchUrl(url)) await launchUrl(url); }),
-                IconButton(icon: const Icon(Icons.message_outlined, color: Color(0xFF25D366)),
-                    onPressed: () async {
-                      final n = tel.replaceAll(RegExp(r'\D'), '');
-                      final url = Uri.parse('https://wa.me/90$n');
-                      if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
-                    }),
-              ]) : null);
+class _MenuItem{
+  final String ad;final IconData ikon;final int index;
+  const _MenuItem(this.ad,this.ikon,this.index);
+}
+
+//  ANA EKRAN
+class _WebAnaSayfa extends StatelessWidget{
+  final String firmaId,projeId,projeAd;
+  final int toplamSurucu,toplamOgrenci,toplamVeli,toplamServis,aktifServis;
+  final int bekleyenDevamsizlik,bekleyenBasvuru,atanmamisOgrenci,konumsuzOgrenci;
+  final void Function(int) onNavigate;
+  static const _navy=Color(0xFF1a3a6b);
+  const _WebAnaSayfa({required this.firmaId,required this.projeId,required this.projeAd,
+    required this.toplamSurucu,required this.toplamOgrenci,required this.toplamVeli,
+    required this.toplamServis,required this.aktifServis,required this.bekleyenDevamsizlik,
+    required this.bekleyenBasvuru,required this.atanmamisOgrenci,required this.konumsuzOgrenci,
+    required this.onNavigate});
+
+  @override Widget build(BuildContext context)=>SingleChildScrollView(
+      padding:const EdgeInsets.all(24),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        if(bekleyenBasvuru>0)    _bnr('$bekleyenBasvuru bekleyen kayit basvurusu',Colors.orange,'Incele',()=>onNavigate(7)),
+        if(bekleyenDevamsizlik>0)_bnr('$bekleyenDevamsizlik bekleyen devamsizlik',Colors.red,'Gor',()=>onNavigate(11)),
+        if(atanmamisOgrenci>0)   _bnr('$atanmamisOgrenci ogrenci servise atanmamis',Colors.purple,'Ata',()=>onNavigate(5)),
+        if(konumsuzOgrenci>0)    _bnr('$konumsuzOgrenci ogrencinin konumu eksik',Colors.deepOrange,'Duzenle',()=>onNavigate(5)),
+        Wrap(spacing:12,runSpacing:12,children:[
+          _SK('Toplam Servis',   '$toplamServis',        Icons.directions_bus_outlined, _navy,         t:()=>onNavigate(2)),
+          _SK('Toplam Sofor',    '$toplamSurucu',        Icons.person_outlined,          Colors.blue,   a:aktifServis>0?'$aktifServis aktif':null,t:()=>onNavigate(4)),
+          _SK('Toplam Ogrenci',  '$toplamOgrenci',       Icons.school_outlined,          Colors.teal,   t:()=>onNavigate(5)),
+          _SK('Toplam Veli',     '$toplamVeli',          Icons.family_restroom_outlined, Colors.purple, t:()=>onNavigate(6)),
+          _SK('Aktif Servis',    '$aktifServis',         Icons.my_location_outlined,     Colors.green),
+          _SK('Devamsizlik',     '$bekleyenDevamsizlik', Icons.event_busy_outlined,      bekleyenDevamsizlik>0?Colors.red:Colors.grey,t:()=>onNavigate(11)),
+          _SK('Bekl.Kayit',      '$bekleyenBasvuru',     Icons.how_to_reg_outlined,      bekleyenBasvuru>0?Colors.orange:Colors.grey,t:()=>onNavigate(7)),
+          _SK('Atanmamis Ogr',   '$atanmamisOgrenci',   Icons.person_off_outlined,      atanmamisOgrenci>0?Colors.deepOrange:Colors.grey,t:()=>onNavigate(5)),
+          _SK('Konumsuz Ogr',    '$konumsuzOgrenci',    Icons.location_off_outlined,    konumsuzOgrenci>0?Colors.red:Colors.grey,t:()=>onNavigate(5)),
+        ]),
+        const SizedBox(height:22),
+        Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Expanded(flex:3,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Row(children:[
+              const Text('Canli Harita',style:TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+              const Spacer(),
+              GestureDetector(onTap:()=>onNavigate(10),
+                  child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
+                      decoration:BoxDecoration(color:_navy,borderRadius:BorderRadius.circular(8)),
+                      child:const Text('Tam Ekran',style:TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.bold)))),
+            ]),
+            const SizedBox(height:10),
+            Container(height:340,
+                decoration:BoxDecoration(borderRadius:BorderRadius.circular(14),
+                    boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.06),blurRadius:10)]),
+                clipBehavior:Clip.antiAlias,
+                child:WebHarita(firmaId:firmaId,projeId:projeId)),
+          ])),
+          const SizedBox(width:18),
+          Expanded(flex:2,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('Hizli Erisim',style:TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+            const SizedBox(height:10),
+            Wrap(spacing:8,runSpacing:8,children:[
+              _HB(Icons.directions_bus_outlined, 'Servis Ekle',   Color(0xFF1a3a6b),()=>onNavigate(2)),
+              _HB(Icons.person_add_outlined,     'Sofor Ekle',    Colors.blue,       ()=>onNavigate(4)),
+              _HB(Icons.school_outlined,         'Ogrenci Ekle',  Colors.teal,       ()=>onNavigate(5)),
+              _HB(Icons.family_restroom_outlined,'Veli Ekle',     Colors.purple,     ()=>onNavigate(6)),
+              _HB(Icons.link_outlined,           'Kayit Linki',   Colors.green,      ()=>onNavigate(7)),
+              _HB(Icons.qr_code_outlined,        'QR Olustur',    Color(0xFFFF8C00), ()=>onNavigate(13)),
+              _HB(Icons.add_road_outlined,       'Rota Olustur',  Colors.indigo,     ()=>onNavigate(10)),
+              _HB(Icons.auto_awesome_outlined,   'Otomatik Dagit',Colors.teal,       ()=>onNavigate(10)),
+              _HB(Icons.event_busy_outlined,     'Devamsizlik',   Colors.red,        ()=>onNavigate(11)),
+              _HB(Icons.campaign_outlined,       'Afis Olustur',  Colors.deepPurple, ()=>onNavigate(7)),
+            ]),
+            const SizedBox(height:18),
+            _YaklasanServisler(firmaId:firmaId,onNavigate:onNavigate),
+            const SizedBox(height:18),
+            Row(children:[
+              const Text('Son Devamsizliklar',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+              const Spacer(),
+              GestureDetector(onTap:()=>onNavigate(11),
+                  child:const Text('Tumunu Gor',style:TextStyle(color:Color(0xFF1a3a6b),fontSize:12,fontWeight:FontWeight.bold))),
+            ]),
+            const SizedBox(height:10),
+            _SonDevamsizliklar(firmaId:firmaId),
+            const SizedBox(height:18),
+            _AracUyarilar(firmaId:firmaId,onNavigate:onNavigate),
+          ])),
+        ]),
+      ]));
+
+  Widget _bnr(String m,Color r,String l,VoidCallback f)=>Container(
+      margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.symmetric(horizontal:16,vertical:10),
+      decoration:BoxDecoration(color:r.withValues(alpha:0.08),borderRadius:BorderRadius.circular(10),border:Border.all(color:r.withValues(alpha:0.3))),
+      child:Row(children:[Container(width:8,height:8,decoration:BoxDecoration(color:r,shape:BoxShape.circle)),
+        const SizedBox(width:10),Expanded(child:Text(m,style:TextStyle(color:r,fontWeight:FontWeight.bold,fontSize:13))),
+        GestureDetector(onTap:f,child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:5),
+            decoration:BoxDecoration(color:r,borderRadius:BorderRadius.circular(7)),
+            child:Text(l,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:12))))]));
+}
+
+class _SK extends StatelessWidget{
+  final String baslik,deger;final IconData ikon;final Color renk;final String? a;final VoidCallback? t;
+  const _SK(this.baslik,this.deger,this.ikon,this.renk,{this.a,this.t});
+  @override Widget build(BuildContext context)=>GestureDetector(onTap:t,
+      child:Container(width:155,padding:const EdgeInsets.all(14),
+          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
+              border:Border.all(color:renk.withValues(alpha:0.15)),
+              boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:6)]),
+          child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Container(padding:const EdgeInsets.all(7),decoration:BoxDecoration(color:renk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                child:Icon(ikon,color:renk,size:17)),
+            const SizedBox(height:7),
+            Text(deger,style:TextStyle(fontSize:24,fontWeight:FontWeight.bold,color:renk)),
+            Text(baslik,style:TextStyle(fontSize:10,color:Colors.grey[600])),
+            if(a!=null)Text(a!,style:TextStyle(fontSize:10,color:renk,fontWeight:FontWeight.w600)),
+          ])));
+}
+
+class _HB extends StatelessWidget{
+  final IconData i;final String e;final Color r;final VoidCallback f;
+  const _HB(this.i,this.e,this.r,this.f);
+  @override Widget build(BuildContext context)=>GestureDetector(onTap:f,
+      child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:7),
+          decoration:BoxDecoration(color:r.withValues(alpha:0.08),borderRadius:BorderRadius.circular(8),border:Border.all(color:r.withValues(alpha:0.2))),
+          child:Row(mainAxisSize:MainAxisSize.min,children:[Icon(i,color:r,size:13),const SizedBox(width:5),
+            Text(e,style:TextStyle(color:r,fontSize:11,fontWeight:FontWeight.w600))])));
+}
+
+//  PROJELER
+// ─────────────────────────────────────────────────────────────────
+//  PROJELER SEKMESİ  –  Tam Özellikli
+// ─────────────────────────────────────────────────────────────────
+class _ProjelerSekme extends StatefulWidget{
+  final String firmaId;
+  final List<Map<String,dynamic>> projeler;
+  final void Function(String,String) onProjeAyarla;
+  final VoidCallback onProjeEkle;
+  const _ProjelerSekme({required this.firmaId,required this.projeler,
+    required this.onProjeAyarla,required this.onProjeEkle});
+  @override State<_ProjelerSekme> createState()=>_ProjelerSekmeState();
+}
+class _ProjelerSekmeState extends State<_ProjelerSekme>{
+  static const _navy=Color(0xFF1a3a6b);
+  static const _t=Color(0xFFFF8C00);
+  // 0=Tumu 1=Aktif 2=Pasif 3=Arsiv 4=Taslak
+  int _filtre=0;
+
+  // Firestore'dan tam proje listesi - istatistiklerle birlikte
+  Stream<QuerySnapshot> get _projeStream =>
+      FirebaseFirestore.instance.collection('projects')
+          .where('firmaId',isEqualTo:widget.firmaId)
+          .orderBy('olusturmaTarihi',descending:true)
+          .snapshots();
+
+  @override Widget build(BuildContext context)=>Column(children:[
+    // Header
+    Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:14),color:Colors.white,
+        child:Row(children:[
+          const Text('Projeler',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:18)),
+          const Spacer(),
+          // Filtre chips
+          for(final f in [
+            (0,'Tumu',Colors.grey),
+            (1,'Aktif',Colors.green),
+            (2,'Pasif',Colors.orange),
+            (3,'Arsiv',Colors.grey),
+            (4,'Taslak',Colors.blue),
+          ])
+            GestureDetector(
+              onTap:()=>setState(()=>_filtre=f.$1),
+              child:Container(
+                margin:const EdgeInsets.only(right:6),
+                padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+                decoration:BoxDecoration(
+                    color:_filtre==f.$1?f.$3.withValues(alpha:0.15):Colors.grey.withValues(alpha:0.06),
+                    borderRadius:BorderRadius.circular(8),
+                    border:Border.all(color:_filtre==f.$1?f.$3:Colors.transparent)),
+                child:Text(f.$2,style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,
+                    color:_filtre==f.$1?f.$3:Colors.grey)),
+              ),
+            ),
+          const SizedBox(width:8),
+          ElevatedButton.icon(
+            style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),
+                padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
+            onPressed:()=>_projeEkleDialog(context),
+            icon:const Icon(Icons.add,size:16),
+            label:const Text('Yeni Proje'),
+          ),
+        ])),
+    // Liste
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:_projeStream,
+        builder:(_,snap){
+          if(!snap.hasData) return const Center(child:CircularProgressIndicator(color:_navy));
+          var docs=snap.data!.docs;
+          if(_filtre!=0){
+            final durumMap={1:'aktif',2:'pasif',3:'arsiv',4:'taslak'};
+            final hedef=durumMap[_filtre]!;
+            docs=docs.where((d){
+              final data=d.data() as Map<String,dynamic>;
+              final durum=(data['durum'] as String?)??(data['aktif']==true?'aktif':'arsiv');
+              return durum==hedef;
+            }).toList();
+          }
+          if(docs.isEmpty) return Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+            Icon(Icons.folder_open_outlined,size:64,color:Colors.grey[300]),
+            const SizedBox(height:12),
+            const Text('Proje bulunamadi',style:TextStyle(color:Colors.grey,fontSize:16)),
+            const SizedBox(height:16),
+            ElevatedButton.icon(
+              style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              onPressed:()=>_projeEkleDialog(context),
+              icon:const Icon(Icons.add),label:const Text('Ilk Projeyi Olustur'),
+            ),
+          ]));
+          return ListView.builder(
+            padding:const EdgeInsets.all(20),
+            itemCount:docs.length,
+            itemBuilder:(_,i){
+              final doc=docs[i];
+              final d=doc.data() as Map<String,dynamic>;
+              return _ProjeKarti(
+                projeId:doc.id,
+                data:d,
+                firmaId:widget.firmaId,
+                onSec:()=>widget.onProjeAyarla(doc.id,d['projeAd']??d['ad']??''),
+                onDuzenle:()=>_projeDuzenleDialog(context,doc.id,d),
+                onAyarlar:()=>_projeAyarlarDialog(context,doc.id,d),
+                onKopyala:()=>_projeKopyala(context,doc.id,d),
+                onArsivle:()=>_projeArsivle(context,doc.id,d),
+              );
+            },
+          );
+        })),
+  ]);
+
+  // ── PROJE EKLE ─────────────────────────────────────────────────
+  void _projeEkleDialog(BuildContext context){
+    final adCtrl=TextEditingController();
+    final donemCtrl=TextEditingController(text:'2025-2026');
+    final basCtrl=TextEditingController(text:'01.09.2025');
+    final bitCtrl=TextEditingController(text:'30.06.2026');
+    String tip='okul';
+    String durum='aktif';
+    bool sabahAktif=true;
+    bool aksamAktif=true;
+    final List<String> secilenGunler=['Pzt','Sal','Car','Per','Cum'];
+
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+        title:const Text('Yeni Proje',style:TextStyle(color:_navy,fontWeight:FontWeight.bold)),
+        content:SizedBox(width:520,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          _tf(adCtrl,'Proje Adi *',Icons.folder_outlined),const SizedBox(height:10),
+          _tf(donemCtrl,'Donem (2025-2026)',Icons.calendar_today_outlined),const SizedBox(height:10),
+          Row(children:[
+            Expanded(child:_tf(basCtrl,'Baslangic',Icons.date_range_outlined)),
+            const SizedBox(width:10),
+            Expanded(child:_tf(bitCtrl,'Bitis',Icons.date_range_outlined)),
+          ]),
+          const SizedBox(height:14),
+          const Text('Proje Tipi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Wrap(spacing:8,runSpacing:8,children:[
+            for(final t in [
+              ('okul','Okul Servisi',Icons.school_outlined),
+              ('kolej','Kolej Servisi',Icons.account_balance_outlined),
+              ('personel','Personel Servisi',Icons.badge_outlined),
+              ('vip','VIP Servis',Icons.star_outlined),
+              ('tur','Tur Servisi',Icons.tour_outlined),
+            ])
+              GestureDetector(onTap:()=>setS(()=>tip=t.$1),
+                  child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                      decoration:BoxDecoration(
+                          color:tip==t.$1?_navy:Colors.grey[50],
+                          borderRadius:BorderRadius.circular(8),
+                          border:Border.all(color:tip==t.$1?_navy:Colors.grey.shade300)),
+                      child:Row(mainAxisSize:MainAxisSize.min,children:[
+                        Icon(t.$3,size:14,color:tip==t.$1?Colors.white:Colors.grey),
+                        const SizedBox(width:6),
+                        Text(t.$2,style:TextStyle(fontSize:12,color:tip==t.$1?Colors.white:Colors.grey,
+                            fontWeight:tip==t.$1?FontWeight.bold:FontWeight.normal)),
+                      ]))),
+          ]),
+          const SizedBox(height:14),
+          const Text('Calısma Gunleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Wrap(spacing:6,children:[
+            for(final g in ['Pzt','Sal','Car','Per','Cum','Cmt','Paz'])
+              GestureDetector(
+                onTap:()=>setS((){
+                  if(secilenGunler.contains(g)) secilenGunler.remove(g);
+                  else secilenGunler.add(g);
+                }),
+                child:Container(
+                  width:44,height:36,
+                  decoration:BoxDecoration(
+                      color:secilenGunler.contains(g)?_t:Colors.grey[100],
+                      borderRadius:BorderRadius.circular(8),
+                      border:Border.all(color:secilenGunler.contains(g)?_t:Colors.grey.shade300)),
+                  child:Center(child:Text(g,style:TextStyle(fontSize:11,
+                      color:secilenGunler.contains(g)?Colors.white:Colors.grey,
+                      fontWeight:FontWeight.bold))),
+                ),
+              ),
+          ]),
+          const SizedBox(height:14),
+          const Text('Servis Tipleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Row(children:[
+            Expanded(child:GestureDetector(onTap:()=>setS(()=>sabahAktif=!sabahAktif),
+                child:Container(padding:const EdgeInsets.symmetric(vertical:10),
+                    decoration:BoxDecoration(
+                        color:sabahAktif?Colors.orange.withValues(alpha:0.1):Colors.grey[50],
+                        borderRadius:BorderRadius.circular(8),
+                        border:Border.all(color:sabahAktif?Colors.orange:Colors.grey.shade300)),
+                    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+                      Icon(Icons.wb_sunny_outlined,size:16,color:sabahAktif?Colors.orange:Colors.grey),
+                      const SizedBox(width:6),
+                      Text('Sabah Servisi',style:TextStyle(fontSize:12,
+                          color:sabahAktif?Colors.orange:Colors.grey,
+                          fontWeight:sabahAktif?FontWeight.bold:FontWeight.normal)),
+                    ])))),
+            const SizedBox(width:10),
+            Expanded(child:GestureDetector(onTap:()=>setS(()=>aksamAktif=!aksamAktif),
+                child:Container(padding:const EdgeInsets.symmetric(vertical:10),
+                    decoration:BoxDecoration(
+                        color:aksamAktif?Colors.indigo.withValues(alpha:0.1):Colors.grey[50],
+                        borderRadius:BorderRadius.circular(8),
+                        border:Border.all(color:aksamAktif?Colors.indigo:Colors.grey.shade300)),
+                    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+                      Icon(Icons.nights_stay_outlined,size:16,color:aksamAktif?Colors.indigo:Colors.grey),
+                      const SizedBox(width:6),
+                      Text('Aksam Servisi',style:TextStyle(fontSize:12,
+                          color:aksamAktif?Colors.indigo:Colors.grey,
+                          fontWeight:aksamAktif?FontWeight.bold:FontWeight.normal)),
+                    ])))),
+          ]),
+          const SizedBox(height:14),
+          const Text('Proje Durumu',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          DropdownButtonFormField<String>(
+            value:durum,
+            decoration:InputDecoration(
+                prefixIcon:const Icon(Icons.info_outline,color:_navy,size:18),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+                isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10)),
+            items:const[
+              DropdownMenuItem(value:'taslak',child:Text('Taslak – Kurulum asamasinda')),
+              DropdownMenuItem(value:'aktif',child:Text('Aktif – Sistem calisir')),
+              DropdownMenuItem(value:'pasif',child:Text('Pasif – Yeni islem yapilamaz')),
+            ],
+            onChanged:(v)=>setS(()=>durum=v??'aktif'),
+          ),
+        ]))),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal')),
+          ElevatedButton.icon(
+            style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+            onPressed:() async{
+              if(adCtrl.text.trim().isEmpty) return;
+              await FirebaseFirestore.instance.collection('projects').add({
+                'firmaId':widget.firmaId,
+                'projeAd':adCtrl.text.trim(),
+                'ad':adCtrl.text.trim(),
+                'donem':donemCtrl.text.trim(),
+                'tip':tip,
+                'durum':durum,
+                'aktif':durum=='aktif',
+                'baslangicTarihi':basCtrl.text.trim(),
+                'bitisTarihi':bitCtrl.text.trim(),
+                'calismaGunleri':secilenGunler,
+                'sabahServisAktif':sabahAktif,
+                'aksamServisAktif':aksamAktif,
+                'olusturmaTarihi':FieldValue.serverTimestamp(),
+              });
+              if(ctx.mounted) Navigator.pop(ctx);
+            },
+            icon:const Icon(Icons.add,size:16),
+            label:const Text('Olustur'),
+          ),
+        ])));
+  }
+
+  // ── PROJE DÜZENLE ───────────────────────────────────────────────
+  void _projeDuzenleDialog(BuildContext context,String projeId,Map<String,dynamic> d){
+    final adCtrl=TextEditingController(text:d['projeAd']??d['ad']??'');
+    final donemCtrl=TextEditingController(text:d['donem']??'');
+    final basCtrl=TextEditingController(text:d['baslangicTarihi']??'');
+    final bitCtrl=TextEditingController(text:d['bitisTarihi']??'');
+    String tip=d['tip']??'okul';
+    String durum=d['durum']??(d['aktif']==true?'aktif':'arsiv');
+    bool sabah=d['sabahServisAktif']??true;
+    bool aksam=d['aksamServisAktif']??true;
+    final gunler=List<String>.from(d['calismaGunleri']??['Pzt','Sal','Car','Per','Cum']);
+
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+        title:const Text('Projeyi Duzenle',style:TextStyle(color:_navy,fontWeight:FontWeight.bold)),
+        content:SizedBox(width:520,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          _tf(adCtrl,'Proje Adi *',Icons.folder_outlined),const SizedBox(height:10),
+          _tf(donemCtrl,'Donem',Icons.calendar_today_outlined),const SizedBox(height:10),
+          Row(children:[
+            Expanded(child:_tf(basCtrl,'Baslangic',Icons.date_range_outlined)),
+            const SizedBox(width:10),
+            Expanded(child:_tf(bitCtrl,'Bitis',Icons.date_range_outlined)),
+          ]),const SizedBox(height:14),
+          const Text('Proje Tipi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Wrap(spacing:8,runSpacing:8,children:[
+            for(final t in [
+              ('okul','Okul'),('kolej','Kolej'),('personel','Personel'),
+              ('vip','VIP'),('tur','Tur'),
+            ])
+              GestureDetector(onTap:()=>setS(()=>tip=t.$1),
+                  child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                      decoration:BoxDecoration(
+                          color:tip==t.$1?_navy:Colors.grey[50],
+                          borderRadius:BorderRadius.circular(8),
+                          border:Border.all(color:tip==t.$1?_navy:Colors.grey.shade300)),
+                      child:Text(t.$2,style:TextStyle(fontSize:12,
+                          color:tip==t.$1?Colors.white:Colors.grey,
+                          fontWeight:tip==t.$1?FontWeight.bold:FontWeight.normal)))),
+          ]),const SizedBox(height:14),
+          const Text('Calısma Gunleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Wrap(spacing:6,children:[
+            for(final g in ['Pzt','Sal','Car','Per','Cum','Cmt','Paz'])
+              GestureDetector(
+                onTap:()=>setS((){
+                  if(gunler.contains(g)) gunler.remove(g);
+                  else gunler.add(g);
+                }),
+                child:Container(width:44,height:36,
+                    decoration:BoxDecoration(
+                        color:gunler.contains(g)?_t:Colors.grey[100],
+                        borderRadius:BorderRadius.circular(8),
+                        border:Border.all(color:gunler.contains(g)?_t:Colors.grey.shade300)),
+                    child:Center(child:Text(g,style:TextStyle(fontSize:11,
+                        color:gunler.contains(g)?Colors.white:Colors.grey,
+                        fontWeight:FontWeight.bold)))),
+              ),
+          ]),const SizedBox(height:14),
+          Row(children:[
+            Expanded(child:GestureDetector(onTap:()=>setS(()=>sabah=!sabah),
+                child:Container(padding:const EdgeInsets.symmetric(vertical:10),
+                    decoration:BoxDecoration(
+                        color:sabah?Colors.orange.withValues(alpha:0.1):Colors.grey[50],
+                        borderRadius:BorderRadius.circular(8),
+                        border:Border.all(color:sabah?Colors.orange:Colors.grey.shade300)),
+                    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+                      Icon(Icons.wb_sunny_outlined,size:14,color:sabah?Colors.orange:Colors.grey),
+                      const SizedBox(width:4),
+                      Text('Sabah',style:TextStyle(fontSize:12,color:sabah?Colors.orange:Colors.grey,fontWeight:sabah?FontWeight.bold:FontWeight.normal)),
+                    ])))),
+            const SizedBox(width:10),
+            Expanded(child:GestureDetector(onTap:()=>setS(()=>aksam=!aksam),
+                child:Container(padding:const EdgeInsets.symmetric(vertical:10),
+                    decoration:BoxDecoration(
+                        color:aksam?Colors.indigo.withValues(alpha:0.1):Colors.grey[50],
+                        borderRadius:BorderRadius.circular(8),
+                        border:Border.all(color:aksam?Colors.indigo:Colors.grey.shade300)),
+                    child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+                      Icon(Icons.nights_stay_outlined,size:14,color:aksam?Colors.indigo:Colors.grey),
+                      const SizedBox(width:4),
+                      Text('Aksam',style:TextStyle(fontSize:12,color:aksam?Colors.indigo:Colors.grey,fontWeight:aksam?FontWeight.bold:FontWeight.normal)),
+                    ])))),
+          ]),const SizedBox(height:14),
+          DropdownButtonFormField<String>(
+            value:durum,
+            decoration:InputDecoration(
+                labelText:'Durum',
+                prefixIcon:const Icon(Icons.info_outline,color:_navy,size:18),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+                isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10)),
+            items:const[
+              DropdownMenuItem(value:'taslak',child:Text('Taslak')),
+              DropdownMenuItem(value:'aktif',child:Text('Aktif')),
+              DropdownMenuItem(value:'pasif',child:Text('Pasif')),
+              DropdownMenuItem(value:'arsiv',child:Text('Arsiv')),
+            ],
+            onChanged:(v)=>setS(()=>durum=v??'aktif'),
+          ),
+        ]))),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal')),
+          ElevatedButton.icon(
+            style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+            onPressed:() async{
+              if(adCtrl.text.trim().isEmpty) return;
+              await FirebaseFirestore.instance.collection('projects').doc(projeId).update({
+                'projeAd':adCtrl.text.trim(),'ad':adCtrl.text.trim(),
+                'donem':donemCtrl.text.trim(),'tip':tip,'durum':durum,
+                'aktif':durum=='aktif',
+                'baslangicTarihi':basCtrl.text.trim(),'bitisTarihi':bitCtrl.text.trim(),
+                'calismaGunleri':gunler,'sabahServisAktif':sabah,'aksamServisAktif':aksam,
+                'guncellenmeTarihi':FieldValue.serverTimestamp(),
+              });
+              if(ctx.mounted) Navigator.pop(ctx);
+            },
+            icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet'),
+          ),
+        ])));
+  }
+
+  // ── PROJE AYARLAR ──────────────────────────────────────────────
+  void _projeAyarlarDialog(BuildContext context,String projeId,Map<String,dynamic> d){
+    final sabahBasCtrl=TextEditingController(text:d['sabahBaslangic']??'07:00');
+    final sabahBitCtrl=TextEditingController(text:d['sabahBitis']??'08:30');
+    final aksamBasCtrl=TextEditingController(text:d['aksamBaslangic']??'16:00');
+    final aksamBitCtrl=TextEditingController(text:d['aksamBitis']??'17:30');
+    String bildirimMesafe=d['bildirimMesafe']??'500';
+    int konumSure=d['konumGuncellemeSure']??30;
+    bool sadeceSaatinde=d['sadeceSaatinde']??false;
+
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+        title:Row(children:[
+          const Icon(Icons.settings_outlined,color:_navy),
+          const SizedBox(width:10),
+          Text((d['projeAd']??d['ad']??'')+' – Ayarlar',
+              style:const TextStyle(color:_navy,fontWeight:FontWeight.bold,fontSize:16)),
+        ]),
+        content:SizedBox(width:480,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          // Servis saatleri
+          Container(padding:const EdgeInsets.all(14),
+              decoration:BoxDecoration(color:Colors.orange.withValues(alpha:0.05),borderRadius:BorderRadius.circular(10),
+                  border:Border.all(color:Colors.orange.withValues(alpha:0.2))),
+              child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                const Row(children:[Icon(Icons.wb_sunny_outlined,color:Colors.orange,size:16),SizedBox(width:6),
+                  Text('Sabah Servisi',style:TextStyle(fontWeight:FontWeight.bold,color:Colors.orange))]),
+                const SizedBox(height:10),
+                Row(children:[
+                  Expanded(child:_tf(sabahBasCtrl,'Baslangic',Icons.access_time_outlined)),
+                  const SizedBox(width:10),
+                  Expanded(child:_tf(sabahBitCtrl,'Bitis',Icons.access_time_outlined)),
+                ]),
+              ])),
+          const SizedBox(height:10),
+          Container(padding:const EdgeInsets.all(14),
+              decoration:BoxDecoration(color:Colors.indigo.withValues(alpha:0.05),borderRadius:BorderRadius.circular(10),
+                  border:Border.all(color:Colors.indigo.withValues(alpha:0.2))),
+              child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                const Row(children:[Icon(Icons.nights_stay_outlined,color:Colors.indigo,size:16),SizedBox(width:6),
+                  Text('Aksam Servisi',style:TextStyle(fontWeight:FontWeight.bold,color:Colors.indigo))]),
+                const SizedBox(height:10),
+                Row(children:[
+                  Expanded(child:_tf(aksamBasCtrl,'Baslangic',Icons.access_time_outlined)),
+                  const SizedBox(width:10),
+                  Expanded(child:_tf(aksamBitCtrl,'Bitis',Icons.access_time_outlined)),
+                ]),
+              ])),
+          const SizedBox(height:14),
+          // Bildirim mesafesi
+          const Text('Yaklasma Bildirimi Mesafesi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Wrap(spacing:8,children:[
+            for(final m in [('500','500 metre'),('700','700 metre'),('1000','1 km')])
+              GestureDetector(onTap:()=>setS(()=>bildirimMesafe=m.$1),
+                  child:Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:8),
+                      decoration:BoxDecoration(
+                          color:bildirimMesafe==m.$1?_navy:Colors.grey[50],
+                          borderRadius:BorderRadius.circular(8),
+                          border:Border.all(color:bildirimMesafe==m.$1?_navy:Colors.grey.shade300)),
+                      child:Text(m.$2,style:TextStyle(fontSize:12,
+                          color:bildirimMesafe==m.$1?Colors.white:Colors.grey,
+                          fontWeight:bildirimMesafe==m.$1?FontWeight.bold:FontWeight.normal)))),
+          ]),
+          const SizedBox(height:14),
+          // Konum güncelleme süresi
+          const Text('Konum Guncelleme Suresi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          Wrap(spacing:8,children:[
+            for(final s in [(5,'5 sn'),(10,'10 sn'),(30,'30 sn')])
+              GestureDetector(onTap:()=>setS(()=>konumSure=s.$1),
+                  child:Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:8),
+                      decoration:BoxDecoration(
+                          color:konumSure==s.$1?_navy:Colors.grey[50],
+                          borderRadius:BorderRadius.circular(8),
+                          border:Border.all(color:konumSure==s.$1?_navy:Colors.grey.shade300)),
+                      child:Text(s.$2,style:TextStyle(fontSize:12,
+                          color:konumSure==s.$1?Colors.white:Colors.grey,
+                          fontWeight:konumSure==s.$1?FontWeight.bold:FontWeight.normal)))),
+          ]),
+          const SizedBox(height:14),
+          // Sadece servis saatinde
+          Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
+              decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10),
+                  border:Border.all(color:Colors.grey.shade200)),
+              child:Row(children:[
+                const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text('Canli Takip',style:TextStyle(fontWeight:FontWeight.w600,fontSize:13)),
+                  Text('Sadece servis saatinde acik',style:TextStyle(fontSize:11,color:Colors.grey)),
+                ])),
+                Switch(
+                  value:sadeceSaatinde,
+                  activeColor:_t,
+                  onChanged:(v)=>setS(()=>sadeceSaatinde=v),
+                ),
+              ])),
+        ]))),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal')),
+          ElevatedButton.icon(
+            style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+            onPressed:() async{
+              await FirebaseFirestore.instance.collection('projects').doc(projeId).update({
+                'sabahBaslangic':sabahBasCtrl.text.trim(),
+                'sabahBitis':sabahBitCtrl.text.trim(),
+                'aksamBaslangic':aksamBasCtrl.text.trim(),
+                'aksamBitis':aksamBitCtrl.text.trim(),
+                'bildirimMesafe':bildirimMesafe,
+                'konumGuncellemeSure':konumSure,
+                'sadeceSaatinde':sadeceSaatinde,
+                'ayarGuncelleme':FieldValue.serverTimestamp(),
+              });
+              if(ctx.mounted){Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content:Text('Ayarlar kaydedildi'),backgroundColor:Colors.green,
+                  behavior:SnackBarBehavior.floating));}
+            },
+            icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet'),
+          ),
+        ])));
+  }
+
+  // ── PROJE KOPYALA ───────────────────────────────────────────────
+  Future<void> _projeKopyala(BuildContext context,String projeId,Map<String,dynamic> d) async{
+    final adCtrl=TextEditingController(text:(d['projeAd']??d['ad']??'')+' (2027)');
+    final donemCtrl=TextEditingController(text:'2026-2027');
+    bool kopyalaAraclar=true;
+    bool kopyalaSoforler=true;
+    bool kopyalaFiyatlar=true;
+
+    final onay=await showDialog<bool>(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+        title:const Text('Proje Kopyala',style:TextStyle(color:_navy,fontWeight:FontWeight.bold)),
+        content:SizedBox(width:420,child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          _tf(adCtrl,'Yeni Proje Adi',Icons.folder_outlined),
+          const SizedBox(height:10),
+          _tf(donemCtrl,'Donem',Icons.calendar_today_outlined),
+          const SizedBox(height:14),
+          const Text('Kopyalanacaklar',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const SizedBox(height:8),
+          CheckboxListTile(dense:true,value:kopyalaAraclar,activeColor:_t,
+              title:const Text('Araclar',style:TextStyle(fontSize:13)),
+              onChanged:(v)=>setS(()=>kopyalaAraclar=v??true)),
+          CheckboxListTile(dense:true,value:kopyalaSoforler,activeColor:_t,
+              title:const Text('Soforler',style:TextStyle(fontSize:13)),
+              onChanged:(v)=>setS(()=>kopyalaSoforler=v??true)),
+          CheckboxListTile(dense:true,value:kopyalaFiyatlar,activeColor:_t,
+              title:const Text('Fiyatlandirma',style:TextStyle(fontSize:13)),
+              onChanged:(v)=>setS(()=>kopyalaFiyatlar=v??true)),
+          Container(margin:const EdgeInsets.only(top:8),padding:const EdgeInsets.all(10),
+              decoration:BoxDecoration(color:Colors.orange.withValues(alpha:0.08),borderRadius:BorderRadius.circular(8)),
+              child:const Row(children:[
+                Icon(Icons.info_outline,color:Colors.orange,size:14),SizedBox(width:6),
+                Expanded(child:Text('Ogrenci kayitlari, odemeler ve raporlar kopyalanmaz.',
+                    style:TextStyle(fontSize:11,color:Colors.orange))),
+              ])),
+        ])),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Iptal')),
+          ElevatedButton.icon(
+            style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+            onPressed:()=>Navigator.pop(ctx,true),
+            icon:const Icon(Icons.copy_outlined,size:16),label:const Text('Kopyala'),
+          ),
+        ])));
+
+    if(onay!=true) return;
+
+    try{
+      // Yeni proje oluştur
+      final yeniRef=await FirebaseFirestore.instance.collection('projects').add({
+        ...d,
+        'projeAd':adCtrl.text.trim(),
+        'ad':adCtrl.text.trim(),
+        'donem':donemCtrl.text.trim(),
+        'durum':'taslak',
+        'aktif':false,
+        'olusturmaTarihi':FieldValue.serverTimestamp(),
+        'kopyalandiFrom':projeId,
+      });
+
+      // Araçları kopyala
+      if(kopyalaAraclar){
+        final araclar=await FirebaseFirestore.instance.collection('vehicles')
+            .where('firmaId',isEqualTo:widget.firmaId).get();
+        for(final a in araclar.docs){
+          final ad=a.data();
+          await FirebaseFirestore.instance.collection('vehicles').add({
+            ...ad,'projeId':yeniRef.id,
+            'olusturmaTarihi':FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // Şoförleri kopyala (projeye ekle)
+      if(kopyalaSoforler){
+        final soforler=await FirebaseFirestore.instance.collection('drivers')
+            .where('firmaId',isEqualTo:widget.firmaId)
+            .where('projeId',isEqualTo:projeId).get();
+        for(final s in soforler.docs){
+          final sd=s.data();
+          await FirebaseFirestore.instance.collection('drivers').add({
+            ...sd,'projeId':yeniRef.id,
+            'servisAktif':false,
+            'olusturmaTarihi':FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // Fiyatları kopyala
+      if(kopyalaFiyatlar){
+        final fiyatlar=await FirebaseFirestore.instance.collection('fiyatlar')
+            .where('firmaId',isEqualTo:widget.firmaId).get();
+        for(final f in fiyatlar.docs){
+          final fd=f.data();
+          await FirebaseFirestore.instance.collection('fiyatlar').add({
+            ...fd,'projeId':yeniRef.id,
+            'olusturmaTarihi':FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      if(context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:Text('Proje kopyalandi! Taslak olarak olusturuldu.'),
+            backgroundColor:Colors.green,behavior:SnackBarBehavior.floating));
+    }catch(e){
+      if(context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:Text('Hata: '+e.toString()),
+            backgroundColor:Colors.red,behavior:SnackBarBehavior.floating));
+    }
+  }
+
+  // ── PROJE ARŞİVLE ───────────────────────────────────────────────
+  Future<void> _projeArsivle(BuildContext context,String projeId,Map<String,dynamic> d) async{
+    final onay=await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
+        title:const Text('Projeyi Arsivle'),
+        content:Text((d['projeAd']??d['ad']??'')+' arsive tasinacak. Devam?'),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(_,false),child:const Text('Iptal')),
+          ElevatedButton(
+              style:ElevatedButton.styleFrom(backgroundColor:Colors.grey),
+              onPressed:()=>Navigator.pop(_,true),
+              child:const Text('Arsivle',style:TextStyle(color:Colors.white))),
+        ]));
+    if(onay==true){
+      await FirebaseFirestore.instance.collection('projects').doc(projeId).update({
+        'durum':'arsiv','aktif':false,'arsivTarihi':FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:_navy,size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+          isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10)));
+}
+
+// ── PROJE KART WİDGET ───────────────────────────────────────────
+class _ProjeKarti extends StatelessWidget{
+  final String projeId,firmaId;
+  final Map<String,dynamic> data;
+  final VoidCallback onSec,onDuzenle,onAyarlar,onKopyala,onArsivle;
+  static const _navy=Color(0xFF1a3a6b);
+  static const _t=Color(0xFFFF8C00);
+
+  const _ProjeKarti({required this.projeId,required this.firmaId,required this.data,
+    required this.onSec,required this.onDuzenle,required this.onAyarlar,
+    required this.onKopyala,required this.onArsivle});
+
+  @override Widget build(BuildContext context){
+    final tip=data['tip']??'okul';
+    final durum=data['durum']??(data['aktif']==true?'aktif':'arsiv');
+    final r=tip=='kolej'?Colors.purple:tip=='personel'?Colors.teal:
+    tip=='vip'?Colors.amber:tip=='tur'?Colors.green:_navy;
+    final durumRenk=durum=='aktif'?Colors.green:durum=='pasif'?Colors.orange:
+    durum=='taslak'?Colors.blue:Colors.grey;
+
+    return Container(
+      margin:const EdgeInsets.only(bottom:14),
+      decoration:BoxDecoration(
+          color:Colors.white,
+          borderRadius:BorderRadius.circular(16),
+          border:Border.all(color:r.withValues(alpha:0.15)),
+          boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
+      child:Column(children:[
+        // Header
+        GestureDetector(
+          onTap:onSec,
+          child:Container(
+            padding:const EdgeInsets.all(16),
+            decoration:BoxDecoration(
+                color:r.withValues(alpha:0.04),
+                borderRadius:const BorderRadius.vertical(top:Radius.circular(16))),
+            child:Row(children:[
+              Container(padding:const EdgeInsets.all(10),
+                  decoration:BoxDecoration(color:r.withValues(alpha:0.12),borderRadius:BorderRadius.circular(10)),
+                  child:Icon(
+                      tip=='kolej'?Icons.account_balance_outlined:
+                      tip=='personel'?Icons.badge_outlined:
+                      tip=='vip'?Icons.star_outlined:
+                      tip=='tur'?Icons.tour_outlined:Icons.school_outlined,
+                      color:r,size:22)),
+              const SizedBox(width:12),
+              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Text(data['projeAd']??data['ad']??'',
+                    style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15)),
+                Text((data['donem']??'')+' • '+(data['baslangicTarihi']??''),
+                    style:TextStyle(fontSize:11,color:Colors.grey[500])),
+              ])),
+              // Durum badge
+              Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+                  decoration:BoxDecoration(color:durumRenk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                  child:Text(durum.toUpperCase(),style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:durumRenk))),
+            ]),
+          ),
+        ),
+        // İstatistikler
+        FutureBuilder<Map<String,int>>(
+          future:_istatistikCek(),
+          builder:(_,snap){
+            final ist=snap.data??{};
+            return Padding(
+              padding:const EdgeInsets.symmetric(horizontal:16,vertical:10),
+              child:Row(children:[
+                _istatKarti(ist['ogrenci']??0,'Ogrenci',Icons.school_outlined,Colors.blue),
+                _istatKarti(ist['sofor']??0,'Sofor',Icons.person_outlined,_navy),
+                _istatKarti(ist['arac']??0,'Arac',Icons.directions_car_outlined,Colors.teal),
+                _istatKarti(ist['servis']??0,'Servis',Icons.directions_bus_outlined,Colors.orange),
+              ]),
+            );
+          },
+        ),
+        // Çalışma günleri
+        if((data['calismaGunleri'] as List?)?.isNotEmpty==true)
+          Padding(
+            padding:const EdgeInsets.only(left:16,right:16,bottom:10),
+            child:Row(children:[
+              const Icon(Icons.calendar_today_outlined,size:12,color:Colors.grey),
+              const SizedBox(width:6),
+              Wrap(spacing:4,children:(data['calismaGunleri'] as List).map((g)=>
+                  Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
+                      decoration:BoxDecoration(color:_t.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
+                      child:Text(g.toString(),style:const TextStyle(fontSize:10,color:_t,fontWeight:FontWeight.bold)))
+              ).toList()),
+              const Spacer(),
+              if(data['sabahServisAktif']==true)
+                const Icon(Icons.wb_sunny_outlined,size:14,color:Colors.orange),
+              if(data['aksamServisAktif']==true) ...const[
+                SizedBox(width:6),Icon(Icons.nights_stay_outlined,size:14,color:Colors.indigo),
+              ],
+            ]),
+          ),
+        // Aksiyonlar
+        Container(
+          padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+          decoration:BoxDecoration(
+              color:Colors.grey[50],
+              borderRadius:const BorderRadius.vertical(bottom:Radius.circular(16))),
+          child:Row(children:[
+            // Seç
+            Expanded(child:ElevatedButton.icon(
+              style:ElevatedButton.styleFrom(backgroundColor:r,foregroundColor:Colors.white,
+                  padding:const EdgeInsets.symmetric(vertical:8),
+                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+              onPressed:onSec,
+              icon:const Icon(Icons.check_circle_outline,size:14),
+              label:const Text('Sec',style:TextStyle(fontSize:12)),
+            )),
+            const SizedBox(width:6),
+            // Düzenle
+            IconButton(tooltip:'Duzenle',
+                onPressed:onDuzenle,
+                icon:const Icon(Icons.edit_outlined,color:_navy,size:18)),
+            // Ayarlar
+            IconButton(tooltip:'Ayarlar',
+                onPressed:onAyarlar,
+                icon:const Icon(Icons.settings_outlined,color:Colors.grey,size:18)),
+            // Kopyala
+            IconButton(tooltip:'Kopyala',
+                onPressed:onKopyala,
+                icon:const Icon(Icons.copy_outlined,color:Colors.teal,size:18)),
+            // Arşivle
+            if(durum!='arsiv')
+              IconButton(tooltip:'Arsivle',
+                  onPressed:onArsivle,
+                  icon:const Icon(Icons.archive_outlined,color:Colors.grey,size:18)),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _istatKarti(int sayi,String etiket,IconData ikon,Color renk)=>Expanded(child:Column(children:[
+    Text(sayi.toString(),style:TextStyle(fontWeight:FontWeight.bold,fontSize:18,color:renk)),
+    const SizedBox(height:2),
+    Text(etiket,style:const TextStyle(fontSize:10,color:Colors.grey)),
+  ]));
+
+  Future<Map<String,int>> _istatistikCek() async{
+    try{
+      final results=await Future.wait([
+        FirebaseFirestore.instance.collection('students')
+            .where('firmaId',isEqualTo:firmaId).where('projeId',isEqualTo:projeId)
+            .where('aktif',isEqualTo:true).count().get(),
+        FirebaseFirestore.instance.collection('drivers')
+            .where('firmaId',isEqualTo:firmaId).where('projeId',isEqualTo:projeId).count().get(),
+        FirebaseFirestore.instance.collection('vehicles')
+            .where('firmaId',isEqualTo:firmaId).where('projeId',isEqualTo:projeId).count().get(),
+        FirebaseFirestore.instance.collection('services')
+            .where('firmaId',isEqualTo:firmaId).where('projeId',isEqualTo:projeId).count().get(),
+      ]);
+      return{
+        'ogrenci':results[0].count??0,
+        'sofor':results[1].count??0,
+        'arac':results[2].count??0,
+        'servis':results[3].count??0,
+      };
+    }catch(_){return{};}
+  }
+}
+
+
+//  SERVISLER
+class _ServislerSekme extends StatefulWidget{
+  final String firmaId,projeId;const _ServislerSekme({required this.firmaId,required this.projeId});
+  @override State<_ServislerSekme> createState()=>_ServislerSekmeState();
+}
+class _ServislerSekmeState extends State<_ServislerSekme>{
+  static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  List<Map<String,dynamic>> _soforler=[],_araclar=[];
+  @override void initState(){super.initState();_y();}
+  Future<void> _y() async{
+    final sS=await FirebaseFirestore.instance.collection('drivers').where('firmaId',isEqualTo:widget.firmaId).get();
+    final aS=await FirebaseFirestore.instance.collection('vehicles').where('firmaId',isEqualTo:widget.firmaId).get();
+    if(mounted)setState((){_soforler=sS.docs.map((d)=>{'id':d.id,...d.data()}).toList();_araclar=aS.docs.map((d)=>{'id':d.id,...d.data()}).toList();});
+  }
+  void _ekle(){
+    final adC=TextEditingController();final kapC=TextEditingController(text:'17');
+    final sabC=TextEditingController(text:'07:30');final aksC=TextEditingController(text:'16:30');
+    String tip='sabah';String? soforId,aracId;
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+        title:const Text('Yeni Servis',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+        content:SizedBox(width:440,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+          _tf(adC,'Servis Adi *',Icons.directions_bus_outlined),const SizedBox(height:10),
+          Row(children:[Expanded(child:_tf(kapC,'Kapasite',Icons.people_outline)),const SizedBox(width:10),
+            Expanded(child:DropdownButtonFormField<String?>(value:soforId,
+                decoration:const InputDecoration(labelText:'Sofor',prefixIcon:Icon(Icons.person_outlined,size:18),
+                    border:OutlineInputBorder(borderRadius:BorderRadius.all(Radius.circular(10))),isDense:true),
+                items:[const DropdownMenuItem(value:null,child:Text('Sec...')),
+                  ..._soforler.map((s)=>DropdownMenuItem(value:s['id'] as String,child:Text(s['ad']??'')))],
+                onChanged:(v)=>setS(()=>soforId=v)))]),
+          const SizedBox(height:10),
+          DropdownButtonFormField<String?>(value:aracId,
+              decoration:const InputDecoration(labelText:'Arac',prefixIcon:Icon(Icons.directions_car_outlined,size:18),
+                  border:OutlineInputBorder(borderRadius:BorderRadius.all(Radius.circular(10))),isDense:true),
+              items:[const DropdownMenuItem(value:null,child:Text('Sec...')),
+                ..._araclar.map((a)=>DropdownMenuItem(value:a['id'] as String,child:Text(a['plaka']??'')))],
+              onChanged:(v)=>setS(()=>aracId=v)),
+          const SizedBox(height:10),
+          Row(children:[Expanded(child:_tf(sabC,'Sabah Saati',Icons.wb_sunny_outlined)),const SizedBox(width:10),
+            Expanded(child:_tf(aksC,'Aksam Saati',Icons.nights_stay_outlined))]),
+          const SizedBox(height:10),
+          Row(children:[for(final t in [('sabah','Sabah'),('aksam','Aksam'),('her_iki','Her Ikisi')])
+            Expanded(child:GestureDetector(onTap:()=>setS(()=>tip=t.$1),
+                child:Container(margin:const EdgeInsets.only(right:6),padding:const EdgeInsets.symmetric(vertical:10),
+                    decoration:BoxDecoration(color:tip==t.$1?const Color(0xFF1a3a6b):Colors.grey[50],
+                        borderRadius:BorderRadius.circular(8),border:Border.all(color:tip==t.$1?const Color(0xFF1a3a6b):Colors.grey)),
+                    child:Center(child:Text(t.$2,style:TextStyle(fontSize:11,color:tip==t.$1?Colors.white:Colors.grey,
+                        fontWeight:tip==t.$1?FontWeight.bold:FontWeight.normal))))))]),
+        ]))),
+        actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal')),
+          ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+              onPressed:() async{
+                if(adC.text.trim().isEmpty)return;
+                final sofor=_soforler.firstWhere((s)=>s['id']==soforId,orElse:()=>{});
+                final arac=_araclar.firstWhere((a)=>a['id']==aracId,orElse:()=>{});
+                await FirebaseFirestore.instance.collection('services').add({
+                  'firmaId':widget.firmaId,'projeId':widget.projeId,'ad':adC.text.trim(),
+                  'kapasite':int.tryParse(kapC.text)??17,'tip':tip,
+                  'sabahSaati':sabC.text,'aksamSaati':aksC.text,
+                  'soforId':soforId??'','soforAd':sofor['ad']??'',
+                  'aracId':aracId??'','aracPlaka':arac['plaka']??'',
+                  'aktif':true,'olusturmaTarihi':FieldValue.serverTimestamp(),
+                });
+                if(ctx.mounted)Navigator.pop(ctx);
+              },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
+        ])));
+  }
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),isDense:true,
+          contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10)));
+  @override Widget build(BuildContext context){
+    return Column(children:[
+      Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
+          child:Row(children:[
+            const Text('Servisler',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
+            const Spacer(),
+            ElevatedButton.icon(
+              style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              onPressed:_ekle,
+              icon:const Icon(Icons.add,size:16),
+              label:const Text('Servis Ekle'),
+            ),
+          ])),
+      Expanded(child:StreamBuilder<QuerySnapshot>(
+          stream:(){
+            var q=FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:widget.firmaId);
+            if(widget.projeId.isNotEmpty)q=q.where('projeId',isEqualTo:widget.projeId);
+            return q.snapshots();
+          }(),
+          builder:(_,snap){
+            final docs=snap.data?.docs??[];
+            if(docs.isEmpty)return _bos('Servis bulunamadi','Servis ekleyin.',Icons.directions_bus_outlined);
+            return ListView.builder(
+              padding:const EdgeInsets.all(16),
+              itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;
+                final aktif=d['aktif']==true;
+                final ad=(d['ad']??'').toString();
+                final soforAd=(d['soforAd']??'').toString();
+                final aracPlaka=(d['aracPlaka']??'').toString();
+                final sabah=(d['sabahSaati']??'').toString();
+                final aksam=(d['aksamSaati']??'').toString();
+                final kap=(d['kapasite']??17).toString();
+                return Container(
+                  margin:const EdgeInsets.only(bottom:10),
+                  padding:const EdgeInsets.all(16),
+                  decoration:BoxDecoration(
+                    color:Colors.white,
+                    borderRadius:BorderRadius.circular(14),
+                    boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)],
+                  ),
+                  child:Row(children:[
+                    Container(padding:const EdgeInsets.all(10),
+                        decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),borderRadius:BorderRadius.circular(10)),
+                        child:Icon(Icons.directions_bus_outlined,color:aktif?const Color(0xFF1a3a6b):Colors.grey,size:22)),
+                    const SizedBox(width:14),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(ad,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
+                      const SizedBox(height:4),
+                      Wrap(spacing:6,children:[
+                        if(soforAd.isNotEmpty)_ch(soforAd,Colors.blue),
+                        if(aracPlaka.isNotEmpty)_ch(aracPlaka,Colors.grey),
+                        if(sabah.isNotEmpty)_ch('S: '+sabah,Colors.orange),
+                        if(aksam.isNotEmpty)_ch('A: '+aksam,Colors.indigo),
+                        _ch(kap+' koltuk',Colors.teal),
+                        if((d['ogrenciSayisi']??0)>0)
+                          _ch((d['ogrenciSayisi'] as int).toString()+'/'+kap+' dolu',
+                              (d['ogrenciSayisi'] as int)>=(int.tryParse(kap)??17)?Colors.red:Colors.green),
+                      ]),
+                    ])),
+                    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                      Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+                          decoration:BoxDecoration(
+                              color:(aktif?Colors.green:Colors.grey).withValues(alpha:0.1),
+                              borderRadius:BorderRadius.circular(8)),
+                          child:Text(aktif?'Aktif':'Pasif',
+                              style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,
+                                  color:aktif?Colors.green:Colors.grey))),
+                      const SizedBox(height:6),
+                      Row(children:[
+                        GestureDetector(
+                          onTap:() async{
+                            final docId=docs[i].id;
+                            await FirebaseFirestore.instance.collection('services')
+                                .doc(docId).update({'aktif':!aktif,'guncelleme':FieldValue.serverTimestamp()});
+                          },
+                          child:Container(
+                            padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),
+                            decoration:BoxDecoration(
+                                color:aktif?Colors.orange.withValues(alpha:0.1):Colors.green.withValues(alpha:0.1),
+                                borderRadius:BorderRadius.circular(7)),
+                            child:Row(mainAxisSize:MainAxisSize.min,children:[
+                              Icon(aktif?Icons.stop_circle_outlined:Icons.play_circle_outlined,
+                                  size:14,color:aktif?Colors.orange:Colors.green),
+                              const SizedBox(width:4),
+                              Text(aktif?'Durdur':'Baslat',
+                                  style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,
+                                      color:aktif?Colors.orange:Colors.green)),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(width:6),
+                        GestureDetector(
+                          onTap:() async{
+                            final docId=docs[i].id;
+                            final ok=await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
+                                title:const Text('Servisi Sil'),
+                                content:Text(ad+' silinecek.'),
+                                actions:[
+                                  TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('Iptal')),
+                                  ElevatedButton(
+                                      style:ElevatedButton.styleFrom(backgroundColor:Colors.red),
+                                      onPressed:()=>Navigator.pop(context,true),
+                                      child:const Text('Sil',style:TextStyle(color:Colors.white))),
+                                ]));
+                            if(ok==true){
+                              await FirebaseFirestore.instance.collection('services').doc(docId).delete();
+                            }
+                          },
+                          child:Container(padding:const EdgeInsets.all(5),
+                              decoration:BoxDecoration(color:Colors.red.withValues(alpha:0.08),borderRadius:BorderRadius.circular(7)),
+                              child:const Icon(Icons.delete_outline,size:14,color:Colors.red)),
+                        ),
+                      ]),
+                    ]),
+                  ]),
+                );
+              },
+            );
+          })),
+    ]);
+  }
+  Widget _ch(String t,Color c)=>Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
+      decoration:BoxDecoration(color:c.withValues(alpha:0.1),borderRadius:BorderRadius.circular(5)),
+      child:Text(t,style:TextStyle(fontSize:10,color:c,fontWeight:FontWeight.bold)));
+}
+
+//  ARACLAR
+class _AraclarSekme extends StatefulWidget{
+  final String firmaId;const _AraclarSekme({required this.firmaId});
+  @override State<_AraclarSekme> createState()=>_AraclarSekmeState();
+}
+class _AraclarSekmeState extends State<_AraclarSekme>{
+  static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  void _ekle(){
+    final pC=TextEditingController();final mrC=TextEditingController();
+    final mdC=TextEditingController();final kC=TextEditingController(text:'17');
+    final muC=TextEditingController();final siC=TextEditingController();
+    showDialog(context:context,builder:(_)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+        title:const Text('Arac Ekle',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+        content:SizedBox(width:400,child:Column(mainAxisSize:MainAxisSize.min,children:[
+          _tf(pC,'Plaka *',Icons.directions_car_outlined),const SizedBox(height:10),
+          Row(children:[Expanded(child:_tf(mrC,'Marka',Icons.branding_watermark_outlined)),
+            const SizedBox(width:10),Expanded(child:_tf(mdC,'Model',Icons.model_training_outlined))]),
+          const SizedBox(height:10),_tf(kC,'Kapasite',Icons.people_outline),const SizedBox(height:10),
+          Row(children:[Expanded(child:_tf(muC,'Muayene Tarihi',Icons.calendar_today_outlined)),
+            const SizedBox(width:10),Expanded(child:_tf(siC,'Sigorta Tarihi',Icons.shield_outlined))]),
+        ])),
+        actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Iptal')),
+          ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+              onPressed:() async{
+                if(pC.text.trim().isEmpty)return;
+                await FirebaseFirestore.instance.collection('vehicles').add({
+                  'firmaId':widget.firmaId,'plaka':pC.text.trim().toUpperCase(),
+                  'marka':mrC.text.trim(),'model':mdC.text.trim(),
+                  'kapasite':int.tryParse(kC.text)??17,
+                  'muayeneTarihi':muC.text.trim(),'sigortaTarihi':siC.text.trim(),
+                  'aktif':true,'olusturmaTarihi':FieldValue.serverTimestamp(),
+                });
+                if(mounted)Navigator.pop(context);
+              },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
+        ]));
+  }
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+          contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12)));
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
+        child:Row(children:[const Text('Araclar',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
+          const Spacer(),ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              onPressed:_ekle,icon:const Icon(Icons.add,size:16),label:const Text('Arac Ekle'))])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:FirebaseFirestore.instance.collection('vehicles').where('firmaId',isEqualTo:widget.firmaId).snapshots(),
+        builder:(_,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return _bos('Arac bulunamadi','Arac ekleyin.',Icons.directions_car_outlined);
+          return GridView.builder(padding:const EdgeInsets.all(16),
+              gridDelegate:const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent:280,mainAxisExtent:170,crossAxisSpacing:14,mainAxisSpacing:14),
+              itemCount:docs.length,itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;
+                return Container(padding:const EdgeInsets.all(16),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
+                    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Row(children:[Container(padding:const EdgeInsets.all(8),
+                          decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),borderRadius:BorderRadius.circular(8)),
+                          child:const Icon(Icons.directions_car_outlined,color:Color(0xFF1a3a6b),size:20)),
+                        const Spacer(),Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                            decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                            child:const Text('Aktif',style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:Colors.green)))]),
+                      const SizedBox(height:10),
+                      Text(d['plaka']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:18,letterSpacing:1.2)),
+                      Text('${d['marka']??''} ${d['model']??''}'.trim(),style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                      const Spacer(),
+                      Row(children:[Text('${d['kapasite']??17} koltuk',style:TextStyle(fontSize:12,color:Colors.grey[400])),const Spacer(),
+                        if((d['muayeneTarihi']??'').isNotEmpty)Text('M:${d['muayeneTarihi']}',style:const TextStyle(fontSize:10,color:Colors.orange))]),
+                    ]));
+              });
+        })),
+  ]);
+}
+
+//  VELILER
+class _VelilerSekme extends StatefulWidget{
+  final String firmaId,projeId;
+  const _VelilerSekme({required this.firmaId,this.projeId=''});
+  @override State<_VelilerSekme> createState()=>_VelilerSekmeState();
+}
+class _VelilerSekmeState extends State<_VelilerSekme>{
+  static const _t=Color(0xFFFF8C00);
+  String _q='';final _c=TextEditingController();
+  @override void dispose(){_c.dispose();super.dispose();}
+  void _ekle(){
+    final aC=TextEditingController();final tC=TextEditingController();final eC=TextEditingController();
+    showDialog(context:context,builder:(_)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+        title:const Text('Veli Ekle',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+        content:SizedBox(width:360,child:Column(mainAxisSize:MainAxisSize.min,children:[
+          _tf(aC,'Veli Adi Soyadi *',Icons.person_outlined),const SizedBox(height:10),
+          _tf(tC,'Telefon *',Icons.phone_outlined),const SizedBox(height:10),
+          _tf(eC,'E-posta',Icons.email_outlined),
+        ])),
+        actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Iptal')),
+          ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+              onPressed:() async{
+                if(aC.text.trim().isEmpty||tC.text.trim().isEmpty)return;
+                final tel=tC.text.trim();
+                final sif='S${tel.replaceAll(RegExp(r'\D'),'').substring(0,4.clamp(0,tel.length))}';
+                await FirebaseFirestore.instance.collection('parents').add({
+                  'firmaId':widget.firmaId,'ad':aC.text.trim(),'telefon':tel,
+                  'email':eC.text.trim(),'kullaniciAdi':tel,'geciciSifre':sif,
+                  'sozlesmeOnay':false,'aktif':true,'ogrenciId':'','ogrenciAd':'',
+                  'projeId':widget.projeId,'projeAd':'','servisId':'','servisAd':'',
+                  'rol':'veli','olusturmaTarihi':FieldValue.serverTimestamp(),
+                });
+                if(mounted)Navigator.pop(context);
+              },icon:const Icon(Icons.save_outlined,size:16),label:const Text('Kaydet')),
+        ]));
+  }
+  void _ogrenciBaglaDialog(String veliId,Map<String,dynamic> veli){
+    String? secOgrId;
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(dCtx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+        title:const Text('Ogrenciye Bagla',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+        content:SizedBox(width:360,child:FutureBuilder<QuerySnapshot>(
+            future:FirebaseFirestore.instance.collection('students').where('firmaId',isEqualTo:widget.firmaId).get(),
+            builder:(_,snap){
+              final ogrs=snap.data?.docs??[];
+              return Column(mainAxisSize:MainAxisSize.min,children:[
+                const Text('Veliye baglanacak ogrenciyi secin:',style:TextStyle(fontSize:13,color:Colors.grey)),
+                const SizedBox(height:12),
+                ...ogrs.map((o){
+                  final od=o.data() as Map<String,dynamic>;final secili=secOgrId==o.id;
+                  return GestureDetector(onTap:()=>setS(()=>secOgrId=o.id),
+                      child:Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                          decoration:BoxDecoration(color:secili?const Color(0xFF1a3a6b).withValues(alpha:0.08):Colors.grey[50],
+                              borderRadius:BorderRadius.circular(8),border:Border.all(color:secili?const Color(0xFF1a3a6b):Colors.grey.shade200)),
+                          child:Row(children:[Icon(Icons.school_outlined,size:14,color:secili?const Color(0xFF1a3a6b):Colors.grey),
+                            const SizedBox(width:8),
+                            Expanded(child:Text(od['adSoyad']??od['ad']??'',style:TextStyle(fontWeight:secili?FontWeight.bold:FontWeight.normal,color:secili?const Color(0xFF1a3a6b):Colors.grey[700]))),
+                            if(secili)const Icon(Icons.check_circle,color:Color(0xFF1a3a6b),size:14)])));
+                }),
+              ]);
+            })),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(dCtx),child:const Text('Iptal')),
+          ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),
+              onPressed:() async{
+                if(secOgrId==null)return;
+                final oSnap=await FirebaseFirestore.instance.collection('students').doc(secOgrId).get();
+                final oData=oSnap.data()??{};
+                await FirebaseFirestore.instance.collection('parents').doc(veliId).update({'ogrenciId':secOgrId,'ogrenciAd':oData['adSoyad']??oData['ad']??''});
+                await FirebaseFirestore.instance.collection('students').doc(secOgrId).update({'veliId':veliId,'veliAd':veli['ad']??'','veliTel':veli['telefon']??''});
+                if(dCtx.mounted)Navigator.pop(dCtx);
+              },child:const Text('Bagla')),
+        ])));
+  }
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+          contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12)));
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(padding:const EdgeInsets.all(14),color:Colors.white,
+        child:Row(children:[
+          Expanded(child:TextField(controller:_c,decoration:InputDecoration(hintText:'Veli ara...',
+              prefixIcon:const Icon(Icons.search,color:Color(0xFF1a3a6b),size:18),filled:true,fillColor:const Color(0xFFF5F7FA),
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide.none)),
+              onChanged:(v)=>setState(()=>_q=v.toLowerCase()))),
+          const SizedBox(width:12),
+          ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              onPressed:_ekle,icon:const Icon(Icons.add,size:16),label:const Text('Veli Ekle')),
+        ])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:FirebaseFirestore.instance.collection('parents').where('firmaId',isEqualTo:widget.firmaId).snapshots(),
+        builder:(_,snap){
+          var docs=snap.data?.docs??[];
+          if(_q.isNotEmpty)docs=docs.where((d){final x=d.data() as Map<String,dynamic>;
+          return(x['ad']??x['email']??'').toString().toLowerCase().contains(_q);}).toList();
+          if(docs.isEmpty)return _bos('Veli bulunamadi','Veli ekleyin.',Icons.family_restroom_outlined);
+          return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;final sozl=d['sozlesmeOnay']==true;
+                return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                    child:Row(children:[
+                      CircleAvatar(radius:20,backgroundColor:Colors.purple.withValues(alpha:0.1),
+                          child:Text((d['ad']??d['email']??'?').isNotEmpty?(d['ad']??d['email'])[0].toUpperCase():'?',
+                              style:const TextStyle(color:Colors.purple,fontWeight:FontWeight.bold))),
+                      const SizedBox(width:12),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(d['ad']??d['email']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+                        Text(d['telefon']??d['email']??'',style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                        if((d['kullaniciAdi']??'').isNotEmpty)Text('Kul:${d['kullaniciAdi']}  Sifre:${d['geciciSifre']??'---'}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
+                        if((d['ogrenciAd']??'').isNotEmpty)Text('Ogrenci: ${d['ogrenciAd']}',style:TextStyle(fontSize:11,color:Colors.blue[400])),
+                        if((d['kayitTuru']??'').isNotEmpty)Container(margin:const EdgeInsets.only(top:3),padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.teal.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),child:Text('Kayit: ${d['kayitTuru']}',style:const TextStyle(fontSize:10,color:Colors.teal,fontWeight:FontWeight.bold))),
+                        if((d['servisAd']??'').isNotEmpty)Text('Servis: ${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.teal[400])),
+                        if((d['projeAd']??'').isNotEmpty)Text('Proje: ${d['projeAd']}',style:TextStyle(fontSize:11,color:Colors.grey[400])),
+                      ])),
+                      Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                        Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                            decoration:BoxDecoration(color:(sozl?Colors.green:Colors.orange).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                            child:Text(sozl?'Onaylandi':'Bekleniyor',style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:sozl?Colors.green:Colors.orange))),
+                        const SizedBox(height:6),
+                        Row(mainAxisSize:MainAxisSize.min,children:[
+                          if((d['telefon']??'').isNotEmpty)
+                            GestureDetector(onTap:() async{
+                              final tel=(d['telefon'] as String).replaceAll(RegExp(r'[^0-9]'),'');
+                              final kul=d['kullaniciAdi']??'';final sif=d['geciciSifre']??'';
+                              final msg=Uri.encodeComponent('Servisim360 giris bilgileriniz:\nKullanici Adi: '+kul+'\nSifre: '+sif+'\nservisim.org.tr');
+                              final uri=Uri.parse('https://wa.me/90'+tel+'?text='+msg);
+                              if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);},
+                                child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:const Color(0xFF25D366).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                    child:const Icon(Icons.chat_outlined,size:16,color:Color(0xFF25D366)))),
+                          const SizedBox(width:4),
+                          GestureDetector(onTap:()=>_ogrenciBaglaDialog(docs[i].id,d),
+                              child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:const Icon(Icons.link_outlined,size:16,color:Colors.blue))),
+                          const SizedBox(width:4),
+                          GestureDetector(onTap:() async{
+                            final yeniSifre='S${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                            await FirebaseFirestore.instance.collection('parents').doc(docs[i].id).update({'geciciSifre':yeniSifre});
+                            if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Yeni sifre: $yeniSifre'),backgroundColor:Colors.blue,behavior:SnackBarBehavior.floating));},
+                              child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:const Icon(Icons.key_outlined,size:16,color:Colors.blue))),
+                          const SizedBox(width:4),
+                          GestureDetector(onTap:() async{await FirebaseFirestore.instance.collection('parents').doc(docs[i].id).update({'aktif':!(d['aktif']??true)});},
+                              child:Container(padding:const EdgeInsets.all(6),
+                                  decoration:BoxDecoration(color:((d['aktif']??true)?Colors.green:Colors.grey).withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:Icon((d['aktif']??true)?Icons.toggle_on_outlined:Icons.toggle_off_outlined,size:16,color:(d['aktif']??true)?Colors.green:Colors.grey))),
+                        ]),
+                      ]),
+                    ]));
+              });
+        })),
+  ]);
+}
+
+//  KAYIT SISTEMI
+class _KayitSistemiSekme extends StatefulWidget{
+  final String firmaId;const _KayitSistemiSekme({required this.firmaId});
+  @override State<_KayitSistemiSekme> createState()=>_KayitSistemiSekmeState();
+}
+class _KayitSistemiSekmeState extends State<_KayitSistemiSekme>{
+  static const _t=Color(0xFFFF8C00);int _s=0;
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(color:Colors.white,padding:const EdgeInsets.symmetric(horizontal:20,vertical:0),
+        child:Row(children:[
+          for(final item in[(0,Icons.inbox_outlined,'Bekleyen Basvurular'),(1,Icons.link_outlined,'Kayit Linki'),
+            (2,Icons.qr_code_outlined,'QR Karekod'),(3,Icons.person_add_outlined,'Yuz Yuze Kayit')])
+            GestureDetector(onTap:()=>setState(()=>_s=item.$1),
+                child:Container(margin:const EdgeInsets.only(right:4),padding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
+                    decoration:BoxDecoration(border:Border(bottom:BorderSide(color:_s==item.$1?_t:Colors.transparent,width:2))),
+                    child:Row(children:[Icon(item.$2,size:16,color:_s==item.$1?_t:Colors.grey),
+                      const SizedBox(width:6),Text(item.$3,style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:_s==item.$1?_t:Colors.grey))]))),
+        ])),
+    Expanded(child:_s==0?_BekleyenBasvurular(firmaId:widget.firmaId):
+    _s==1?_KayitLinki(firmaId:widget.firmaId):
+    _s==2?_QrKayit(firmaId:widget.firmaId):
+    _YuzYuzeKayit(firmaId:widget.firmaId)),
+  ]);
+}
+
+class _BekleyenBasvurular extends StatelessWidget{
+  final String firmaId;static const _navy=Color(0xFF1a3a6b);
+  const _BekleyenBasvurular({required this.firmaId});
+  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
+      stream:FirebaseFirestore.instance.collection('kayit_basvurulari').where('firmaId',isEqualTo:firmaId).orderBy('tarih',descending:true).snapshots(),
+      builder:(_,snap){
+        final docs=snap.data?.docs??[];
+        if(docs.isEmpty)return _bos('Bekleyen basvuru yok','Link veya QR ile gelen basvurular burada gorunur.',Icons.inbox_outlined);
+        return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+            itemBuilder:(_,i){
+              final d=docs[i].data() as Map<String,dynamic>;final dur=d['durum']??'bekliyor';
+              final r=dur=='onaylandi'?Colors.green:dur=='reddedildi'?Colors.red:Colors.orange;
+              return Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(16),
+                  decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:r.withValues(alpha:0.25))),
+                  child:Row(children:[
+                    CircleAvatar(radius:20,backgroundColor:_navy.withValues(alpha:0.1),
+                        child:Text((d['ogrenciAd']??'B')[0].toUpperCase(),style:const TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold))),
+                    const SizedBox(width:12),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(d['ogrenciAd']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+                      Text(d['veliAd']??'',style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                      Text(d['adres']??'',style:TextStyle(fontSize:11,color:Colors.grey[400]),maxLines:1,overflow:TextOverflow.ellipsis),
+                      if(d['fiyat']!=null)Text('Fiyat:${d['fiyat']} TL',style:const TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:Colors.green)),
+                    ])),
+                    if(dur=='bekliyor')Row(children:[
+                      _AksBtn('Onayla',Colors.green,()async=>FirebaseFirestore.instance.collection('kayit_basvurulari').doc(docs[i].id).update({'durum':'onaylandi'})),
+                      const SizedBox(width:6),
+                      _AksBtn('Reddet',Colors.red,()async=>FirebaseFirestore.instance.collection('kayit_basvurulari').doc(docs[i].id).update({'durum':'reddedildi'})),
+                    ])else Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+                        decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                        child:Text(dur,style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:r))),
+                  ]));
+            });
+      });
+}
+
+class _KayitLinki extends StatelessWidget{
+  final String firmaId;static const _navy=Color(0xFF1a3a6b);
+  const _KayitLinki({required this.firmaId});
+  @override Widget build(BuildContext context){
+    final link='https://servisim.org.tr/#/kayit?firma=$firmaId';
+    return Center(child:Container(width:500,padding:const EdgeInsets.all(32),margin:const EdgeInsets.all(24),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.06),blurRadius:12)]),
+        child:Column(mainAxisSize:MainAxisSize.min,children:[
+          Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),shape:BoxShape.circle),
+              child:const Icon(Icons.link_outlined,color:Color(0xFF1a3a6b),size:40)),
+          const SizedBox(height:20),const Text('Kayit Linki',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+          const SizedBox(height:8),const Text('Bu linki velilere gonderin.',textAlign:TextAlign.center,style:TextStyle(color:Colors.grey,fontSize:13)),
+          const SizedBox(height:20),
+          Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(10)),
+              child:SelectableText(link,style:const TextStyle(fontSize:12,fontFamily:'monospace'))),
+          const SizedBox(height:16),
+          Row(children:[
+            Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_navy,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+                onPressed:() async{await Clipboard.setData(ClipboardData(text:link));ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Link kopyalandi!'),backgroundColor:Colors.green,behavior:SnackBarBehavior.floating));},icon:const Icon(Icons.copy_outlined,size:16),label:const Text('Linki Kopyala'))),
+            const SizedBox(width:12),
+            Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF25D366),foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+                onPressed:() async{
+                  final msg=Uri.encodeComponent('Servisim360 kayit linki:\n$link');
+                  final uri=Uri.parse('https://wa.me/?text='+msg);
+                  if(await canLaunchUrl(uri))await launchUrl(uri,mode:LaunchMode.externalApplication);
+                },icon:const Icon(Icons.send_outlined,size:16),label:const Text('WhatsApp'))),
+          ]),
+        ])));
+  }
+}
+
+class _QrKayit extends StatelessWidget{
+  final String firmaId;static const _t=Color(0xFFFF8C00);
+  const _QrKayit({required this.firmaId});
+  @override Widget build(BuildContext context)=>Center(child:Container(width:400,padding:const EdgeInsets.all(32),margin:const EdgeInsets.all(24),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.06),blurRadius:12)]),
+      child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:_t.withValues(alpha:0.1),shape:BoxShape.circle),
+            child:const Icon(Icons.qr_code_outlined,color:Color(0xFFFF8C00),size:40)),
+        const SizedBox(height:20),const Text('QR Karekod',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+        const SizedBox(height:8),const Text('QR okutan veli kayit formuna yonlendirilir.',textAlign:TextAlign.center,style:TextStyle(color:Colors.grey,fontSize:13)),
+        const SizedBox(height:24),
+        Container(width:180,height:180,decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(14),border:Border.all(color:Colors.grey)),
+            child:const Center(child:Icon(Icons.qr_code_2_outlined,size:110,color:Colors.black87))),
+        const SizedBox(height:20),
+        Row(children:[
+          Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+              onPressed:(){},icon:const Icon(Icons.download_outlined,size:16),label:const Text('QR Indir'))),
+          const SizedBox(width:10),
+          Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF25D366),foregroundColor:Colors.white,
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+              onPressed:(){},icon:const Icon(Icons.send_outlined,size:16),label:const Text('WhatsApp'))),
+        ]),
+      ])));
+}
+
+class _YuzYuzeKayit extends StatelessWidget{
+  final String firmaId;static const _navy=Color(0xFF1a3a6b);
+  const _YuzYuzeKayit({required this.firmaId});
+  @override Widget build(BuildContext context)=>Center(child:Container(width:460,padding:const EdgeInsets.all(32),margin:const EdgeInsets.all(24),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(20),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.06),blurRadius:12)]),
+      child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),shape:BoxShape.circle),
+            child:const Icon(Icons.person_add_outlined,color:Color(0xFF1a3a6b),size:40)),
+        const SizedBox(height:20),const Text('Yuz Yuze Kayit',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+        const SizedBox(height:8),const Text('Velinin bilgilerini siz girin.',textAlign:TextAlign.center,style:TextStyle(color:Colors.grey,fontSize:13)),
+        const SizedBox(height:24),
+        SizedBox(width:double.infinity,child:ElevatedButton.icon(
+            style:ElevatedButton.styleFrom(backgroundColor:_navy,foregroundColor:Colors.white,
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+            onPressed:()=>Navigator.pushNamed(context,'/yuz_yuze_kayit'),
+            icon:const Icon(Icons.add_circle_outline,size:16),label:const Text('Kayit Formunu Ac',style:TextStyle(fontWeight:FontWeight.bold)))),
+      ])));
+}
+
+//  SOZLESMELER
+class _SozlesmelerSekme extends StatefulWidget{
+  final String firmaId;const _SozlesmelerSekme({required this.firmaId});
+  @override State<_SozlesmelerSekme> createState()=>_SozlesmelerSekmeState();
+}
+class _SozlesmelerSekmeState extends State<_SozlesmelerSekme> with SingleTickerProviderStateMixin{
+  static const _navy=Color(0xFF1a3a6b);static const _orange=Color(0xFFFF8C00);
+  late TabController _tab;String _filtreDonem='';
+  @override void initState(){super.initState();_tab=TabController(length:4,vsync:this);}
+  @override void dispose(){_tab.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(color:Colors.white,child:TabBar(controller:_tab,labelColor:_navy,unselectedLabelColor:Colors.grey,
+        indicatorColor:_orange,isScrollable:true,tabAlignment:TabAlignment.start,
+        tabs:const[Tab(icon:Icon(Icons.pending_outlined,size:16),text:'Bekleyen'),
+          Tab(icon:Icon(Icons.check_circle_outline,size:16),text:'Imzalanan'),
+          Tab(icon:Icon(Icons.timer_off_outlined,size:16),text:'Suresi Dolan'),
+          Tab(icon:Icon(Icons.archive_outlined,size:16),text:'Arsiv')])),
+    Container(color:Colors.white,padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),
+        child:Row(children:[const Icon(Icons.calendar_month_outlined,size:16,color:Colors.grey),const SizedBox(width:8),
+          Expanded(child:TextField(decoration:InputDecoration(hintText:'Donem filtre (2025-2026)',isDense:true,
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(8)),contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:6)),
+              onChanged:(v)=>setState(()=>_filtreDonem=v.trim()))),
+          const SizedBox(width:8),const Icon(Icons.lock_outlined,size:14,color:_navy),const SizedBox(width:4),
+          const Text('Silinemez',style:TextStyle(fontSize:11,color:_navy))])),
+    Expanded(child:TabBarView(controller:_tab,children:[
+      _SozListesi(firmaId:widget.firmaId,durum:'bekliyor',filtreDonem:_filtreDonem),
+      _SozListesi(firmaId:widget.firmaId,durum:'imzalandi',filtreDonem:_filtreDonem),
+      _SozListesi(firmaId:widget.firmaId,durum:'suresi_doldu',filtreDonem:_filtreDonem),
+      _SozListesi(firmaId:widget.firmaId,durum:'arsiv',filtreDonem:_filtreDonem),
+    ])),
+  ]);
+}
+
+class _SozListesi extends StatelessWidget{
+  final String firmaId,durum,filtreDonem;
+  const _SozListesi({required this.firmaId,required this.durum,required this.filtreDonem});
+  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
+      stream:FirebaseFirestore.instance.collection('sozlesmeler').where('firmaId',isEqualTo:firmaId)
+          .where('durum',isEqualTo:durum).orderBy('olusturmaTarihi',descending:true).snapshots(),
+      builder:(_,snap){
+        var docs=snap.data?.docs??[];
+        if(filtreDonem.isNotEmpty)docs=docs.where((d){final dd=d.data() as Map<String,dynamic>;return(dd['donem']??'').toString().contains(filtreDonem);}).toList();
+        if(docs.isEmpty)return Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+          Icon(Icons.description_outlined,size:56,color:Colors.grey[300]),const SizedBox(height:12),
+          Text('$durum durumunda sozlesme yok',style:const TextStyle(color:Colors.grey))]));
+        return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+            itemBuilder:(_,i){
+              final d=docs[i].data() as Map<String,dynamic>;
+              final Color renk=durum=='imzalandi'?Colors.green:durum=='bekliyor'?Colors.orange:durum=='suresi_doldu'?Colors.red:Colors.grey;
+              return Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(14),
+                  decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
+                      border:Border.all(color:renk.withValues(alpha:0.2)),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:5)]),
+                  child:Row(children:[Icon(Icons.description_outlined,color:renk,size:22),const SizedBox(width:12),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(d['ogrenciAd']??d['kisi']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
+                      Text('Veli: ${d['veliAd']??''}',style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                      if((d['donem']??'').isNotEmpty)Text('Donem: ${d['donem']}',style:TextStyle(fontSize:11,color:Colors.blue[400])),
+                      if((d['ucret']??d['fiyat']??0)>0)Text('${d['ucret']??d['fiyat']} TL/ay',style:const TextStyle(fontSize:12,color:Colors.green,fontWeight:FontWeight.w600)),
+                    ])),
+                    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                      Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                          decoration:BoxDecoration(color:renk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:Text(durum,style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:renk))),
+                      const SizedBox(height:4),
+                      GestureDetector(
+                          onTap:() async{
+                            final url=d['pdfUrl'] as String? ??'';
+                            if(url.isNotEmpty){
+                              await launchUrl(Uri.parse(url),mode:LaunchMode.externalApplication);
+                            } else {
+                              if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content:Text('PDF henuz olusturulmamis'),behavior:SnackBarBehavior.floating));
+                            }
+                          },
+                          child:Container(padding:const EdgeInsets.all(6),
+                              decoration:BoxDecoration(color:Colors.red.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                              child:const Icon(Icons.picture_as_pdf_outlined,color:Colors.red,size:16))),
+                      if(durum=='suresi_doldu')...[const SizedBox(height:4),
+                        GestureDetector(onTap:()async{await FirebaseFirestore.instance.collection('sozlesmeler').doc(docs[i].id).update({'durum':'arsiv','arsivTarihi':FieldValue.serverTimestamp()});},
+                            child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                child:const Icon(Icons.archive_outlined,color:Colors.grey,size:16)))],
+                    ]),
+                  ]));
+            });
+      });
+}
+
+//  FIYATLANDIRMA
+class _FiyatlandirmaSekme extends StatefulWidget{
+  final String firmaId;const _FiyatlandirmaSekme({required this.firmaId});
+  @override State<_FiyatlandirmaSekme> createState()=>_FiyatlandirmaSekmeState();
+}
+class _FiyatlandirmaSekmeState extends State<_FiyatlandirmaSekme>{
+  static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  final _bC=TextEditingController();final _fC=TextEditingController();String _tip='bolge';
+  Future<void> _ekle() async{
+    if(_bC.text.trim().isEmpty||_fC.text.trim().isEmpty)return;
+    await FirebaseFirestore.instance.collection('fiyatlar').add({'firmaId':widget.firmaId,
+      'bolge':_bC.text.trim(),'fiyat':double.tryParse(_fC.text)??0,'tip':_tip,'olusturmaTarihi':FieldValue.serverTimestamp()});
+    _bC.clear();_fC.clear();
+  }
+  @override Widget build(BuildContext context)=>SingleChildScrollView(padding:const EdgeInsets.all(24),
+      child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Expanded(flex:3,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('Fiyat Listesi',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+          const SizedBox(height:16),
+          StreamBuilder<QuerySnapshot>(
+              stream:FirebaseFirestore.instance.collection('fiyatlar').where('firmaId',isEqualTo:widget.firmaId).snapshots(),
+              builder:(_,snap){
+                final docs=snap.data?.docs??[];
+                if(docs.isEmpty)return _bos('Fiyat tanimlanmamis','Sagdan fiyat ekleyin.',Icons.payments_outlined);
+                return Column(children:docs.map((doc){
+                  final d=doc.data() as Map<String,dynamic>;
+                  return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                      child:Row(children:[Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                          child:const Icon(Icons.location_on_outlined,color:Colors.green,size:18)),
+                        const SizedBox(width:12),
+                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          Text(d['bolge']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+                          Text(d['tip']??'bolge',style:TextStyle(fontSize:12,color:Colors.grey[500]))])),
+                        Text('${d['fiyat']} TL/ay',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:Colors.green)),
+                        const SizedBox(width:10),
+                        IconButton(icon:const Icon(Icons.delete_outline,color:Colors.red,size:18),onPressed:()=>FirebaseFirestore.instance.collection('fiyatlar').doc(doc.id).delete()),
+                      ]));
+                }).toList());
+              }),
+        ])),
+        const SizedBox(width:24),
+        Container(width:300,padding:const EdgeInsets.all(24),
+            decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              const Text('Yeni Fiyat Ekle',style:TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+              const SizedBox(height:12),
+              Row(children:[for(final t in[('bolge','Bolge'),('mahalle','Mahalle'),('km','Km'),('manuel','Manuel')])
+                Expanded(child:GestureDetector(onTap:()=>setState(()=>_tip=t.$1),
+                    child:Container(margin:const EdgeInsets.only(right:4),padding:const EdgeInsets.symmetric(vertical:8),
+                        decoration:BoxDecoration(color:_tip==t.$1?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(7),border:Border.all(color:_tip==t.$1?_navy:Colors.grey)),
+                        child:Center(child:Text(t.$2,style:TextStyle(fontSize:10,color:_tip==t.$1?Colors.white:Colors.grey,fontWeight:_tip==t.$1?FontWeight.bold:FontWeight.normal))))))]),
+              const SizedBox(height:12),
+              TextField(controller:_bC,decoration:InputDecoration(labelText:'Bolge / Mahalle',prefixIcon:const Icon(Icons.location_on_outlined,color:Color(0xFF1a3a6b),size:18),
+                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12))),
+              const SizedBox(height:10),
+              TextField(controller:_fC,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:'Aylik Fiyat (TL)',prefixIcon:const Icon(Icons.payments_outlined,color:Color(0xFF1a3a6b),size:18),
+                  border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12))),
+              const SizedBox(height:14),
+              SizedBox(width:double.infinity,child:ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+                  onPressed:_ekle,child:const Text('Fiyat Ekle',style:TextStyle(fontWeight:FontWeight.bold)))),
+            ])),
+      ]));
+}
+
+//  DEVAMSIZLIK
+class _DevamsizlikSekme extends StatefulWidget{
+  final String firmaId;const _DevamsizlikSekme({required this.firmaId});
+  @override State<_DevamsizlikSekme> createState()=>_DevamsizlikSekmeState();
+}
+class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
+  static const _navy=Color(0xFF1a3a6b);String _f='Tumu';
+  Color _r(String d)=>d=='onaylandi'?Colors.green:d=='reddedildi'?Colors.red:Colors.orange;
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(padding:const EdgeInsets.all(14),color:Colors.white,
+        child:Row(children:[const Text('Filtre:',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),const SizedBox(width:12),
+          ...['Tumu','bekliyor','onaylandi','reddedildi'].map((d){final sec=_f==d;
+          return GestureDetector(onTap:()=>setState(()=>_f=d),
+              child:Container(margin:const EdgeInsets.only(right:8),padding:const EdgeInsets.symmetric(horizontal:14,vertical:6),
+                  decoration:BoxDecoration(color:sec?_navy:Colors.grey[100],borderRadius:BorderRadius.circular(20)),
+                  child:Text(d,style:TextStyle(color:sec?Colors.white:Colors.grey[700],fontSize:12,fontWeight:sec?FontWeight.bold:FontWeight.normal))));
+          }),
+        ])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:_f=='Tumu'?FirebaseFirestore.instance.collection('absence_requests').where('firmaId',isEqualTo:widget.firmaId).orderBy('tarih',descending:true).snapshots()
+            :FirebaseFirestore.instance.collection('absence_requests').where('firmaId',isEqualTo:widget.firmaId).where('durum',isEqualTo:_f).orderBy('tarih',descending:true).snapshots(),
+        builder:(_,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return _bos('Devamsizlik bildirimi yok','',Icons.event_busy_outlined);
+          return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;final dur=d['durum'] as String? ??'bekliyor';
+                final r=_r(dur);final tip=d['tip']??d['tur']??'tum_gun';
+                return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:r.withValues(alpha:0.2))),
+                    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Row(children:[Icon(Icons.event_busy_outlined,color:r,size:20),const SizedBox(width:10),
+                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          Text(d['ogrenciAd']??'Ogrenci',style:const TextStyle(fontWeight:FontWeight.bold)),
+                          Row(children:[
+                            if((d['veliAd']??'').isNotEmpty)Text('Veli:${d['veliAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
+                            if((d['servisAd']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),Text('Servis:${d['servisAd']}',style:TextStyle(fontSize:11,color:Colors.grey[500]))],
+                            if((d['projeAd']??d['projeId']??'').isNotEmpty)...[const Text(' | ',style:TextStyle(color:Colors.grey)),Text('Proje:${d['projeAd']??d['projeId']}',style:TextStyle(fontSize:11,color:Colors.blue[400]))],
+                          ]),
+                          Row(children:[
+                            Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:11,color:Colors.grey[400])),const SizedBox(width:8),
+                            Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.blue.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
+                                child:Text(tip=='sabah'?'Sadece Sabah':tip=='aksam'?'Sadece Aksam':'Tum Gun',style:const TextStyle(fontSize:10,color:Colors.blue,fontWeight:FontWeight.bold))),
+                          ]),
+                          if((d['aciklama']??d['not']??'').isNotEmpty)Text('Sebep:${d['aciklama']??d['not']}',style:TextStyle(fontSize:11,color:Colors.grey[500])),
+                        ])),
+                        if(dur=='bekliyor')Row(children:[
+                          _AksBtn('Onayla',Colors.green,()async=>FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'durum':'onaylandi','rotaGuncellendi':true,'onayTarihi':FieldValue.serverTimestamp()})),
+                          const SizedBox(width:6),
+                          _AksBtn('Reddet',Colors.red,()async=>FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'durum':'reddedildi'})),
+                          const SizedBox(width:6),
+                          _AksBtn('Not Ekle',Colors.blue,()async{
+                            final notCtrl=TextEditingController(text:d['not']??'');
+                            final sonuc=await showDialog<String>(context:context,builder:(_)=>AlertDialog(
+                                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+                                title:const Text('Not Ekle',style:TextStyle(color:Color(0xFF1a3a6b),fontWeight:FontWeight.bold)),
+                                content:TextField(controller:notCtrl,maxLines:3,decoration:InputDecoration(hintText:'Notunuzu yazin...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.all(12))),
+                                actions:[TextButton(onPressed:()=>Navigator.pop(_),child:const Text('Iptal')),
+                                  ElevatedButton(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white),onPressed:()=>Navigator.pop(_,notCtrl.text.trim()),child:const Text('Kaydet'))]));
+                            if(sonuc!=null&&sonuc.isNotEmpty)await FirebaseFirestore.instance.collection('absence_requests').doc(docs[i].id).update({'not':sonuc});
+                          }),
+                        ])else Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                            child:Text(dur,style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:r))),
+                      ]),
+                    ]));
+              });
+        })),
+  ]);
+}
+
+//  PLAKA TANIMA
+class _PlakaTanimaSekme extends StatelessWidget{
+  final String firmaId;const _PlakaTanimaSekme({required this.firmaId});
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
+        child:Row(children:[const Text('Plaka Tanima Kayitlari',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
+          const Spacer(),Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+              child:const Row(children:[Icon(Icons.camera_alt_outlined,size:14,color:Colors.green),SizedBox(width:6),Text('Sistem Aktif',style:TextStyle(fontSize:12,color:Colors.green,fontWeight:FontWeight.bold))]))])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:FirebaseFirestore.instance.collection('plate_logs').where('firmaId',isEqualTo:firmaId).orderBy('tarih',descending:true).limit(50).snapshots(),
+        builder:(_,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return _bos('Plaka kaydi yok','Araclar okul girisinde otomatik kayit olusacak.',Icons.camera_alt_outlined);
+          return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;final esl=d['eslesti']==true;
+                return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:(esl?Colors.green:Colors.red).withValues(alpha:0.25))),
+                    child:Row(children:[Icon(Icons.directions_car_outlined,color:esl?Colors.green:Colors.red,size:22),const SizedBox(width:12),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(d['plaka']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:16,letterSpacing:1.2)),
+                        if((d['soforAd']??'').isNotEmpty)Text(d['soforAd'],style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                        Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400]))])),
+                      Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),decoration:BoxDecoration(color:(esl?Colors.green:Colors.red).withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                          child:Text(esl?'Eslesti':'Uyari',style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:esl?Colors.green:Colors.red)))]));
+              });
+        })),
+  ]);
+}
+
+//  KAREKOD / QR
+class _KarekodQrSekme extends StatelessWidget{
+  final String firmaId;static const _navy=Color(0xFF1a3a6b);
+  const _KarekodQrSekme({required this.firmaId});
+  @override Widget build(BuildContext context)=>SingleChildScrollView(padding:const EdgeInsets.all(24),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('QR / Karekod Yonetimi',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+        const SizedBox(height:6),const Text('Proje bazli QR olusturun.',style:TextStyle(color:Colors.grey,fontSize:13)),
+        const SizedBox(height:24),
+        Wrap(spacing:20,runSpacing:20,children:[
+          _qrKart('Ogrenci Kayit QR',Icons.school_outlined,Colors.blue,'Veli QR okutunca kayit formuna gider.',context),
+          _qrKart('Personel Kayit QR',Icons.badge_outlined,Colors.teal,'Personel QR okutunca kayit formuna gider.',context),
+          _qrKart('Veli Daveti QR',Icons.family_restroom_outlined,Colors.purple,'Velileri sisteme davet etmek icin.',context),
+          _qrKart('Servis Bilgi QR',Icons.directions_bus_outlined,_navy,'Veli servisi takip etmek icin.',context),
+        ]),
+      ]));
+  Widget _qrKart(String b,IconData i,Color r,String a,BuildContext context)=>Container(width:280,padding:const EdgeInsets.all(20),
+      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),border:Border.all(color:r.withValues(alpha:0.15)),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.05),blurRadius:8)]),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Row(children:[Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(10)),child:Icon(i,color:r,size:24)),
+          const Spacer(),Container(width:60,height:60,decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(8),border:Border.all(color:Colors.grey)),
+              child:const Center(child:Icon(Icons.qr_code_outlined,size:40,color:Colors.black87)))]),
+        const SizedBox(height:14),Text(b,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
+        const SizedBox(height:4),Text(a,style:TextStyle(fontSize:12,color:Colors.grey[500])),
+        const SizedBox(height:14),
+        Row(children:[
+          Expanded(child:OutlinedButton.icon(style:OutlinedButton.styleFrom(foregroundColor:r,side:BorderSide(color:r),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:10)),
+              onPressed:(){},icon:const Icon(Icons.download_outlined,size:14),label:const Text('Indir',style:TextStyle(fontSize:12)))),
+          const SizedBox(width:8),
+          Expanded(child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF25D366),foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:10)),
+              onPressed:(){},icon:const Icon(Icons.send_outlined,size:14),label:const Text('WA',style:TextStyle(fontSize:12)))),
+        ]),
+      ]));
+}
+
+//  BILDIRIMLER
+class _BildirimlerSekme extends StatefulWidget{
+  final String firmaId;const _BildirimlerSekme({required this.firmaId});
+  @override State<_BildirimlerSekme> createState()=>_BildirimlerSekmeState();
+}
+class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
+  static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
+  final _mC=TextEditingController();final _bC=TextEditingController();bool _g=false;String _h='veliler';
+  Future<void> _gonder() async{
+    if(_mC.text.trim().isEmpty)return;setState(()=>_g=true);
+    await FirebaseFirestore.instance.collection('bildirimler').add({'firmaId':widget.firmaId,
+      'baslik':_bC.text.trim().isEmpty?'Duyuru':_bC.text.trim(),
+      'mesaj':_mC.text.trim(),'hedef':_h,'tarih':FieldValue.serverTimestamp(),'gonderen':'admin'});
+    _mC.clear();_bC.clear();setState(()=>_g=false);
+  }
+  @override Widget build(BuildContext context)=>Row(children:[
+    Expanded(flex:3,child:Column(children:[
+      Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:14),color:Colors.white,
+          child:const Align(alignment:Alignment.centerLeft,child:Text('Gecmis Bildirimler',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)))),
+      Expanded(child:StreamBuilder<QuerySnapshot>(
+          stream:FirebaseFirestore.instance.collection('bildirimler').where('firmaId',isEqualTo:widget.firmaId).orderBy('tarih',descending:true).limit(30).snapshots(),
+          builder:(_,snap){
+            final docs=snap.data?.docs??[];
+            if(docs.isEmpty)return _bos('Bildirim gecmisi bos','',Icons.notifications_none_outlined);
+            return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+                itemBuilder:(_,i){
+                  final d=docs[i].data() as Map<String,dynamic>;final h=d['hedef']??'veliler';
+                  final r=h=='veliler'?Colors.blue:h=='soforler'?_navy:Colors.purple;
+                  return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                      child:Row(children:[Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),child:Icon(Icons.notifications_outlined,color:r,size:18)),
+                        const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          if((d['baslik']??'').isNotEmpty)Text(d['baslik'],style:const TextStyle(fontWeight:FontWeight.bold,fontSize:12)),
+                          Text(d['mesaj']??'',style:const TextStyle(fontWeight:FontWeight.w500,fontSize:13),maxLines:2,overflow:TextOverflow.ellipsis),
+                          Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400]))])),
+                        Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                            child:Text(h,style:TextStyle(fontSize:10,color:r,fontWeight:FontWeight.bold)))]));
+                });
+          })),
+    ])),
+    Container(width:300,color:Colors.white,padding:const EdgeInsets.all(24),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          const Text('Bildirim Gonder',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+          const SizedBox(height:18),
+          TextField(controller:_bC,decoration:InputDecoration(labelText:'Baslik (opsiyonel)',prefixIcon:const Icon(Icons.title_outlined,size:18,color:Color(0xFF1a3a6b)),
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),isDense:true)),
+          const SizedBox(height:12),
+          const Text('Hedef Kitle',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),const SizedBox(height:10),
+          ...['veliler','soforler','herkese'].map((h)=>GestureDetector(onTap:()=>setState(()=>_h=h),
+              child:Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
+                  decoration:BoxDecoration(color:_h==h?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(10),border:Border.all(color:_h==h?_navy:Colors.grey)),
+                  child:Row(children:[Icon(_h==h?Icons.radio_button_checked:Icons.radio_button_off,color:_h==h?Colors.white:Colors.grey,size:16),const SizedBox(width:10),
+                    Text(h[0].toUpperCase()+h.substring(1),style:TextStyle(color:_h==h?Colors.white:Colors.grey[700],fontWeight:FontWeight.w500))])))),
+          const SizedBox(height:14),const Text('Mesaj',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),const SizedBox(height:8),
+          TextField(controller:_mC,maxLines:5,decoration:InputDecoration(hintText:'Bildirim mesajini yazin...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.all(14))),
+          const SizedBox(height:14),
+          SizedBox(width:double.infinity,child:ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10)),padding:const EdgeInsets.symmetric(vertical:14)),
+              onPressed:_g?null:_gonder,
+              icon:_g?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.send_outlined,size:16),
+              label:const Text('Gonder',style:TextStyle(fontWeight:FontWeight.bold)))),
+        ])),
+  ]);
+}
+
+//  ARSIV
+class _ArsivSekme extends StatefulWidget{
+  final String firmaId;const _ArsivSekme({required this.firmaId});
+  @override State<_ArsivSekme> createState()=>_ArsivSekmeState();
+}
+class _ArsivSekmeState extends State<_ArsivSekme>{
+  int _s=0;static const _t=Color(0xFFFF8C00);
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(color:Colors.white,padding:const EdgeInsets.symmetric(horizontal:20,vertical:0),
+        child:Row(children:[
+          for(final item in[(0,'Eski Ogrenciler'),(1,'Eski Sozlesmeler'),(2,'Servis Raporlari'),(3,'Devamsizlik Gecmisi')])
+            GestureDetector(onTap:()=>setState(()=>_s=item.$1),
+                child:Container(margin:const EdgeInsets.only(right:4),padding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
+                    decoration:BoxDecoration(border:Border(bottom:BorderSide(color:_s==item.$1?_t:Colors.transparent,width:2))),
+                    child:Text(item.$2,style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:_s==item.$1?_t:Colors.grey)))),
+        ])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(stream:_str(),builder:(_,snap){
+      final docs=snap.data?.docs??[];
+      if(docs.isEmpty)return _bos('Arsiv bos','Arsivlenen kayitlar burada gorunecek.',Icons.archive_outlined);
+      return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+          itemBuilder:(_,i){
+            final d=docs[i].data() as Map<String,dynamic>;
+            return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                child:Row(children:[Icon(Icons.archive_outlined,color:Colors.grey[400],size:20),const SizedBox(width:12),
+                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Text(d['ad']??d['ogrenciAd']??d['kisi']??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+                    Text(d['tarih']?.toString().substring(0,10)??'',style:TextStyle(fontSize:12,color:Colors.grey[500]))])),
+                  Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                      child:const Text('Arsiv',style:TextStyle(fontSize:10,color:Colors.grey,fontWeight:FontWeight.bold)))]));
+          });
+    })),
+  ]);
+  Stream<QuerySnapshot> _str(){
+    switch(_s){
+      case 0:return FirebaseFirestore.instance.collection('students').where('firmaId',isEqualTo:widget.firmaId).where('aktif',isEqualTo:false).snapshots();
+      case 1:return FirebaseFirestore.instance.collection('contracts').where('firmaId',isEqualTo:widget.firmaId).where('durum',isEqualTo:'arsiv').snapshots();
+      case 2:return FirebaseFirestore.instance.collection('servis_raporlari').where('firmaId',isEqualTo:widget.firmaId).orderBy('tarih',descending:true).snapshots();
+      default:return FirebaseFirestore.instance.collection('absence_requests').where('firmaId',isEqualTo:widget.firmaId).orderBy('tarih',descending:true).snapshots();
+    }
+  }
+}
+
+//  YAKLASAN SERVISLER
+class _YaklasanServisler extends StatelessWidget{
+  final String firmaId;final void Function(int) onNavigate;
+  const _YaklasanServisler({required this.firmaId,required this.onNavigate});
+  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    Row(children:[const Text('Yaklasan Servis Saatleri',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
+      const Spacer(),GestureDetector(onTap:()=>onNavigate(2),child:const Text('Tum Servisler',style:TextStyle(color:Color(0xFF1a3a6b),fontSize:12,fontWeight:FontWeight.bold)))]),
+    const SizedBox(height:8),
+    StreamBuilder<QuerySnapshot>(
+        stream:FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:firmaId).where('aktif',isEqualTo:true).snapshots(),
+        builder:(ctx,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),
+              child:const Row(children:[Icon(Icons.directions_bus_outlined,color:Colors.grey,size:16),SizedBox(width:8),Text('Aktif servis yok',style:TextStyle(color:Colors.grey,fontSize:12))]));
+          final servisler=docs.where((d){final data=d.data() as Map<String,dynamic>;return(data['sabahSaati']??'').isNotEmpty||(data['aksamSaati']??'').isNotEmpty;}).take(4).toList();
+          if(servisler.isEmpty)return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),
+              child:const Row(children:[Icon(Icons.access_time_outlined,color:Colors.grey,size:16),SizedBox(width:8),Text('Servis saati girilmemis',style:TextStyle(color:Colors.grey,fontSize:12))]));
+          return Column(children:servisler.map((doc){
+            final d=doc.data() as Map<String,dynamic>;final sab=d['sabahSaati'] as String? ??'';final aks=d['aksamSaati'] as String? ??'';
+            return GestureDetector(onTap:()=>_ServisDuzenleDialog.goster(ctx,doc.id,d,firmaId),
+                child:Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.all(10),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10),border:Border.all(color:const Color(0xFF1a3a6b).withValues(alpha:0.12))),
+                    child:Row(children:[const Icon(Icons.directions_bus_outlined,color:Color(0xFF1a3a6b),size:16),const SizedBox(width:8),
+                      Expanded(child:Text(d['ad']??'',style:const TextStyle(fontWeight:FontWeight.w600,fontSize:12))),
+                      if(sab.isNotEmpty)Container(margin:const EdgeInsets.only(right:6),padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                          decoration:BoxDecoration(color:Colors.orange.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:Row(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.wb_sunny_outlined,size:11,color:Colors.orange),const SizedBox(width:3),Text(sab,style:const TextStyle(fontSize:11,color:Colors.orange,fontWeight:FontWeight.bold))])),
+                      if(aks.isNotEmpty)Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                          decoration:BoxDecoration(color:Colors.indigo.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                          child:Row(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.nights_stay_outlined,size:11,color:Colors.indigo),const SizedBox(width:3),Text(aks,style:const TextStyle(fontSize:11,color:Colors.indigo,fontWeight:FontWeight.bold))])),
+                    ])));
+          }).toList());
         }),
-      const SizedBox(height: 20),
-    ]),
-  );
+  ]);
+}
+
+//  SHARED
+class _AracUyarilar extends StatelessWidget{
+  final String firmaId;final void Function(int) onNavigate;
+  const _AracUyarilar({required this.firmaId,required this.onNavigate});
+  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
+      stream:FirebaseFirestore.instance.collection('vehicles').where('firmaId',isEqualTo:firmaId).snapshots(),
+      builder:(_,snap){
+        final docs=snap.data?.docs??[];
+        final otuz=DateTime.now().add(const Duration(days:30));
+        final uyarilar=docs.where((d){
+          final data=d.data() as Map<String,dynamic>;
+          bool u=false;
+          final muayene=data['muayeneTarihi'];
+          final sigorta=data['sigortaTarihi'];
+          if(muayene is Timestamp && muayene.toDate().isBefore(otuz)) u=true;
+          if(sigorta is Timestamp && sigorta.toDate().isBefore(otuz)) u=true;
+          return u;
+        }).toList();
+        if(uyarilar.isEmpty) return const SizedBox.shrink();
+        return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Row(children:[
+            const Icon(Icons.warning_amber_outlined,color:Colors.orange,size:16),
+            const SizedBox(width:6),
+            Text(uyarilar.length.toString()+' Arac Evrak Uyarisi',
+                style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:Colors.orange)),
+            const Spacer(),
+            GestureDetector(onTap:()=>onNavigate(19),
+                child:const Text('Arac Merkezi',style:TextStyle(color:Color(0xFF1a3a6b),fontSize:12,fontWeight:FontWeight.bold))),
+          ]),
+          const SizedBox(height:8),
+          ...uyarilar.take(3).map((doc){
+            final d=doc.data() as Map<String,dynamic>;
+            final plaka=(d['plaka']??'-').toString();
+            final muayene=d['muayeneTarihi'];
+            final sigorta=d['sigortaTarihi'];
+            final List<String> uyariMetin=[];
+            if(muayene is Timestamp && muayene.toDate().isBefore(otuz)){
+              final kalan=muayene.toDate().difference(DateTime.now()).inDays;
+              uyariMetin.add('Muayene: '+kalan.toString()+'g');
+            }
+            if(sigorta is Timestamp && sigorta.toDate().isBefore(otuz)){
+              final kalan=sigorta.toDate().difference(DateTime.now()).inDays;
+              uyariMetin.add('Sigorta: '+kalan.toString()+'g');
+            }
+            return Container(
+              margin:const EdgeInsets.only(bottom:6),
+              padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+              decoration:BoxDecoration(
+                  color:Colors.orange.withValues(alpha:0.06),
+                  borderRadius:BorderRadius.circular(8),
+                  border:Border.all(color:Colors.orange.withValues(alpha:0.2))),
+              child:Row(children:[
+                const Icon(Icons.directions_car_outlined,color:Colors.orange,size:16),
+                const SizedBox(width:8),
+                Text(plaka,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:13)),
+                const SizedBox(width:8),
+                Expanded(child:Text(uyariMetin.join('  |  '),
+                    style:const TextStyle(fontSize:11,color:Colors.orange))),
+              ]),
+            );
+          }),
+        ]);
+      });
+}
+
+class _SonDevamsizliklar extends StatelessWidget{
+  final String firmaId;const _SonDevamsizliklar({required this.firmaId});
+  @override Widget build(BuildContext context)=>StreamBuilder<QuerySnapshot>(
+      stream:FirebaseFirestore.instance.collection('absence_requests').where('firmaId',isEqualTo:firmaId).orderBy('tarih',descending:true).limit(5).snapshots(),
+      builder:(_,snap){
+        final docs=snap.data?.docs??[];
+        if(docs.isEmpty)return Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12)),
+            child:const Row(children:[Icon(Icons.check_circle_outline,color:Colors.green,size:16),SizedBox(width:8),Text('Bekleyen devamsizlik yok',style:TextStyle(color:Colors.grey))]));
+        return Column(children:docs.map((doc){
+          final d=doc.data() as Map<String,dynamic>;final dur=d['durum'] as String? ??'bekliyor';
+          final r=dur=='onaylandi'?Colors.green:dur=='reddedildi'?Colors.red:Colors.orange;
+          return Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.all(10),
+              decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10),border:Border.all(color:r.withValues(alpha:0.3))),
+              child:Row(children:[Icon(Icons.event_busy_outlined,color:r,size:15),const SizedBox(width:8),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text(d['ogrenciAd']??'Ogrenci',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:12)),
+                  Text(d['aciklama']??'',style:TextStyle(fontSize:10,color:Colors.grey[500]),maxLines:1,overflow:TextOverflow.ellipsis)])),
+                Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(5)),
+                    child:Text(dur,style:TextStyle(fontSize:9,fontWeight:FontWeight.bold,color:r)))]));
+        }).toList());
+      });
+}
+
+class _AksBtn extends StatelessWidget{
+  final String label;final Color renk;final VoidCallback onTap;
+  const _AksBtn(this.label,this.renk,this.onTap);
+  @override Widget build(BuildContext context)=>GestureDetector(onTap:onTap,
+      child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+          decoration:BoxDecoration(color:renk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6),border:Border.all(color:renk.withValues(alpha:0.3))),
+          child:Text(label,style:TextStyle(fontSize:11,color:renk,fontWeight:FontWeight.bold))));
+}
+
+//  SERVIS DUZENLEME DIYALOGU
+class _ServisDuzenleDialog{
+  static void goster(BuildContext context,String servisId,Map<String,dynamic> servis,String firmaId){
+    final adCtrl=TextEditingController(text:servis['ad']??'');
+    final kapCtrl=TextEditingController(text:servis['kapasite']?.toString()??'17');
+    final sabahCtrl=TextEditingController(text:servis['sabahSaati']??'');
+    final aksamCtrl=TextEditingController(text:servis['aksamSaati']??'');
+    String? secSoforId=servis['soforId']?.toString().isNotEmpty==true?servis['soforId']:null;
+    String? secProjeId=servis['projeId']?.toString().isNotEmpty==true?servis['projeId']:null;
+    bool aktif=servis['aktif']==true;bool otoBaslat=servis['autoStartEnabled']==true;bool kaydediliyor=false;
+    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setS)=>AlertDialog(
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),contentPadding:EdgeInsets.zero,
+        content:SizedBox(width:460,child:Column(mainAxisSize:MainAxisSize.min,children:[
+          Container(padding:const EdgeInsets.all(16),decoration:const BoxDecoration(color:Color(0xFF1a3a6b),borderRadius:BorderRadius.vertical(top:Radius.circular(16))),
+              child:Row(children:[const Icon(Icons.directions_bus_outlined,color:Colors.white,size:20),const SizedBox(width:10),
+                Expanded(child:Text(adCtrl.text.isNotEmpty?adCtrl.text:'Servis Duzenle',style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold))),
+                IconButton(icon:const Icon(Icons.close,color:Colors.white54,size:18),onPressed:()=>Navigator.pop(ctx),padding:EdgeInsets.zero,constraints:const BoxConstraints())])),
+          Flexible(child:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(children:[
+            Row(children:[Expanded(child:_tf(adCtrl,'Servis Adi *',Icons.directions_bus_outlined)),const SizedBox(width:10),Expanded(child:_tf(kapCtrl,'Kapasite',Icons.people_outlined))]),
+            const SizedBox(height:10),
+            FutureBuilder(future:FirebaseFirestore.instance.collection('projects').where('firmaId',isEqualTo:firmaId).where('aktif',isEqualTo:true).get(),
+                builder:(_,snap){final prjList=snap.data?.docs.map((d)=>{'id':d.id,...d.data()}).toList()??[];
+                return DropdownButtonFormField<String?>(value:secProjeId,decoration:const InputDecoration(labelText:'Bagli Proje',prefixIcon:Icon(Icons.folder_outlined,size:18,color:Color(0xFF1a3a6b)),border:OutlineInputBorder(borderRadius:BorderRadius.all(Radius.circular(10))),isDense:true),
+                    items:[const DropdownMenuItem<String?>(value:null,child:Text('Proje Sec...')),
+                      ...prjList.map((p)=>DropdownMenuItem<String?>(value:p['id'] as String,child:Text(p['projeAd']??'')))],onChanged:(v)=>setS(()=>secProjeId=v));}),
+            const SizedBox(height:10),
+            FutureBuilder(future:FirebaseFirestore.instance.collection('drivers').where('firmaId',isEqualTo:firmaId).get(),
+                builder:(_,snap){final sofList=snap.data?.docs.map((d)=>{'id':d.id,...d.data()}).toList()??[];
+                return DropdownButtonFormField<String?>(value:secSoforId,decoration:const InputDecoration(labelText:'Bagli Sofor',prefixIcon:Icon(Icons.person_outlined,size:18,color:Color(0xFF1a3a6b)),border:OutlineInputBorder(borderRadius:BorderRadius.all(Radius.circular(10))),isDense:true),
+                    items:[const DropdownMenuItem<String?>(value:null,child:Text('Sofor Sec...')),
+                      ...sofList.map((s)=>DropdownMenuItem<String?>(value:s['id'] as String,child:Text(s['ad']??s['adSoyad']??'Sofor')))],onChanged:(v)=>setS(()=>secSoforId=v));}),
+            const SizedBox(height:10),
+            Row(children:[Expanded(child:_tf(sabahCtrl,'Sabah Saati',Icons.wb_sunny_outlined)),const SizedBox(width:10),Expanded(child:_tf(aksamCtrl,'Aksam Saati',Icons.nights_stay_outlined))]),
+            const SizedBox(height:12),
+            Container(padding:const EdgeInsets.symmetric(horizontal:14,vertical:8),decoration:BoxDecoration(color:const Color(0xFFF5F7FA),borderRadius:BorderRadius.circular(10)),
+                child:Column(children:[
+                  Row(children:[const Icon(Icons.power_settings_new_outlined,size:18,color:Color(0xFF1a3a6b)),const SizedBox(width:10),const Expanded(child:Text('Aktif',style:TextStyle(fontWeight:FontWeight.w600))),Switch(value:aktif,activeColor:Colors.green,onChanged:(v)=>setS(()=>aktif=v))]),
+                  Row(children:[const Icon(Icons.alarm_outlined,size:18,color:Color(0xFF1a3a6b)),const SizedBox(width:10),const Expanded(child:Text('Otomatik Baslat',style:TextStyle(fontWeight:FontWeight.w600))),Switch(value:otoBaslat,activeColor:Color(0xFFFF8C00),onChanged:(v)=>setS(()=>otoBaslat=v))]),
+                ])),
+          ]))),
+          Padding(padding:const EdgeInsets.all(16),child:Row(children:[
+            Expanded(child:OutlinedButton(style:OutlinedButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:13),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),onPressed:()=>Navigator.pop(ctx),child:const Text('Iptal'))),
+            const SizedBox(width:12),
+            Expanded(flex:2,child:ElevatedButton.icon(
+                style:ElevatedButton.styleFrom(backgroundColor:const Color(0xFF1a3a6b),foregroundColor:Colors.white,padding:const EdgeInsets.symmetric(vertical:13),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                onPressed:kaydediliyor?null:() async{
+                  if(adCtrl.text.trim().isEmpty)return;setS(()=>kaydediliyor=true);
+                  try{
+                    await FirebaseFirestore.instance.collection('services').doc(servisId).update({'ad':adCtrl.text.trim(),'kapasite':int.tryParse(kapCtrl.text)??17,'projeId':secProjeId??'','soforId':secSoforId??'','sabahSaati':sabahCtrl.text.trim(),'aksamSaati':aksamCtrl.text.trim(),'aktif':aktif,'autoStartEnabled':otoBaslat,'updatedAt':FieldValue.serverTimestamp()});
+                    if(secSoforId!=null&&secSoforId!.isNotEmpty)await FirebaseFirestore.instance.collection('drivers').doc(secSoforId).update({'servisId':servisId,'servisAd':adCtrl.text.trim(),'projeId':secProjeId??'','durum':'projeye_dahil','updatedAt':FieldValue.serverTimestamp()});
+                    if(ctx.mounted){Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content:Text('Servis guncellendi'),backgroundColor:Colors.green,behavior:SnackBarBehavior.floating));}
+                  }catch(e){setS(()=>kaydediliyor=false);}
+                },
+                icon:kaydediliyor?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.save_outlined,size:16),
+                label:Text(kaydediliyor?'Kaydediliyor...':'Kaydet',style:const TextStyle(fontWeight:FontWeight.bold)))),
+          ])),
+        ])))));
+  }
+  static TextField _tf(TextEditingController c,String l,IconData i)=>TextField(controller:c,
+      decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:12)));
+}
+
+class _TipBtn extends StatelessWidget{
+  final String deger,etiket,secili;final IconData ikon;final ValueChanged<String> onSec;
+  const _TipBtn(this.deger,this.etiket,this.ikon,this.secili,this.onSec);
+  @override Widget build(BuildContext context){
+    final aktif=secili==deger;const navy=Color(0xFF1a3a6b);
+    return Expanded(child:GestureDetector(onTap:()=>onSec(deger),
+        child:Container(padding:const EdgeInsets.symmetric(vertical:10),
+            decoration:BoxDecoration(color:aktif?navy:Colors.grey[50],borderRadius:BorderRadius.circular(8),border:Border.all(color:aktif?navy:Colors.grey)),
+            child:Column(children:[Icon(ikon,color:aktif?Colors.white:Colors.grey,size:18),const SizedBox(height:4),
+              Text(etiket,style:TextStyle(fontSize:11,color:aktif?Colors.white:Colors.grey,fontWeight:aktif?FontWeight.bold:FontWeight.normal))]))));
+  }
+}
+
+Widget _bos(String b,String a,IconData i)=>Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+  Icon(i,size:64,color:Colors.grey[300]),const SizedBox(height:14),
+  Text(b,style:const TextStyle(fontSize:16,color:Colors.grey,fontWeight:FontWeight.bold)),
+  if(a.isNotEmpty)...[const SizedBox(height:8),Text(a,style:TextStyle(fontSize:13,color:Colors.grey[400]),textAlign:TextAlign.center)],
+]));
+
+// Web'de RotalarScreen'i AppBar olmadan goster
+class _WebRotalarWrapper extends StatelessWidget {
+  const _WebRotalarWrapper();
+  @override
+  Widget build(BuildContext context) {
+    return const RotalarScreen();
+  }
+}
+
+class _BosEkran extends StatelessWidget {
+  final String baslik;
+  final IconData ikon;
+  const _BosEkran({required this.baslik, required this.ikon});
+  @override
+  Widget build(BuildContext context) => Center(child: Column(
+    mainAxisAlignment: MainAxisAlignment.center, children: [
+    Container(padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.grey.withValues(alpha:0.1), shape: BoxShape.circle),
+        child: Icon(ikon, size: 56, color: Colors.grey[300])),
+    const SizedBox(height: 16),
+    Text(baslik, style: const TextStyle(
+        fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1a3a6b))),
+    const SizedBox(height: 8),
+    Text('Bu modul henuz aktif degil.',
+        style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+    const SizedBox(height: 4),
+    Text('Dosyayi lib/screens/ klasorune kopyalayinca aktif olacak.',
+        style: TextStyle(color: Colors.grey[300], fontSize: 11),
+        textAlign: TextAlign.center),
+  ],
+  ));
 }

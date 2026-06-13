@@ -195,6 +195,10 @@ class _ProjelerScreenState extends State<ProjelerScreen> {
               _TipChip('kolej',    'Kolej',    Icons.account_balance_outlined,  tip, (t) => setS(() => tip = t)),
               const SizedBox(width: 8),
               _TipChip('personel', 'Personel', Icons.badge_outlined,            tip, (t) => setS(() => tip = t)),
+              const SizedBox(width: 8),
+              _TipChip('vip',      'VIP',      Icons.star_outlined,             tip, (t) => setS(() => tip = t)),
+              const SizedBox(width: 8),
+              _TipChip('tur',      'Tur',      Icons.tour_outlined,             tip, (t) => setS(() => tip = t)),
             ]),
             const SizedBox(height: 12),
             _InputAlan(ctrl: notCtrl, label: 'Not (opsiyonel)', ikon: Icons.notes_outlined, satir: 2),
@@ -223,6 +227,12 @@ class _ProjelerScreenState extends State<ProjelerScreen> {
                     'tip'            : tip,
                     'not'            : notCtrl.text.trim(),
                     'aktif'          : true,
+                    'durum'          : 'aktif',
+                    'sabahServisAktif': true,
+                    'aksamServisAktif': true,
+                    'calismaGunleri' : ['Pzt','Sal','Car','Per','Cum'],
+                    'bildirimMesafe' : '500',
+                    'konumGuncellemeSure': 30,
                     'olusturmaTarihi': FieldValue.serverTimestamp(),
                     'createdAt'      : FieldValue.serverTimestamp(),
                   });
@@ -1186,12 +1196,12 @@ class _ServislerTabState extends State<ServislerTab> {
                   textAlign: TextAlign.center),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: _turuncu, foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                onPressed: () => _servisEkleDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Servis Ekle', style: TextStyle(fontWeight: FontWeight.bold))),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _turuncu, foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  onPressed: () => _servisEkleDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Servis Ekle', style: TextStyle(fontWeight: FontWeight.bold))),
             ]));
           }
 
@@ -1524,7 +1534,7 @@ class _ServislerTabState extends State<ServislerTab> {
                     },
                     icon: yukleniyor
                         ? const SizedBox(width: 16, height: 16,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.save_rounded),
                     label: Text(yukleniyor ? 'Kaydediliyor...' : 'Servisi Kaydet',
                         style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -1580,18 +1590,18 @@ class _ServislerTabState extends State<ServislerTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(_), child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('services').doc(id).update({
-                'servisAdi'     : adCtrl.text.trim(),
-                'ad'            : adCtrl.text.trim(),
-                'saatBaslangic' : saatBCtrl.text.trim(),
-                'saatBitis'     : saatECtrl.text.trim(),
-                'updatedAt'     : FieldValue.serverTimestamp(),
-              });
-              if (_.mounted) Navigator.pop(_);
-            },
-            child: const Text('Kaydet')),
+              style: ElevatedButton.styleFrom(backgroundColor: _navy, foregroundColor: Colors.white),
+              onPressed: () async {
+                await FirebaseFirestore.instance.collection('services').doc(id).update({
+                  'servisAdi'     : adCtrl.text.trim(),
+                  'ad'            : adCtrl.text.trim(),
+                  'saatBaslangic' : saatBCtrl.text.trim(),
+                  'saatBitis'     : saatECtrl.text.trim(),
+                  'updatedAt'     : FieldValue.serverTimestamp(),
+                });
+                if (_.mounted) Navigator.pop(_);
+              },
+              child: const Text('Kaydet')),
         ],
       ),
     );
@@ -1607,9 +1617,9 @@ class _ServislerTabState extends State<ServislerTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(_, true),
-            child: const Text('Sil', style: TextStyle(color: Colors.white))),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(_, true),
+              child: const Text('Sil', style: TextStyle(color: Colors.white))),
         ],
       ),
     );
@@ -1986,7 +1996,7 @@ class _ProjeSozlesmeTabState extends State<_ProjeSozlesmeTab> {
 
         if (_seciliSablonId != null) {
           _seciliSablonAd = _sablonlar.firstWhere(
-              (s) => s['id'] == _seciliSablonId,
+                  (s) => s['id'] == _seciliSablonId,
               orElse: () => {})['ad'] ?? '';
         }
       }
@@ -2034,9 +2044,9 @@ class _ProjeSozlesmeTabState extends State<_ProjeSozlesmeTab> {
             const Icon(Icons.info_outline, color: _orange, size: 18),
             const SizedBox(width: 10),
             Expanded(child: Text(
-              'Seçilen şablon velilere kayıt formunda gösterilecektir.',
-              style: TextStyle(fontSize: 12,
-                  color: Colors.orange.shade800, fontWeight: FontWeight.w600))),
+                'Seçilen şablon velilere kayıt formunda gösterilecektir.',
+                style: TextStyle(fontSize: 12,
+                    color: Colors.orange.shade800, fontWeight: FontWeight.w600))),
           ]),
         ),
         const SizedBox(height: 20),
@@ -2085,9 +2095,9 @@ class _ProjeSozlesmeTabState extends State<_ProjeSozlesmeTab> {
                       color: Colors.orange, size: 18),
                   const SizedBox(width: 10),
                   const Expanded(child: Text(
-                    'Henüz sözlesme sablonu olusturulmadi. '
-                    '"Sablon Yonet" butonuna tiklayarak olusturun.',
-                    style: TextStyle(fontSize: 12, color: Colors.orange))),
+                      'Henüz sözlesme sablonu olusturulmadi. '
+                          '"Sablon Yonet" butonuna tiklayarak olusturun.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange))),
                 ]),
               )
             else
@@ -2122,7 +2132,7 @@ class _ProjeSozlesmeTabState extends State<_ProjeSozlesmeTab> {
                 onChanged: (v) => setState(() {
                   _seciliSablonId = v?.isEmpty == true ? null : v;
                   _seciliSablonAd = _sablonlar.firstWhere(
-                      (s) => s['id'] == v, orElse: () => {})['ad'] ?? '';
+                          (s) => s['id'] == v, orElse: () => {})['ad'] ?? '';
                 }),
               ),
 
@@ -2208,8 +2218,8 @@ class _ProjeSozlesmeTabState extends State<_ProjeSozlesmeTab> {
                   borderRadius: BorderRadius.circular(12))),
           icon: _kaydediliyor
               ? const SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2))
+              child: CircularProgressIndicator(
+                  color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.save_rounded),
           label: Text(_kaydediliyor ? 'Kaydediliyor...' : 'Kaydet',
               style: const TextStyle(

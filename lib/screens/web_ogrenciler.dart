@@ -576,6 +576,25 @@ class _WebOgrencilerState extends State<WebOgrenciler> {
       onKaydet: (data) async {
         await FirebaseFirestore.instance
             .collection('students').doc(ogr['id']).update(data);
+        // Servis ogrenciSayisi guncelle
+        final yeniServisId = (data['servisId'] as String?) ?? '';
+        final eskiServisId = (ogr['servisId'] as String?) ?? '';
+        Future<void> updateServisSayisi(String servisId) async {
+          if (servisId.isEmpty) return;
+          final snap = await FirebaseFirestore.instance
+              .collection('students')
+              .where('firmaId', isEqualTo: _firmaId)
+              .where('servisId', isEqualTo: servisId)
+              .where('aktif', isEqualTo: true)
+              .count().get();
+          await FirebaseFirestore.instance
+              .collection('services').doc(servisId)
+              .update({'ogrenciSayisi': snap.count ?? 0});
+        }
+        if (yeniServisId.isNotEmpty) await updateServisSayisi(yeniServisId);
+        if (eskiServisId.isNotEmpty && eskiServisId != yeniServisId) {
+          await updateServisSayisi(eskiServisId);
+        }
         _yukle();
       },
     ));

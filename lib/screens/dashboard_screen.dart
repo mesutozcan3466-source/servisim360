@@ -33,11 +33,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _projeAd    = '';
   bool   _yuklendi   = false;
 
-  int _toplamOgrenci   = 0;
-  int _toplamSofor     = 0;
-  int _aktifServis     = 0;
-  int _toplamVeli      = 0;
-  int _bekleyenBasvuru = 0;
+  int _toplamOgrenci      = 0;
+  int _toplamSofor        = 0;
+  int _aktifServis        = 0;
+  int _toplamVeli         = 0;
+  int _toplamArac         = 0;
+  int _bekleyenBasvuru    = 0;
+  int _bugunDevamsiz      = 0;
+  int _atanmamisOgrenci   = 0;
+  String _sonYedekTarihi  = '';
 
   // Web ile aynı 7 menü
   static const _menuler = [
@@ -84,23 +88,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .where('firmaId', isEqualTo: firmaId);
       if (projeId.isNotEmpty) {
         ogrQ = ogrQ.where('projeId', isEqualTo: projeId);
+        sofQ = sofQ.where('projeId', isEqualTo: projeId);
       }
+      final bugun = DateTime.now();
+      final bugunStr = "${bugun.year}-${bugun.month.toString().padLeft(2, '0')}-${bugun.day.toString().padLeft(2, '0')}";
       final results = await Future.wait([
-        ogrQ.get(), sofQ.get(),
-        FirebaseFirestore.instance.collection('veli_basvurular')
+        ogrQ.get(),
+        sofQ.get(),
+        FirebaseFirestore.instance.collection('kayit_basvurulari')
             .where('firmaId', isEqualTo: firmaId)
             .where('durum', isEqualTo: 'bekliyor').get(),
+        FirebaseFirestore.instance.collection('parents')
+            .where('firmaId', isEqualTo: firmaId).get(),
+        FirebaseFirestore.instance.collection('vehicles')
+            .where('firmaId', isEqualTo: firmaId).get(),
+        FirebaseFirestore.instance.collection('absence_requests')
+            .where('firmaId', isEqualTo: firmaId)
+            .where('tarih', isGreaterThanOrEqualTo: bugunStr).get(),
       ]);
       final soforler  = results[1].docs;
-      final aktif     = soforler
-          .where((s) => s.data()['servisAktif'] == true).length;
+      final aktif     = soforler.where((s) => s.data()['servisAktif'] == true).length;
+      final ogrList   = results[0].docs;
+      final atanmamis = ogrList.where((o) => (o.data()['servisId'] == null || (o.data()['servisId'] as String).isEmpty)).length;
+      // Son yedekleme tarihi
+      String sonYedek = 'Henuz yedeklenmedi';
+      try {
+        final yedekSnap = await FirebaseFirestore.instance
+            .collection('backups')
+            .where('firmaId', isEqualTo: firmaId)
+            .orderBy('tarih', descending: true)
+            .limit(1).get();
+        if (yedekSnap.docs.isNotEmpty) {
+          final ts = yedekSnap.docs.first.data()['tarih'];
+          if (ts is Timestamp) {
+            final dt = ts.toDate();
+            sonYedek = "${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}";
+          }
+        }
+      } catch (_) {}
       if (mounted) setState(() {
-        _toplamOgrenci   = results[0].docs.length;
-        _toplamSofor     = soforler.length;
-        _aktifServis     = aktif;
-        _bekleyenBasvuru = results[2].docs.length;
+        _toplamOgrenci    = ogrList.length;
+        _toplamSofor      = soforler.length;
+        _aktifServis      = aktif;
+        _bekleyenBasvuru  = results[2].docs.length;
+        _toplamVeli       = results[3].docs.length;
+        _toplamArac       = results[4].docs.length;
+        _bugunDevamsiz    = results[5].docs.length;
+        _atanmamisOgrenci = atanmamis;
+        _sonYedekTarihi   = sonYedek;
       });
-    } catch (e) { debugPrint('İstatistik hata: $e'); }
+    } catch (e) { debugPrint('Istatistik hata: \$e'); }
   }
 
   void _projeSecimAc() async {
@@ -117,7 +154,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 0: return _AnaSayfa(
         firmaId: _firmaId, projeId: _projeId, projeAd: _projeAd,
         toplamOgrenci: _toplamOgrenci, toplamSofor: _toplamSofor,
+        toplamVeli: _toplamVeli, toplamArac: _toplamArac,
         aktifServis: _aktifServis, bekleyenBasvuru: _bekleyenBasvuru,
+        bugunDevamsiz: _bugunDevamsiz, atanmamisOgrenci: _atanmamisOgrenci,
+        sonYedekTarihi: _sonYedekTarihi,
         onNavigate: (i) => setState(() => _seciliMenu = i),
         onProjeSecimAc: _projeSecimAc,
       );
@@ -134,7 +174,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       default: return _AnaSayfa(
         firmaId: _firmaId, projeId: _projeId, projeAd: _projeAd,
         toplamOgrenci: _toplamOgrenci, toplamSofor: _toplamSofor,
+        toplamVeli: _toplamVeli, toplamArac: _toplamArac,
         aktifServis: _aktifServis, bekleyenBasvuru: _bekleyenBasvuru,
+        bugunDevamsiz: _bugunDevamsiz, atanmamisOgrenci: _atanmamisOgrenci,
+        sonYedekTarihi: _sonYedekTarihi,
         onNavigate: (i) => setState(() => _seciliMenu = i),
         onProjeSecimAc: _projeSecimAc,
       );
@@ -213,17 +256,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                    Icon(_menuler[i]['ikon'] as IconData,
-                        color: aktif ? Colors.white : Colors.grey,
-                        size: 18),
-                    const SizedBox(height: 1),
-                    Text(_menuler[i]['etiket'] as String,
-                        style: TextStyle(fontSize: 8,
+                        Icon(_menuler[i]['ikon'] as IconData,
                             color: aktif ? Colors.white : Colors.grey,
-                            fontWeight: aktif
-                                ? FontWeight.bold : FontWeight.normal),
-                        overflow: TextOverflow.ellipsis),
-                  ]),
+                            size: 18),
+                        const SizedBox(height: 1),
+                        Text(_menuler[i]['etiket'] as String,
+                            style: TextStyle(fontSize: 8,
+                                color: aktif ? Colors.white : Colors.grey,
+                                fontWeight: aktif
+                                    ? FontWeight.bold : FontWeight.normal),
+                            overflow: TextOverflow.ellipsis),
+                      ]),
                 ),
                 if (badge)
                   Positioned(top: 5, right: 5, child: Container(
@@ -244,8 +287,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // ANA SAYFA
 // ════════════════════════════════════════════════════════════════
 class _AnaSayfa extends StatelessWidget {
-  final String firmaId, projeId, projeAd;
-  final int toplamOgrenci, toplamSofor, aktifServis, bekleyenBasvuru;
+  final String firmaId, projeId, projeAd, sonYedekTarihi;
+  final int toplamOgrenci, toplamSofor, toplamVeli, toplamArac;
+  final int aktifServis, bekleyenBasvuru, bugunDevamsiz, atanmamisOgrenci;
   final Function(int) onNavigate;
   final VoidCallback onProjeSecimAc;
 
@@ -255,7 +299,10 @@ class _AnaSayfa extends StatelessWidget {
   const _AnaSayfa({
     required this.firmaId, required this.projeId, required this.projeAd,
     required this.toplamOgrenci, required this.toplamSofor,
+    required this.toplamVeli, required this.toplamArac,
     required this.aktifServis, required this.bekleyenBasvuru,
+    required this.bugunDevamsiz, required this.atanmamisOgrenci,
+    required this.sonYedekTarihi,
     required this.onNavigate, required this.onProjeSecimAc,
   });
 
@@ -283,43 +330,75 @@ class _AnaSayfa extends StatelessWidget {
                 Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Text('Proje Seçilmedi',
-                      style: TextStyle(fontWeight: FontWeight.bold,
-                          color: _turuncu)),
-                  Text('Çalışmak istediğiniz projeyi seçin',
-                      style: TextStyle(fontSize: 11,
-                          color: _turuncu)),
-                ])),
+                      Text('Proje Seçilmedi',
+                          style: TextStyle(fontWeight: FontWeight.bold,
+                              color: _turuncu)),
+                      Text('Çalışmak istediğiniz projeyi seçin',
+                          style: TextStyle(fontSize: 11,
+                              color: _turuncu)),
+                    ])),
                 Icon(Icons.arrow_forward_ios_rounded,
                     color: _turuncu, size: 14),
               ]),
             ),
           ),
 
-        // İstatistik kartları — web gibi
+        // Istatistik kartlari
         GridView.count(
           crossAxisCount: 2, shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 10, mainAxisSpacing: 10,
           childAspectRatio: 1.6,
           children: [
-            _StatKart('Servisler', '$toplamSofor',
+            _StatKart('Soforler', '\$toplamSofor',
                 Icons.directions_bus_rounded, _navy,
-                alt: '$aktifServis aktif',
+                alt: '\$aktifServis aktif servis',
                 onTap: () => onNavigate(2)),
-            _StatKart('Kayıtlar', '$toplamOgrenci',
-                Icons.people_outlined, Colors.blue,
+            _StatKart('Ogrenciler', '\$toplamOgrenci',
+                Icons.school_outlined, Colors.blue,
+                alt: '\$atanmamisOgrenci atanmamis',
                 onTap: () => onNavigate(3)),
-            _StatKart('Sözleşmeler', '',
-                Icons.description_outlined, Colors.teal,
-                alt: 'Yönet',
-                onTap: () => onNavigate(4)),
-            _StatKart('Bekleyen', '$bekleyenBasvuru',
+            _StatKart('Veliler', '\$toplamVeli',
+                Icons.family_restroom_outlined, Colors.teal,
+                onTap: () => onNavigate(3)),
+            _StatKart('Araclar', '\$toplamArac',
+                Icons.directions_car_outlined, Colors.indigo,
+                onTap: () => onNavigate(2)),
+            _StatKart('Bekleyen Kayit', '\$bekleyenBasvuru',
                 Icons.pending_outlined,
                 bekleyenBasvuru > 0 ? Colors.red : Colors.green,
-                alt: 'Başvuru',
+                alt: 'Basvuru',
                 onTap: () => onNavigate(3)),
+            _StatKart('Bugun Devamsiz', '\$bugunDevamsiz',
+                Icons.event_busy_outlined,
+                bugunDevamsiz > 0 ? Colors.orange : Colors.green,
+                onTap: () => onNavigate(2)),
           ],
+        ),
+        const SizedBox(height: 12),
+        // Son yedekleme bilgisi
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200)),
+          child: Row(children: [
+            Icon(Icons.backup_outlined,
+                size: 16,
+                color: sonYedekTarihi == 'Henuz yedeklenmedi'
+                    ? Colors.orange : Colors.green),
+            const SizedBox(width: 8),
+            Text('Son Yedek: ',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Expanded(child: Text(sonYedekTarihi,
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600,
+                    color: sonYedekTarihi == 'Henuz yedeklenmedi'
+                        ? Colors.orange : _navy))),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                size: 12, color: Colors.grey),
+          ]),
         ),
         const SizedBox(height: 16),
 
@@ -337,81 +416,148 @@ class _AnaSayfa extends StatelessWidget {
                 _navy, () => onNavigate(2)),
             _HizliBtn('Kayıt Ekle', Icons.person_add_outlined,
                 Colors.blue,
-                () => Navigator.of(context)
+                    () => Navigator.of(context)
                     .pushNamed('/yuz_yuze_kayit')),
             _HizliBtn('Harita', Icons.map_outlined,
                 Colors.green, () => onNavigate(1)),
             _HizliBtn('Rotalar', Icons.route_outlined,
                 Colors.orange,
-                () => Navigator.of(context).pushNamed('/rotalar')),
+                    () => Navigator.of(context).pushNamed('/rotalar')),
             _HizliBtn('QR Afiş', Icons.qr_code_outlined,
                 Colors.purple,
-                () => Navigator.of(context).pushNamed('/qr_afis')),
+                    () => Navigator.of(context).pushNamed('/qr_afis')),
             _HizliBtn('Arşiv', Icons.archive_outlined,
                 Colors.brown,
-                () => Navigator.of(context).pushNamed('/arsiv')),
+                    () => Navigator.of(context).pushNamed('/arsiv')),
           ],
         ),
         const SizedBox(height: 16),
 
-        // Son aktiviteler
-        const Text('Son İşlemler', style: TextStyle(
+        // Son islemler - kayitlar ve devamsizlik
+        const Text('Son Islemler', style: TextStyle(
             fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
         const SizedBox(height: 8),
-        if (firmaId.isNotEmpty)
+        if (firmaId.isNotEmpty) ...[
+          // Son kayit basvurulari
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
-                .collection('veli_basvurular')
+                .collection('kayit_basvurulari')
                 .where('firmaId', isEqualTo: firmaId)
-                .limit(5)
-                .snapshots(),
+                .orderBy('olusturmaTarihi', descending: true)
+                .limit(3).snapshots(),
             builder: (_, snap) {
               final docs = snap.data?.docs ?? [];
-              if (docs.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Center(child: Text(
-                      'Henüz başvuru yok',
-                      style: TextStyle(color: Colors.grey))),
-                );
-              }
-              return Column(children: docs.map((d) {
-                final data = d.data() as Map<String, dynamic>;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: Colors.grey.shade100)),
-                  child: Row(children: [
-                    const Icon(Icons.person_outline,
-                        color: _navy, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(data['ogrenciAdi'] ?? '-',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13)),
-                      Text(data['durum'] ?? 'bekliyor',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: data['durum'] == 'onaylandi'
-                                  ? Colors.green : Colors.orange)),
-                    ])),
-                    const Icon(Icons.arrow_forward_ios_rounded,
-                        size: 12, color: Colors.grey),
-                  ]),
-                );
-              }).toList());
+              if (docs.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 6),
+                    child: Text('Son Kayit Basvurulari',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ),
+                  ...docs.map((d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    final durum = data['durum'] ?? 'bekliyor';
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade100)),
+                      child: Row(children: [
+                        Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                                color: _navy.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(7)),
+                            child: const Icon(Icons.person_add_outlined,
+                                color: _navy, size: 15)),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(data['ogrenciAdi'] ?? data['ad'] ?? '-',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600, fontSize: 13)),
+                              Text(durum,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: durum == 'onaylandi'
+                                          ? Colors.green
+                                          : durum == 'reddedildi'
+                                          ? Colors.red : Colors.orange)),
+                            ])),
+                        const Icon(Icons.arrow_forward_ios_rounded,
+                            size: 12, color: Colors.grey),
+                      ]),
+                    );
+                  }),
+                ],
+              );
             },
           ),
+          const SizedBox(height: 12),
+          // Bugunun devamsizlik bildirimleri
+          StreamBuilder<QuerySnapshot>(
+            stream: () {
+              final bugun = DateTime.now();
+              final bugunStr = "${bugun.year}-${bugun.month.toString().padLeft(2, '0')}-${bugun.day.toString().padLeft(2, '0')}";
+              return FirebaseFirestore.instance
+                  .collection('absence_requests')
+                  .where('firmaId', isEqualTo: firmaId)
+                  .where('tarih', isGreaterThanOrEqualTo: bugunStr)
+                  .limit(3).snapshots();
+            }(),
+            builder: (_, snap) {
+              final docs = snap.data?.docs ?? [];
+              if (docs.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 6),
+                    child: Text('Bugun Gelmeyecekler',
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ),
+                  ...docs.map((d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: Colors.orange.withValues(alpha: 0.2))),
+                      child: Row(children: [
+                        Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(7)),
+                            child: const Icon(Icons.event_busy_outlined,
+                                color: Colors.orange, size: 15)),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(data['ogrenciAdi'] ?? '-',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600, fontSize: 13)),
+                              Text(data['tip'] ?? 'Devamsiz',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: Colors.orange)),
+                            ])),
+                      ]),
+                    );
+                  }),
+                ],
+              );
+            },
+          ),
+        ],
         const SizedBox(height: 80),
       ]),
     );
@@ -486,19 +632,19 @@ class _ServislerSayfasi extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: durumRenk.withValues(alpha: 0.15),
                     child: Text(
-                      (d['adSoyad'] ?? d['ad'] ?? 'S')
-                          .toString().isNotEmpty
-                          ? (d['adSoyad'] ?? d['ad'] ?? 'S')[0]
-                          .toUpperCase() : 'S',
-                      style: TextStyle(color: durumRenk,
-                          fontWeight: FontWeight.bold)),
+                        (d['adSoyad'] ?? d['ad'] ?? 'S')
+                            .toString().isNotEmpty
+                            ? (d['adSoyad'] ?? d['ad'] ?? 'S')[0]
+                            .toUpperCase() : 'S',
+                        style: TextStyle(color: durumRenk,
+                            fontWeight: FontWeight.bold)),
                   ),
                   title: Text(d['adSoyad'] ?? d['ad'] ?? '-',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold)),
                   subtitle: Text(
                       '${d['plaka'] ?? d['aracPlaka'] ?? '-'}'
-                      '${(d['projeAdi'] ?? '').isNotEmpty ? " • ${d['projeAdi']}" : ""}',
+                          '${(d['projeAdi'] ?? '').isNotEmpty ? " • ${d['projeAdi']}" : ""}',
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey[600])),
                   trailing: Container(
@@ -599,13 +745,13 @@ class _KayitlarSayfasi extends StatelessWidget {
                   style: TextStyle(color: Colors.grey, fontSize: 15)),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: _turuncu,
-                    foregroundColor: Colors.white),
-                onPressed: () =>
-                    Navigator.pushNamed(context, '/yuz_yuze_kayit'),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('İlk Kaydı Ekle')),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _turuncu,
+                      foregroundColor: Colors.white),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/yuz_yuze_kayit'),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('İlk Kaydı Ekle')),
             ]));
           }
           return ListView.builder(
@@ -624,10 +770,10 @@ class _KayitlarSayfasi extends StatelessWidget {
                     backgroundColor: _navy.withValues(alpha: 0.1),
                     radius: 18,
                     child: Text(
-                      (d['ad'] ?? '-').toString().isNotEmpty
-                          ? d['ad'][0].toUpperCase() : '?',
-                      style: const TextStyle(color: _navy,
-                          fontWeight: FontWeight.bold, fontSize: 13)),
+                        (d['ad'] ?? '-').toString().isNotEmpty
+                            ? d['ad'][0].toUpperCase() : '?',
+                        style: const TextStyle(color: _navy,
+                            fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
                   title: Text(
                       '${d['ad'] ?? ''} ${d['soyad'] ?? ''}'.trim(),
@@ -635,7 +781,7 @@ class _KayitlarSayfasi extends StatelessWidget {
                           fontWeight: FontWeight.w600, fontSize: 13)),
                   subtitle: Text(
                       '${d['okul'] ?? ''}'
-                      '${(d['aylikUcret'] ?? '').toString().isNotEmpty ? " • ${d['aylikUcret']} TL" : ""}',
+                          '${(d['aylikUcret'] ?? '').toString().isNotEmpty ? " • ${d['aylikUcret']} TL" : ""}',
                       style: const TextStyle(fontSize: 11)),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
@@ -646,11 +792,11 @@ class _KayitlarSayfasi extends StatelessWidget {
                             : Colors.orange.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6)),
                     child: Text(
-                      durum == 'imzalandi' ? 'İmzalı' : 'Bekliyor',
-                      style: TextStyle(fontSize: 10,
-                          color: durum == 'imzalandi'
-                              ? Colors.green : Colors.orange,
-                          fontWeight: FontWeight.bold)),
+                        durum == 'imzalandi' ? 'İmzalı' : 'Bekliyor',
+                        style: TextStyle(fontSize: 10,
+                            color: durum == 'imzalandi'
+                                ? Colors.green : Colors.orange,
+                            fontWeight: FontWeight.bold)),
                   ),
                   onTap: () => Navigator.pushNamed(context, '/ogrenci'),
                 ),
@@ -685,43 +831,43 @@ class _DahaFazlaSayfasi extends StatelessWidget {
       children: [
         _bolum('Operasyon', [
           _MenuKart('Rotalar', Icons.route_outlined, Colors.orange,
-              () => Navigator.pushNamed(context, '/rotalar')),
+                  () => Navigator.pushNamed(context, '/rotalar')),
           _MenuKart('Yoklama', Icons.fact_check_outlined, Colors.blue,
-              () => Navigator.pushNamed(context, '/yoklama')),
+                  () => Navigator.pushNamed(context, '/yoklama')),
           _MenuKart('Canlı Takip', Icons.my_location_outlined, Colors.green,
-              () => Navigator.pushNamed(context, '/admin_takip')),
+                  () => Navigator.pushNamed(context, '/admin_takip')),
           _MenuKart('Güzergah', Icons.timeline_outlined, Colors.purple,
-              () => Navigator.pushNamed(context, '/guzergah_gecmis')),
+                  () => Navigator.pushNamed(context, '/guzergah_gecmis')),
         ]),
         _bolum('Yönetim', [
           _MenuKart('Projeler', Icons.folder_outlined, _navy,
-              () => Navigator.pushNamed(context, '/projeler')),
+                  () => Navigator.pushNamed(context, '/projeler')),
           _MenuKart('Fiyatlar', Icons.attach_money_outlined, Colors.teal,
-              () => Navigator.pushNamed(context, '/fiyat_yonetim')),
+                  () => Navigator.pushNamed(context, '/fiyat_yonetim')),
           _MenuKart('Arşiv', Icons.archive_outlined, Colors.brown,
-              () => Navigator.pushNamed(context, '/arsiv')),
+                  () => Navigator.pushNamed(context, '/arsiv')),
           _MenuKart('Plaka Tanıma', Icons.camera_alt_outlined, Colors.red,
-              () => Navigator.pushNamed(context, '/plaka_tanima')),
+                  () => Navigator.pushNamed(context, '/plaka_tanima')),
           _MenuKart('Proje Arşiv', Icons.folder_zip_outlined, Colors.indigo,
-              () => Navigator.pushNamed(context, '/proje_arsiv')),
+                  () => Navigator.pushNamed(context, '/proje_arsiv')),
         ]),
         _bolum('Kayıt Sistemi', [
           _MenuKart('Link Oluştur', Icons.link_outlined, _turuncu,
-              () => Navigator.pushNamed(context, '/kayit_link')),
+                  () => Navigator.pushNamed(context, '/kayit_link')),
           _MenuKart('QR Afiş', Icons.qr_code_outlined, Colors.deepPurple,
-              () => Navigator.pushNamed(context, '/qr_afis')),
+                  () => Navigator.pushNamed(context, '/qr_afis')),
           _MenuKart('Toplu Mesaj', Icons.message_outlined, Colors.green,
-              () => Navigator.pushNamed(context, '/toplu_whatsapp')),
+                  () => Navigator.pushNamed(context, '/toplu_whatsapp')),
           _MenuKart('Şoförler', Icons.person_outlined, _navy,
-              () => Navigator.pushNamed(context, '/suruculer')),
+                  () => Navigator.pushNamed(context, '/suruculer')),
         ]),
         _bolum('Sistem', [
           _MenuKart('AI Asistan', Icons.auto_awesome_outlined, _turuncu,
-              () => Navigator.pushNamed(context, '/ai_asistan')),
+                  () => Navigator.pushNamed(context, '/ai_asistan')),
           _MenuKart('Bildirimler', Icons.notifications_outlined, Colors.red,
-              () => Navigator.pushNamed(context, '/bildirimler')),
+                  () => Navigator.pushNamed(context, '/bildirimler')),
           _MenuKart('Ayarlar', Icons.settings_outlined, Colors.grey,
-              () => Navigator.pushNamed(context, '/ayarlar')),
+                  () => Navigator.pushNamed(context, '/ayarlar')),
           _MenuKart('Proje Seç', Icons.folder_open_outlined, Colors.orange,
               onProjeSecimAc),
         ]),
@@ -773,24 +919,24 @@ class _StatKart extends StatelessWidget {
                 blurRadius: 6)]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          Row(children: [
-            Container(padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                    color: renk.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8)),
-                child: Icon(ikon, color: renk, size: 18)),
-            const Spacer(),
-            if (deger.isNotEmpty)
-              Text(deger, style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: renk)),
-          ]),
-          const Spacer(),
-          Text(baslik, style: const TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 12)),
-          if (alt != null)
-            Text(alt!, style: TextStyle(
-                fontSize: 10, color: Colors.grey[500])),
-        ]),
+              Row(children: [
+                Container(padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                        color: renk.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Icon(ikon, color: renk, size: 18)),
+                const Spacer(),
+                if (deger.isNotEmpty)
+                  Text(deger, style: TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold, color: renk)),
+              ]),
+              const Spacer(),
+              Text(baslik, style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 12)),
+              if (alt != null)
+                Text(alt!, style: TextStyle(
+                    fontSize: 10, color: Colors.grey[500])),
+            ]),
       ),
     );
   }
@@ -817,16 +963,16 @@ class _HizliBtn extends StatelessWidget {
                 blurRadius: 4)]),
         child: Column(mainAxisAlignment: MainAxisAlignment.center,
             children: [
-          Container(padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                  color: renk.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10)),
-              child: Icon(ikon, color: renk, size: 20)),
-          const SizedBox(height: 5),
-          Text(etiket, style: const TextStyle(
-              fontSize: 10, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center),
-        ]),
+              Container(padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: renk.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Icon(ikon, color: renk, size: 20)),
+              const SizedBox(height: 5),
+              Text(etiket, style: const TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center),
+            ]),
       ),
     );
   }
@@ -853,14 +999,14 @@ class _MenuKart extends StatelessWidget {
                 blurRadius: 4)]),
         child: Column(mainAxisAlignment: MainAxisAlignment.center,
             children: [
-          Icon(ikon, color: renk, size: 22),
-          const SizedBox(height: 4),
-          Text(etiket, style: TextStyle(
-              fontSize: 9, fontWeight: FontWeight.w600,
-              color: Colors.grey[700]),
-              textAlign: TextAlign.center,
-              maxLines: 2, overflow: TextOverflow.ellipsis),
-        ]),
+              Icon(ikon, color: renk, size: 22),
+              const SizedBox(height: 4),
+              Text(etiket, style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w600,
+                  color: Colors.grey[700]),
+                  textAlign: TextAlign.center,
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+            ]),
       ),
     );
   }

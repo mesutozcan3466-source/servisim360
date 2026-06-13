@@ -11,9 +11,10 @@ import 'web_harita.dart';
 import 'web_ogrenciler.dart';
 import 'web_ayarlar.dart';
 import 'web_test_merkezi.dart';
-// web_arac_merkezi.dart - henuz kopyalanmadi, once kopyalayin
+import 'web_aracmerkezi.dart';
 import 'web_arsiv_merkezi.dart';
-// web_yedekleme.dart - henuz kopyalanmadi, once kopyalayin
+import 'rotalar_screen.dart';
+import 'web_yedekleme_arsiv.dart';
 
 class WebAdminPanel extends StatefulWidget {
   const WebAdminPanel({super.key});
@@ -54,6 +55,7 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     _MenuItem('Arac Yonetimi',  Icons.build_circle_outlined,     19),
     _MenuItem('Arsiv Merkezi',  Icons.folder_special_outlined,   20),
     _MenuItem('Yedekleme',      Icons.backup_outlined,            21),
+    _MenuItem('Guzergahlar',    Icons.alt_route_outlined,          22),
   ];
 
   @override void initState(){super.initState();_yukle();}
@@ -370,9 +372,10 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
       case 16:return _ArsivSekme(firmaId:_firmaId);
       case 17:return const WebAyarlar();
       case 18:return const WebTestMerkezi();
-      case 19:return _BosEkran(baslik:'Arac Yonetimi',ikon:Icons.build_circle_outlined);
+      case 19:return const WebAracMerkezi();
       case 20:return const WebArsivMerkezi();
-      case 21:return _BosEkran(baslik:'Yedekleme',ikon:Icons.backup_outlined);
+      case 21:return const WebYedekleme();
+      case 22:return const _WebRotalarWrapper();
       default:return const SizedBox();
     }
   }
@@ -642,46 +645,130 @@ class _ServislerSekmeState extends State<_ServislerSekme>{
       decoration:InputDecoration(labelText:l,prefixIcon:Icon(i,color:const Color(0xFF1a3a6b),size:18),
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),isDense:true,
           contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10)));
-  @override Widget build(BuildContext context)=>Column(children:[
-    Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
-        child:Row(children:[const Text('Servisler',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
-          const Spacer(),ElevatedButton.icon(style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
-              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-              onPressed:_ekle,icon:const Icon(Icons.add,size:16),label:const Text('Servis Ekle'))])),
-    Expanded(child:StreamBuilder<QuerySnapshot>(
-        stream:(){var q=FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:widget.firmaId);
-        if(widget.projeId.isNotEmpty)q=q.where('projeId',isEqualTo:widget.projeId);return q.snapshots();}(),
-        builder:(_,snap){
-          final docs=snap.data?.docs??[];
-          if(docs.isEmpty)return _bos('Servis bulunamadi','Servis ekleyin.',Icons.directions_bus_outlined);
-          return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
+  @override Widget build(BuildContext context){
+    return Column(children:[
+      Container(padding:const EdgeInsets.symmetric(horizontal:20,vertical:12),color:Colors.white,
+          child:Row(children:[
+            const Text('Servisler',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:16)),
+            const Spacer(),
+            ElevatedButton.icon(
+              style:ElevatedButton.styleFrom(backgroundColor:_t,foregroundColor:Colors.white,
+                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              onPressed:_ekle,
+              icon:const Icon(Icons.add,size:16),
+              label:const Text('Servis Ekle'),
+            ),
+          ])),
+      Expanded(child:StreamBuilder<QuerySnapshot>(
+          stream:(){
+            var q=FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:widget.firmaId);
+            if(widget.projeId.isNotEmpty)q=q.where('projeId',isEqualTo:widget.projeId);
+            return q.snapshots();
+          }(),
+          builder:(_,snap){
+            final docs=snap.data?.docs??[];
+            if(docs.isEmpty)return _bos('Servis bulunamadi','Servis ekleyin.',Icons.directions_bus_outlined);
+            return ListView.builder(
+              padding:const EdgeInsets.all(16),
+              itemCount:docs.length,
               itemBuilder:(_,i){
-                final d=docs[i].data() as Map<String,dynamic>;final aktif=d['aktif']==true;
-                return Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(16),
-                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
-                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)]),
-                    child:Row(children:[
-                      Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),borderRadius:BorderRadius.circular(10)),
-                          child:const Icon(Icons.directions_bus_outlined,color:Color(0xFF1a3a6b),size:22)),
-                      const SizedBox(width:14),
-                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        Text(d['ad']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
-                        const SizedBox(height:4),
-                        Wrap(spacing:6,children:[
-                          if((d['soforAd']??'').isNotEmpty)_ch(d['soforAd'],Colors.blue),
-                          if((d['aracPlaka']??'').isNotEmpty)_ch(d['aracPlaka'],Colors.grey),
-                          if((d['sabahSaati']??'').isNotEmpty)_ch('S:${d['sabahSaati']}',Colors.orange),
-                          if((d['aksamSaati']??'').isNotEmpty)_ch('A:${d['aksamSaati']}',Colors.indigo),
-                          _ch('${d['kapasite']??17} koltuk',Colors.teal),
-                        ]),
-                      ])),
+                final d=docs[i].data() as Map<String,dynamic>;
+                final aktif=d['aktif']==true;
+                final ad=(d['ad']??'').toString();
+                final soforAd=(d['soforAd']??'').toString();
+                final aracPlaka=(d['aracPlaka']??'').toString();
+                final sabah=(d['sabahSaati']??'').toString();
+                final aksam=(d['aksamSaati']??'').toString();
+                final kap=(d['kapasite']??17).toString();
+                return Container(
+                  margin:const EdgeInsets.only(bottom:10),
+                  padding:const EdgeInsets.all(16),
+                  decoration:BoxDecoration(
+                    color:Colors.white,
+                    borderRadius:BorderRadius.circular(14),
+                    boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)],
+                  ),
+                  child:Row(children:[
+                    Container(padding:const EdgeInsets.all(10),
+                        decoration:BoxDecoration(color:_navy.withValues(alpha:0.08),borderRadius:BorderRadius.circular(10)),
+                        child:Icon(Icons.directions_bus_outlined,color:aktif?const Color(0xFF1a3a6b):Colors.grey,size:22)),
+                    const SizedBox(width:14),
+                    Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      Text(ad,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
+                      const SizedBox(height:4),
+                      Wrap(spacing:6,children:[
+                        if(soforAd.isNotEmpty)_ch(soforAd,Colors.blue),
+                        if(aracPlaka.isNotEmpty)_ch(aracPlaka,Colors.grey),
+                        if(sabah.isNotEmpty)_ch('S: '+sabah,Colors.orange),
+                        if(aksam.isNotEmpty)_ch('A: '+aksam,Colors.indigo),
+                        _ch(kap+' koltuk',Colors.teal),
+                        if((d['ogrenciSayisi']??0)>0)
+                          _ch((d['ogrenciSayisi'] as int).toString()+'/'+kap+' dolu',
+                              (d['ogrenciSayisi'] as int)>=(int.tryParse(kap)??17)?Colors.red:Colors.green),
+                      ]),
+                    ])),
+                    Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
                       Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
-                          decoration:BoxDecoration(color:(aktif?Colors.green:Colors.grey).withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
-                          child:Text(aktif?'Aktif':'Pasif',style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,color:aktif?Colors.green:Colors.grey))),
-                    ]));
-              });
-        })),
-  ]);
+                          decoration:BoxDecoration(
+                              color:(aktif?Colors.green:Colors.grey).withValues(alpha:0.1),
+                              borderRadius:BorderRadius.circular(8)),
+                          child:Text(aktif?'Aktif':'Pasif',
+                              style:TextStyle(fontSize:11,fontWeight:FontWeight.bold,
+                                  color:aktif?Colors.green:Colors.grey))),
+                      const SizedBox(height:6),
+                      Row(children:[
+                        GestureDetector(
+                          onTap:() async{
+                            final docId=docs[i].id;
+                            await FirebaseFirestore.instance.collection('services')
+                                .doc(docId).update({'aktif':!aktif,'guncelleme':FieldValue.serverTimestamp()});
+                          },
+                          child:Container(
+                            padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),
+                            decoration:BoxDecoration(
+                                color:aktif?Colors.orange.withValues(alpha:0.1):Colors.green.withValues(alpha:0.1),
+                                borderRadius:BorderRadius.circular(7)),
+                            child:Row(mainAxisSize:MainAxisSize.min,children:[
+                              Icon(aktif?Icons.stop_circle_outlined:Icons.play_circle_outlined,
+                                  size:14,color:aktif?Colors.orange:Colors.green),
+                              const SizedBox(width:4),
+                              Text(aktif?'Durdur':'Baslat',
+                                  style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,
+                                      color:aktif?Colors.orange:Colors.green)),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(width:6),
+                        GestureDetector(
+                          onTap:() async{
+                            final docId=docs[i].id;
+                            final ok=await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
+                                title:const Text('Servisi Sil'),
+                                content:Text(ad+' silinecek.'),
+                                actions:[
+                                  TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text('Iptal')),
+                                  ElevatedButton(
+                                      style:ElevatedButton.styleFrom(backgroundColor:Colors.red),
+                                      onPressed:()=>Navigator.pop(context,true),
+                                      child:const Text('Sil',style:TextStyle(color:Colors.white))),
+                                ]));
+                            if(ok==true){
+                              await FirebaseFirestore.instance.collection('services').doc(docId).delete();
+                            }
+                          },
+                          child:Container(padding:const EdgeInsets.all(5),
+                              decoration:BoxDecoration(color:Colors.red.withValues(alpha:0.08),borderRadius:BorderRadius.circular(7)),
+                              child:const Icon(Icons.delete_outline,size:14,color:Colors.red)),
+                        ),
+                      ]),
+                    ]),
+                  ]),
+                );
+              },
+            );
+          })),
+    ]);
+  }
   Widget _ch(String t,Color c)=>Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
       decoration:BoxDecoration(color:c.withValues(alpha:0.1),borderRadius:BorderRadius.circular(5)),
       child:Text(t,style:TextStyle(fontSize:10,color:c,fontWeight:FontWeight.bold)));
@@ -1127,9 +1214,19 @@ class _SozListesi extends StatelessWidget{
                           decoration:BoxDecoration(color:renk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                           child:Text(durum,style:TextStyle(fontSize:10,fontWeight:FontWeight.bold,color:renk))),
                       const SizedBox(height:4),
-                      GestureDetector(onTap:(){},child:Container(padding:const EdgeInsets.all(6),
-                          decoration:BoxDecoration(color:Colors.red.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
-                          child:const Icon(Icons.picture_as_pdf_outlined,color:Colors.red,size:16))),
+                      GestureDetector(
+                          onTap:() async{
+                            final url=d['pdfUrl'] as String? ??'';
+                            if(url.isNotEmpty){
+                              await launchUrl(Uri.parse(url),mode:LaunchMode.externalApplication);
+                            } else {
+                              if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content:Text('PDF henuz olusturulmamis'),behavior:SnackBarBehavior.floating));
+                            }
+                          },
+                          child:Container(padding:const EdgeInsets.all(6),
+                              decoration:BoxDecoration(color:Colors.red.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                              child:const Icon(Icons.picture_as_pdf_outlined,color:Colors.red,size:16))),
                       if(durum=='suresi_doldu')...[const SizedBox(height:4),
                         GestureDetector(onTap:()async{await FirebaseFirestore.instance.collection('sozlesmeler').doc(docs[i].id).update({'durum':'arsiv','arsivTarihi':FieldValue.serverTimestamp()});},
                             child:Container(padding:const EdgeInsets.all(6),decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
@@ -1348,11 +1445,13 @@ class _BildirimlerSekme extends StatefulWidget{
 }
 class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
   static const _navy=Color(0xFF1a3a6b);static const _t=Color(0xFFFF8C00);
-  final _mC=TextEditingController();bool _g=false;String _h='veliler';
+  final _mC=TextEditingController();final _bC=TextEditingController();bool _g=false;String _h='veliler';
   Future<void> _gonder() async{
     if(_mC.text.trim().isEmpty)return;setState(()=>_g=true);
-    await FirebaseFirestore.instance.collection('bildirimler').add({'firmaId':widget.firmaId,'mesaj':_mC.text.trim(),'hedef':_h,'tarih':FieldValue.serverTimestamp(),'gonderen':'admin'});
-    _mC.clear();setState(()=>_g=false);
+    await FirebaseFirestore.instance.collection('bildirimler').add({'firmaId':widget.firmaId,
+      'baslik':_bC.text.trim().isEmpty?'Duyuru':_bC.text.trim(),
+      'mesaj':_mC.text.trim(),'hedef':_h,'tarih':FieldValue.serverTimestamp(),'gonderen':'admin'});
+    _mC.clear();_bC.clear();setState(()=>_g=false);
   }
   @override Widget build(BuildContext context)=>Row(children:[
     Expanded(flex:3,child:Column(children:[
@@ -1371,7 +1470,8 @@ class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
                       decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
                       child:Row(children:[Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),child:Icon(Icons.notifications_outlined,color:r,size:18)),
                         const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(d['mesaj']??'',style:const TextStyle(fontWeight:FontWeight.w500)),
+                          if((d['baslik']??'').isNotEmpty)Text(d['baslik'],style:const TextStyle(fontWeight:FontWeight.bold,fontSize:12)),
+                          Text(d['mesaj']??'',style:const TextStyle(fontWeight:FontWeight.w500,fontSize:13),maxLines:2,overflow:TextOverflow.ellipsis),
                           Text(d['tarih']?.toString().substring(0,19)??'',style:TextStyle(fontSize:11,color:Colors.grey[400]))])),
                         Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:r.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
                             child:Text(h,style:TextStyle(fontSize:10,color:r,fontWeight:FontWeight.bold)))]));
@@ -1381,7 +1481,11 @@ class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
     Container(width:300,color:Colors.white,padding:const EdgeInsets.all(24),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Bildirim Gonder',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b))),
-          const SizedBox(height:18),const Text('Hedef Kitle',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),const SizedBox(height:10),
+          const SizedBox(height:18),
+          TextField(controller:_bC,decoration:InputDecoration(labelText:'Baslik (opsiyonel)',prefixIcon:const Icon(Icons.title_outlined,size:18,color:Color(0xFF1a3a6b)),
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),isDense:true)),
+          const SizedBox(height:12),
+          const Text('Hedef Kitle',style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a3a6b),fontSize:13)),const SizedBox(height:10),
           ...['veliler','soforler','herkese'].map((h)=>GestureDetector(onTap:()=>setState(()=>_h=h),
               child:Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
                   decoration:BoxDecoration(color:_h==h?_navy:Colors.grey[50],borderRadius:BorderRadius.circular(10),border:Border.all(color:_h==h?_navy:Colors.grey)),
@@ -1591,6 +1695,15 @@ Widget _bos(String b,String a,IconData i)=>Center(child:Column(mainAxisAlignment
   Text(b,style:const TextStyle(fontSize:16,color:Colors.grey,fontWeight:FontWeight.bold)),
   if(a.isNotEmpty)...[const SizedBox(height:8),Text(a,style:TextStyle(fontSize:13,color:Colors.grey[400]),textAlign:TextAlign.center)],
 ]));
+
+// Web'de RotalarScreen'i AppBar olmadan goster
+class _WebRotalarWrapper extends StatelessWidget {
+  const _WebRotalarWrapper();
+  @override
+  Widget build(BuildContext context) {
+    return const RotalarScreen();
+  }
+}
 
 class _BosEkran extends StatelessWidget {
   final String baslik;
