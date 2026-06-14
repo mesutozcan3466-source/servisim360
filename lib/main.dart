@@ -147,6 +147,20 @@ class Servisim360App extends StatelessWidget {
         ),
         initialRoute: kIsWeb ? '/web' : '/',
         routes: _routes(),
+        onGenerateRoute: (settings) {
+          // Web'de tum bilinmeyen route'lar WebAdminPanel'e yonlendirilir
+          if (kIsWeb) {
+            final webRoutes = ['/web', '/web_admin', '/web_panel', '/web_kolej',
+              '/web_sofor', '/web_veli_panel', '/web_ayarlar', '/web_personel',
+              '/web_test', '/web_arsiv', '/web_arac', '/web_yedek', '/login',
+              '/kayit', '/onboarding', '/onay_bekleme', '/', '/rol'];
+            if (!webRoutes.contains(settings.name)) {
+              // Eski mobil route - WebAdminPanel'e yonlendir
+              return MaterialPageRoute(builder: (_) => const WebGirisYonlendirici());
+            }
+          }
+          return null; // Normal route tablosunu kullan
+        },
         onUnknownRoute: (settings) => MaterialPageRoute(
           builder: (_) => const _BilinmeyenRoute(),
         ),

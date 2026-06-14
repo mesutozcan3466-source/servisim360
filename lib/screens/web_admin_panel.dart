@@ -7,10 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_service.dart';
-import 'web_soforler.dart';
-import 'web_raporlar.dart';
+import 'package:servisim360/screens/web_soforler.dart' as wsofor;
 import 'web_harita.dart';
-import 'web_ogrenciler.dart';
 import 'web_ayarlar.dart';
 import 'web_test_merkezi.dart';
 import 'web_aracmerkezi.dart';
@@ -33,6 +31,8 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
   int _aktifServis=0,_bekleyenDevamsizlik=0,_bekleyenBasvuru=0;
   int _atanmamisOgrenci=0,_konumsuzOgrenci=0;
   int _bekleyenSozlesme=0,_acilDurum=0;
+  int _toplamProje=0;
+  String _aramaFirma='';
   List<Map<String,dynamic>> _projeler=[];
 
   static const List<_MenuItem> _menuler=[
@@ -83,7 +83,16 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
         final projSnap=await FirebaseFirestore.instance.collection('projects')
             .where('firmaId',isEqualTo:_firmaId).where('aktif',isEqualTo:true)
             .orderBy('olusturmaTarihi',descending:true).get();
-        _projeler=projSnap.docs.map((d)=>{'id':d.id,...d.data()}).toList();
+        // Duplicate temizle - ayni projeAd varsa sadece ilkini al
+        final _raw=projSnap.docs.map((d)=>{'id':d.id,...d.data()}).toList();
+        final _goruldu=<String>{};
+        _projeler=_raw.where((p){
+          final ad=(p['projeAd']??p['ad']??'').toString().trim().toLowerCase();
+          if(ad.isEmpty)return true;
+          if(_goruldu.contains(ad))return false;
+          _goruldu.add(ad);
+          return true;
+        }).toList();
         _projeId=SessionService.instance.aktifProjeld??'';
         _projeAd=SessionService.instance.aktifProjeAdi??'';
         await _istatistikYukle();
@@ -125,6 +134,11 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
         _bekleyenBasvuru=r[4].docs.length;_toplamServis=r[5].docs.length;
         _aktifServis=aktif;_atanmamisOgrenci=atanmamis;_konumsuzOgrenci=konumsuz;
       });
+      // Toplam proje sayisi
+      try{
+        final projSnap=await FirebaseFirestore.instance.collection('projects').where('firmaId',isEqualTo:_firmaId).where('aktif',isEqualTo:true).count().get();
+        if(mounted)setState(()=>_toplamProje=projSnap.count??0);
+      }catch(_){}
       // Bekleyen sozlesme ve acil durum - setState disinda
       try{
         final sozSnap=await FirebaseFirestore.instance.collection('sozlesmeler')
@@ -149,6 +163,36 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     SessionService.instance.projeTemizle();
     setState((){_projeId='';_projeAd='';_projeMenuAcik=false;});
     _istatistikYukle();
+  }
+
+  Future<void> _ciftKayitTemizle() async{
+    final snack=ScaffoldMessenger.of(context);
+    // Ayni projeAd'a sahip duplicate'leri bul
+    final snap=await FirebaseFirestore.instance.collection('projects')
+        .where('firmaId',isEqualTo:_firmaId).get();
+    final Map<String,List<String>> adMap=<String,List<String>>{};
+    for(final doc in snap.docs){
+      final ad=(doc.data()['projeAd']??doc.data()['ad']??'').toString().trim();
+      if(ad.isEmpty)continue;
+      adMap.putIfAbsent(ad,()=><String>[]);
+      adMap[ad]!.add(doc.id);
+    }
+    int silinen=0;
+    for(final entry in adMap.entries){
+      if(entry.value.length>1){
+        // Ilkini tut, gerisini sil (aktif:false yap)
+        for(int i=1;i<entry.value.length;i++){
+          await FirebaseFirestore.instance.collection('projects')
+              .doc(entry.value[i]).update({'aktif':false,'durum':'arsiv'});
+          silinen++;
+        }
+      }
+    }
+    snack.showSnackBar(SnackBar(
+        content:Text(silinen>0?'$silinen tekrar kayit temizlendi':'Tekrar kayit bulunamadi'),
+        backgroundColor:silinen>0?Colors.green:Colors.blue,
+        behavior:SnackBarBehavior.floating));
+    if(silinen>0)_yukle();
   }
 
   void _projeEkleDialog(){
@@ -230,72 +274,167 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
     return Scaffold(
       backgroundColor:const Color(0xFFF0F2F5),
       body:Row(children:[
+        // ═══════════════════════════════════════════════
+        // SOL SIDEBAR - FIRMA AGACI
+        // ═══════════════════════════════════════════════
         Container(width:220,color:_navy,child:Column(children:[
-          Container(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+
+          // ── LOGO + FIRMA ADI ──
+          Container(padding:const EdgeInsets.all(14),child:Column(children:[
             Row(children:[
-              Container(width:36,height:36,decoration:BoxDecoration(color:_turuncu,borderRadius:BorderRadius.circular(8)),
-                  child:const Center(child:Text('S',style:TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:18)))),
+              Container(width:32,height:32,decoration:BoxDecoration(color:_turuncu,borderRadius:BorderRadius.circular(8)),
+                  child:const Center(child:Text('S',style:TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:16)))),
               const SizedBox(width:10),
               const Expanded(child:Text('Servisim360',style:TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:14))),
             ]),
-            const SizedBox(height:5),
-            Text(_firmaAdi,style:TextStyle(color:Colors.white.withValues(alpha:0.55),fontSize:11),overflow:TextOverflow.ellipsis),
+            const SizedBox(height:4),
+            Text(_firmaAdi,style:TextStyle(color:Colors.white.withValues(alpha:0.5),fontSize:10),overflow:TextOverflow.ellipsis),
           ])),
+
+          // ── ARAMA KUTUSU ──
+          Padding(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
+              child:TextField(
+                  onChanged:(v)=>setState(()=>_aramaFirma=v),
+                  style:const TextStyle(color:Colors.white,fontSize:11),
+                  decoration:InputDecoration(
+                    hintText:'Firma / Proje ara...',hintStyle:TextStyle(color:Colors.white38,fontSize:11),
+                    prefixIcon:const Icon(Icons.search,color:Colors.white38,size:14),
+                    filled:true,fillColor:Colors.white.withValues(alpha:0.08),
+                    border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:BorderSide.none),
+                    contentPadding:const EdgeInsets.symmetric(horizontal:8,vertical:6),isDense:true,
+                  ))),
+
+          const SizedBox(height:4),
+          const Divider(color:Colors.white12),
+
+          // ── FIRMA AGACI ──
           Container(
-            margin:const EdgeInsets.symmetric(horizontal:10),
-            decoration:BoxDecoration(color:Colors.white.withValues(alpha:0.1),borderRadius:BorderRadius.circular(10),
-                border:Border.all(color:_projeId.isNotEmpty?_turuncu.withValues(alpha:0.6):Colors.white24)),
+            margin:const EdgeInsets.symmetric(horizontal:10,vertical:4),
+            decoration:BoxDecoration(
+              color:Colors.white.withValues(alpha:0.08),
+              borderRadius:BorderRadius.circular(10),
+              border:Border.all(color:_projeId.isNotEmpty?_turuncu.withValues(alpha:0.5):Colors.white.withValues(alpha:0.1)),
+            ),
             child:Column(children:[
-              GestureDetector(onTap:()=>setState(()=>_projeMenuAcik=!_projeMenuAcik),
-                  child:Padding(padding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
+              // Firma header - tiklaninca expand
+              GestureDetector(
+                  onTap:()=>setState(()=>_projeMenuAcik=!_projeMenuAcik),
+                  child:Padding(padding:const EdgeInsets.symmetric(horizontal:10,vertical:10),
                       child:Row(children:[
-                        Icon(Icons.folder_outlined,color:_projeId.isNotEmpty?_turuncu:Colors.white54,size:16),
+                        Icon(Icons.business_outlined,color:_projeId.isNotEmpty?_turuncu:Colors.white54,size:15),
                         const SizedBox(width:8),
-                        Expanded(child:Text(_projeAd.isNotEmpty?_projeAd:'Tum Firma',
-                            style:TextStyle(color:_projeAd.isNotEmpty?_turuncu:Colors.white70,fontSize:12,fontWeight:FontWeight.w600),
-                            overflow:TextOverflow.ellipsis)),
-                        Icon(_projeMenuAcik?Icons.expand_less:Icons.expand_more,color:Colors.white54,size:16),
+                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          Text(_firmaAdi.isNotEmpty?_firmaAdi:'Tum Firma',
+                              style:TextStyle(color:_projeId.isNotEmpty?_turuncu:Colors.white,fontSize:11,fontWeight:FontWeight.bold),
+                              overflow:TextOverflow.ellipsis),
+                          if(_projeMenuAcik)Text('${_projeler.length} proje',
+                              style:const TextStyle(color:Colors.white38,fontSize:9)),
+                        ])),
+                        PopupMenuButton<String>(
+                            icon:const Icon(Icons.more_vert,color:Colors.white38,size:14),
+                            padding:EdgeInsets.zero,
+                            onSelected:(v){
+                              if(v=='proje')_projeEkleDialog();
+                              else if(v=='temizle')_ciftKayitTemizle();
+                            },
+                            itemBuilder:(_)=>[
+                              const PopupMenuItem(value:'proje',child:Row(children:[Icon(Icons.add,size:14),SizedBox(width:8),Text('Proje Ekle')])),
+                              const PopupMenuItem(value:'temizle',child:Row(children:[Icon(Icons.cleaning_services_outlined,size:14,color:Colors.red),SizedBox(width:8),Text('Cift Kayitlari Temizle',style:TextStyle(color:Colors.red))])),
+                            ]),
+                        Icon(_projeMenuAcik?Icons.expand_less:Icons.expand_more,color:Colors.white38,size:14),
                       ]))),
+              // Proje listesi - expand olunca acilir
               if(_projeMenuAcik)...[
                 const Divider(color:Colors.white12,height:1),
+                // Tum Firma butonu
                 GestureDetector(onTap:_projeTumFirma,
-                    child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
+                    child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
                         decoration:BoxDecoration(color:_projeId.isEmpty?Colors.white.withValues(alpha:0.1):Colors.transparent),
                         child:Row(children:[
-                          Icon(Icons.business_outlined,color:_projeId.isEmpty?Colors.white:Colors.white54,size:14),
+                          Icon(Icons.folder_open_outlined,color:_projeId.isEmpty?_turuncu:Colors.white54,size:13),
                           const SizedBox(width:8),
-                          Expanded(child:Text('Tum Firma',style:TextStyle(color:_projeId.isEmpty?Colors.white:Colors.white60,
-                              fontSize:11,fontWeight:_projeId.isEmpty?FontWeight.bold:FontWeight.normal))),
-                          if(_projeId.isEmpty)const Icon(Icons.check,color:Color(0xFFFF8C00),size:12),
+                          Expanded(child:Text('Tum Firma',style:TextStyle(
+                              color:_projeId.isEmpty?Colors.white:Colors.white60,
+                              fontSize:10,fontWeight:_projeId.isEmpty?FontWeight.bold:FontWeight.normal))),
+                          if(_projeId.isEmpty)const Icon(Icons.check,color:Color(0xFFFF8C00),size:11),
                         ]))),
-                ..._projeler.map((prj){
+                // Proje listesi - deduplicate + arama filtresi
+                ...(){
+                  // Deduplicate: ayni projeAd varsa sadece ilkini goster
+                  final goruldu=<String>{};
+                  final unique=_projeler.where((p){
+                    final ad=(p['projeAd']??p['ad']??'').toString().trim().toLowerCase();
+                    if(ad.isEmpty)return true;
+                    if(goruldu.contains(ad))return false;
+                    goruldu.add(ad);
+                    return true;
+                  }).toList();
+                  // Arama filtresi
+                  return unique.where((p)=>_aramaFirma.isEmpty||
+                      (p['projeAd']??'').toString().toLowerCase().contains(_aramaFirma.toLowerCase()));
+                }().map((prj){
                   final secili=_projeId==prj['id'];
-                  return GestureDetector(onTap:()=>_projeAyarla(prj['id'],prj['projeAd']??''),
-                      child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
-                          decoration:BoxDecoration(color:secili?_turuncu.withValues(alpha:0.15):Colors.transparent),
-                          child:Row(children:[
-                            Icon(Icons.folder_outlined,color:secili?_turuncu:Colors.white54,size:14),
-                            const SizedBox(width:8),
-                            Expanded(child:Text(prj['projeAd']??'',style:TextStyle(color:secili?_turuncu:Colors.white60,
-                                fontSize:11,fontWeight:secili?FontWeight.bold:FontWeight.normal),overflow:TextOverflow.ellipsis)),
-                            if(secili)const Icon(Icons.check,color:Color(0xFFFF8C00),size:12),
-                          ])));
-                }),
+                  return Container(
+                      decoration:BoxDecoration(color:secili?_turuncu.withValues(alpha:0.15):Colors.transparent),
+                      child:Row(children:[
+                        // Proje tiklama alani
+                        Expanded(child:GestureDetector(onTap:()=>_projeAyarla(prj['id'],prj['projeAd']??''),
+                            child:Padding(padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
+                                child:Row(children:[
+                                  Container(width:4,height:4,decoration:BoxDecoration(
+                                      color:secili?_turuncu:Colors.white38,shape:BoxShape.circle)),
+                                  const SizedBox(width:10),
+                                  Expanded(child:Text(prj['projeAd']??'',
+                                      style:TextStyle(color:secili?_turuncu:Colors.white60,
+                                          fontSize:10,fontWeight:secili?FontWeight.bold:FontWeight.normal),
+                                      overflow:TextOverflow.ellipsis)),
+                                  if(secili)const Icon(Icons.check,color:Color(0xFFFF8C00),size:10),
+                                ])))),
+                        // Uc nokta menu
+                        PopupMenuButton<String>(
+                            icon:Icon(Icons.more_vert,color:Colors.white38.withValues(alpha:secili?0.8:0.4),size:13),
+                            padding:EdgeInsets.zero,
+                            onSelected:(v) async{
+                              if(v=='ac'){_projeAyarla(prj['id'],prj['projeAd']??'');}
+                              else if(v=='harita'){setState(()=>_aktifSekme=10);_projeAyarla(prj['id'],prj['projeAd']??'');}
+                              else if(v=='soforler'){setState(()=>_aktifSekme=4);_projeAyarla(prj['id'],prj['projeAd']??'');}
+                              else if(v=='servisler'){setState(()=>_aktifSekme=2);_projeAyarla(prj['id'],prj['projeAd']??'');}
+                              else if(v=='arsiv'){
+                                await FirebaseFirestore.instance.collection('projects')
+                                    .doc(prj['id']).update({'aktif':false,'durum':'arsiv'});
+                                _yukle();
+                              }
+                            },
+                            itemBuilder:(_)=>[
+                              const PopupMenuItem(value:'ac',child:Row(children:[Icon(Icons.open_in_new_outlined,size:13),SizedBox(width:8),Text('Ac',style:TextStyle(fontSize:12))])),
+                              const PopupMenuItem(value:'harita',child:Row(children:[Icon(Icons.map_outlined,size:13),SizedBox(width:8),Text('Haritada Goster',style:TextStyle(fontSize:12))])),
+                              const PopupMenuItem(value:'soforler',child:Row(children:[Icon(Icons.person_outlined,size:13),SizedBox(width:8),Text('Soforleri Gor',style:TextStyle(fontSize:12))])),
+                              const PopupMenuItem(value:'servisler',child:Row(children:[Icon(Icons.directions_bus_outlined,size:13),SizedBox(width:8),Text('Servisleri Gor',style:TextStyle(fontSize:12))])),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(value:'arsiv',child:Row(children:[Icon(Icons.archive_outlined,size:13,color:Colors.orange),SizedBox(width:8),Text('Arsivle',style:TextStyle(fontSize:12,color:Colors.orange))])),
+                            ]),
+                      ]));
+                }).toList(),
+                // Yeni proje ekle
                 const Divider(color:Colors.white12,height:1),
-                GestureDetector(onTap:(){setState(()=>_projeMenuAcik=false);_projeEkleDialog();},
-                    child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
+                GestureDetector(
+                    onTap:(){setState(()=>_projeMenuAcik=false);_projeEkleDialog();},
+                    child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:9),
                         child:Row(children:[
                           Container(padding:const EdgeInsets.all(3),
                               decoration:BoxDecoration(color:_turuncu.withValues(alpha:0.2),borderRadius:BorderRadius.circular(4)),
-                              child:const Icon(Icons.add,color:Color(0xFFFF8C00),size:12)),
+                              child:const Icon(Icons.add,color:Color(0xFFFF8C00),size:11)),
                           const SizedBox(width:8),
-                          const Text('Yeni Proje Olustur',style:TextStyle(color:Color(0xFFFF8C00),fontSize:11,fontWeight:FontWeight.bold)),
+                          const Text('Yeni Proje Olustur',style:TextStyle(color:Color(0xFFFF8C00),fontSize:10,fontWeight:FontWeight.bold)),
                         ]))),
               ],
             ]),
           ),
-          const SizedBox(height:8),
+
+          const SizedBox(height:6),
           const Divider(color:Colors.white12),
+
+          // ── MENU LISTESI ──
           Expanded(child:ListView(padding:EdgeInsets.zero,children:_menuler.map((item){
             final secili=_aktifSekme==item.index;
             int badge=0;
@@ -304,31 +443,34 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
             return GestureDetector(onTap:()=>setState(()=>_aktifSekme=item.index),
                 child:Container(
                     margin:const EdgeInsets.symmetric(horizontal:10,vertical:2),
-                    padding:const EdgeInsets.symmetric(horizontal:14,vertical:10),
+                    padding:const EdgeInsets.symmetric(horizontal:12,vertical:9),
                     decoration:BoxDecoration(
                       color:secili?Colors.white.withValues(alpha:0.1):Colors.transparent,
                       borderRadius:BorderRadius.circular(10),
                       border:secili?Border.all(color:_turuncu.withValues(alpha:0.5)):null,
                     ),
                     child:Row(children:[
-                      Icon(item.ikon,color:secili?_turuncu:Colors.white54,size:17),
+                      Icon(item.ikon,color:secili?_turuncu:Colors.white54,size:16),
                       const SizedBox(width:10),
                       Expanded(child:Text(item.ad,style:TextStyle(color:secili?Colors.white:Colors.white60,
-                          fontWeight:secili?FontWeight.bold:FontWeight.normal,fontSize:12))),
-                      if(badge>0)Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
+                          fontWeight:secili?FontWeight.bold:FontWeight.normal,fontSize:11))),
+                      if(badge>0)Container(padding:const EdgeInsets.symmetric(horizontal:5,vertical:1),
                           decoration:BoxDecoration(color:Colors.red,borderRadius:BorderRadius.circular(10)),
-                          child:Text('$badge',style:const TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.bold))),
+                          child:Text('$badge',style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.bold))),
                     ])));
           }).toList())),
-          Container(padding:const EdgeInsets.all(14),
+
+          // ── KULLANICI ──
+          Container(padding:const EdgeInsets.all(12),
               child:Row(children:[
-                CircleAvatar(radius:14,backgroundColor:_turuncu,
+                CircleAvatar(radius:13,backgroundColor:_turuncu,
                     child:Text(_kullaniciAd.isNotEmpty?_kullaniciAd[0].toUpperCase():'A',
-                        style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:12))),
+                        style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold,fontSize:11))),
                 const SizedBox(width:8),
-                Expanded(child:Text(_kullaniciAd,style:const TextStyle(color:Colors.white70,fontSize:11),overflow:TextOverflow.ellipsis)),
-                IconButton(icon:const Icon(Icons.logout_outlined,color:Colors.white38,size:16),
-                    onPressed:() async {
+                Expanded(child:Text(_kullaniciAd,style:const TextStyle(color:Colors.white70,fontSize:10),overflow:TextOverflow.ellipsis)),
+                IconButton(icon:const Icon(Icons.logout_outlined,color:Colors.white38,size:14),
+                    padding:EdgeInsets.zero,constraints:const BoxConstraints(),
+                    onPressed:() async{
                       await SessionService.instance.cikisYap();
                       if(mounted)Navigator.pushReplacementNamed(context,'/');
                     }),
@@ -373,13 +515,13 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
           toplamSurucu:_toplamSurucu,toplamOgrenci:_toplamOgrenci,toplamVeli:_toplamVeli,
           toplamServis:_toplamServis,aktifServis:_aktifServis,bekleyenDevamsizlik:_bekleyenDevamsizlik,
           bekleyenBasvuru:_bekleyenBasvuru,atanmamisOgrenci:_atanmamisOgrenci,konumsuzOgrenci:_konumsuzOgrenci,
-          bekleyenSozlesme:_bekleyenSozlesme,acilDurum:_acilDurum,
+          bekleyenSozlesme:_bekleyenSozlesme,acilDurum:_acilDurum,toplamProje:_toplamProje,
           onNavigate:(i)=>setState(()=>_aktifSekme=i));
       case 1:return _ProjelerSekme(firmaId:_firmaId,projeler:_projeler,onProjeAyarla:_projeAyarla,onProjeEkle:_projeEkleDialog);
       case 2:return _ServislerSekme(firmaId:_firmaId,projeId:_projeId);
       case 3:return _AraclarSekme(firmaId:_firmaId);
-      case 4:return WebSoforler(firmaId:_firmaId);
-      case 5:return const WebOgrenciler();
+      case 4:return wsofor.WebSoforler(firmaId:_firmaId);
+      case 5:return _WebOgrencilerSekme(firmaId:_firmaId);
       case 6:return _VelilerSekme(firmaId:_firmaId,projeId:_projeId);
       case 7:return _KayitSistemiSekme(firmaId:_firmaId);
       case 8:return _SozlesmelerSekme(firmaId:_firmaId);
@@ -389,7 +531,7 @@ class _WebAdminPanelState extends State<WebAdminPanel> {
       case 12:return _PlakaTanimaSekme(firmaId:_firmaId);
       case 13:return _KarekodQrSekme(firmaId:_firmaId);
       case 14:return _BildirimlerSekme(firmaId:_firmaId);
-      case 15:return WebRaporlar(projeId:_projeId);
+      case 15:return _WebRaporlarSekme(firmaId:_firmaId,projeId:_projeId);
       case 16:return _ArsivSekme(firmaId:_firmaId);
       case 17:return const WebAyarlar();
       case 18:return const WebTestMerkezi();
@@ -418,14 +560,14 @@ class _WebAnaSayfa extends StatelessWidget{
   final String firmaId,projeId,projeAd;
   final int toplamSurucu,toplamOgrenci,toplamVeli,toplamServis,aktifServis;
   final int bekleyenDevamsizlik,bekleyenBasvuru,atanmamisOgrenci,konumsuzOgrenci;
-  final int bekleyenSozlesme,acilDurum;
+  final int bekleyenSozlesme,acilDurum,toplamProje;
   final void Function(int) onNavigate;
   static const _navy=Color(0xFF1a3a6b);
   const _WebAnaSayfa({required this.firmaId,required this.projeId,required this.projeAd,
     required this.toplamSurucu,required this.toplamOgrenci,required this.toplamVeli,
     required this.toplamServis,required this.aktifServis,required this.bekleyenDevamsizlik,
     required this.bekleyenBasvuru,required this.atanmamisOgrenci,required this.konumsuzOgrenci,
-    required this.bekleyenSozlesme,required this.acilDurum,required this.onNavigate});
+    required this.bekleyenSozlesme,required this.acilDurum,required this.toplamProje,required this.onNavigate});
 
   @override Widget build(BuildContext context)=>SingleChildScrollView(
       padding:const EdgeInsets.all(24),
@@ -541,7 +683,7 @@ class _HB extends StatelessWidget{
 
 //  PROJELER
 // ─────────────────────────────────────────────────────────────────
-//  PROJELER SEKMESİ  –  Tam Özellikli
+//  PROJELER SEKMESI  –  Tam Ozellikli
 // ─────────────────────────────────────────────────────────────────
 class _ProjelerSekme extends StatefulWidget{
   final String firmaId;
@@ -698,7 +840,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
                       ]))),
           ]),
           const SizedBox(height:14),
-          const Text('Calısma Gunleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const Text('Calisma Gunleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
           const SizedBox(height:8),
           Wrap(spacing:6,children:[
             for(final g in ['Pzt','Sal','Car','Per','Cum','Cmt','Paz'])
@@ -775,6 +917,19 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
             onPressed:() async{
               if(adCtrl.text.trim().isEmpty) return;
+              // Duplicate kontrol - Firestore'dan kontrol et
+              final yeniAd=adCtrl.text.trim().toLowerCase();
+              final mevcut=await FirebaseFirestore.instance.collection('projects')
+                  .where('firmaId',isEqualTo:widget.firmaId)
+                  .where('aktif',isEqualTo:true).get();
+              final dupVar=mevcut.docs.any((d)=>
+              (d.data()['projeAd']??'').toString().trim().toLowerCase()==yeniAd);
+              if(dupVar){
+                if(ctx.mounted)ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                    content:Text('Bu isimde bir proje zaten mevcut!'),backgroundColor:Colors.orange,
+                    behavior:SnackBarBehavior.floating));
+                return;
+              }
               await FirebaseFirestore.instance.collection('projects').add({
                 'firmaId':widget.firmaId,
                 'projeAd':adCtrl.text.trim(),
@@ -798,7 +953,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
         ])));
   }
 
-  // ── PROJE DÜZENLE ───────────────────────────────────────────────
+  // ── PROJE DUZENLE ───────────────────────────────────────────────
   void _projeDuzenleDialog(BuildContext context,String projeId,Map<String,dynamic> d){
     final adCtrl=TextEditingController(text:d['projeAd']??d['ad']??'');
     final donemCtrl=TextEditingController(text:d['donem']??'');
@@ -838,7 +993,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
                           color:tip==t.$1?Colors.white:Colors.grey,
                           fontWeight:tip==t.$1?FontWeight.bold:FontWeight.normal)))),
           ]),const SizedBox(height:14),
-          const Text('Calısma Gunleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
+          const Text('Calisma Gunleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
           const SizedBox(height:8),
           Wrap(spacing:6,children:[
             for(final g in ['Pzt','Sal','Car','Per','Cum','Cmt','Paz'])
@@ -984,7 +1139,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
                           fontWeight:bildirimMesafe==m.$1?FontWeight.bold:FontWeight.normal)))),
           ]),
           const SizedBox(height:14),
-          // Konum güncelleme süresi
+          // Konum guncelleme suresi
           const Text('Konum Guncelleme Suresi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
           const SizedBox(height:8),
           Wrap(spacing:8,children:[
@@ -1090,7 +1245,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
     if(onay!=true) return;
 
     try{
-      // Yeni proje oluştur
+      // Yeni proje olustur
       final yeniRef=await FirebaseFirestore.instance.collection('projects').add({
         ...d,
         'projeAd':adCtrl.text.trim(),
@@ -1102,7 +1257,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
         'kopyalandiFrom':projeId,
       });
 
-      // Araçları kopyala
+      // Araclari kopyala
       if(kopyalaAraclar){
         final araclar=await FirebaseFirestore.instance.collection('vehicles')
             .where('firmaId',isEqualTo:widget.firmaId).get();
@@ -1115,7 +1270,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
         }
       }
 
-      // Şoförleri kopyala (projeye ekle)
+      // Soforleri kopyala (projeye ekle)
       if(kopyalaSoforler){
         final soforler=await FirebaseFirestore.instance.collection('drivers')
             .where('firmaId',isEqualTo:widget.firmaId)
@@ -1130,7 +1285,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
         }
       }
 
-      // Fiyatları kopyala
+      // Fiyatlari kopyala
       if(kopyalaFiyatlar){
         final fiyatlar=await FirebaseFirestore.instance.collection('fiyatlar')
             .where('firmaId',isEqualTo:widget.firmaId).get();
@@ -1155,7 +1310,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
     }
   }
 
-  // ── PROJE ARŞİVLE ───────────────────────────────────────────────
+  // ── PROJE ARSIVLE ───────────────────────────────────────────────
   Future<void> _projeArsivle(BuildContext context,String projeId,Map<String,dynamic> d) async{
     final onay=await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
         title:const Text('Projeyi Arsivle'),
@@ -1180,7 +1335,7 @@ class _ProjelerSekmeState extends State<_ProjelerSekme>{
           isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10)));
 }
 
-// ── PROJE KART WİDGET ───────────────────────────────────────────
+// ── PROJE KART WIDGET ───────────────────────────────────────────
 class _ProjeKarti extends StatelessWidget{
   final String projeId,firmaId;
   final Map<String,dynamic> data;
@@ -1239,7 +1394,7 @@ class _ProjeKarti extends StatelessWidget{
             ]),
           ),
         ),
-        // İstatistikler
+        // Istatistikler
         FutureBuilder<Map<String,int>>(
           future:_istatistikCek(),
           builder:(_,snap){
@@ -1255,7 +1410,7 @@ class _ProjeKarti extends StatelessWidget{
             );
           },
         ),
-        // Çalışma günleri
+        // Calisma gunleri
         if((data['calismaGunleri'] as List?)?.isNotEmpty==true)
           Padding(
             padding:const EdgeInsets.only(left:16,right:16,bottom:10),
@@ -1282,7 +1437,7 @@ class _ProjeKarti extends StatelessWidget{
               color:Colors.grey[50],
               borderRadius:const BorderRadius.vertical(bottom:Radius.circular(16))),
           child:Row(children:[
-            // Seç
+            // Sec
             Expanded(child:ElevatedButton.icon(
               style:ElevatedButton.styleFrom(backgroundColor:r,foregroundColor:Colors.white,
                   padding:const EdgeInsets.symmetric(vertical:8),
@@ -1292,7 +1447,7 @@ class _ProjeKarti extends StatelessWidget{
               label:const Text('Sec',style:TextStyle(fontSize:12)),
             )),
             const SizedBox(width:6),
-            // Düzenle
+            // Duzenle
             IconButton(tooltip:'Duzenle',
                 onPressed:onDuzenle,
                 icon:const Icon(Icons.edit_outlined,color:_navy,size:18)),
@@ -1304,7 +1459,7 @@ class _ProjeKarti extends StatelessWidget{
             IconButton(tooltip:'Kopyala',
                 onPressed:onKopyala,
                 icon:const Icon(Icons.copy_outlined,color:Colors.teal,size:18)),
-            // Arşivle
+            // Arsivle
             if(durum!='arsiv')
               IconButton(tooltip:'Arsivle',
                   onPressed:onArsivle,
@@ -1347,7 +1502,7 @@ class _ProjeKarti extends StatelessWidget{
 
 //  SERVISLER
 // ─────────────────────────────────────────────────────────────────
-//  SERVİSLER SEKMESİ – Bölüm 4 Tam Sürüm
+//  SERVISLER SEKMESI – Bolum 4 Tam Surum
 // ─────────────────────────────────────────────────────────────────
 class _ServislerSekme extends StatefulWidget{
   final String firmaId,projeId;
@@ -1369,7 +1524,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
     Color(0xFFFB8C00), Color(0xFF8E24AA), Color(0xFF00ACC1),
     Color(0xFFF4511E), Color(0xFF3949AB),
   ];
-  static const _renkAdlari=['Lacivert','Kirmizi','Yesil','Turuncu','Mor','Camgobegi','Mercan','İndigo'];
+  static const _renkAdlari=['Lacivert','Kirmizi','Yesil','Turuncu','Mor','Camgobegi','Mercan','Indigo'];
 
   @override void initState(){
     super.initState();
@@ -1466,7 +1621,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                         border:Border(left:BorderSide(color:servisRenk,width:4)),
                         boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:8)]),
                     child:Column(children:[
-                      // Ana bilgi satırı
+                      // Ana bilgi satiri
                       Padding(
                         padding:const EdgeInsets.all(14),
                         child:Row(children:[
@@ -1482,7 +1637,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                               if(arsiv)
                                 Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:2),
                                     decoration:BoxDecoration(color:Colors.grey.withValues(alpha:0.1),borderRadius:BorderRadius.circular(4)),
-                                    child:const Text('ARSİV',style:TextStyle(fontSize:9,color:Colors.grey,fontWeight:FontWeight.bold))),
+                                    child:const Text('ARSIV',style:TextStyle(fontSize:9,color:Colors.grey,fontWeight:FontWeight.bold))),
                             ]),
                             const SizedBox(height:4),
                             Wrap(spacing:6,runSpacing:4,children:[
@@ -1492,7 +1647,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                               if(aksam.isNotEmpty)_ch('A:'+aksam,Colors.indigo),
                             ]),
                           ])),
-                          // Sağ taraf: durum + aksiyon
+                          // Sag taraf: durum + aksiyon
                           Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
                             Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
                                 decoration:BoxDecoration(
@@ -1503,7 +1658,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                                         color:aktif?Colors.green:Colors.grey))),
                             const SizedBox(height:6),
                             Row(children:[
-                              // Başlat/Durdur
+                              // Baslat/Durdur
                               _aksBtn(
                                   aktif?Icons.stop_circle_outlined:Icons.play_circle_outlined,
                                   aktif?Colors.orange:Colors.green,
@@ -1512,22 +1667,22 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                                         .doc(doc.id).update({'aktif':!aktif,'guncelleme':FieldValue.serverTimestamp()});
                                   }),
                               const SizedBox(width:4),
-                              // Düzenle
+                              // Duzenle
                               _aksBtn(Icons.edit_outlined,_navy,
                                       ()=>_ServisDuzenleDialog.goster(context,doc.id,d,widget.firmaId)),
                               const SizedBox(width:4),
-                              // Öğrenci ata
+                              // Ogrenci ata
                               _aksBtn(Icons.person_add_outlined,Colors.teal,
                                       ()=>_ogrenciAtaDialog(context,doc.id,ad)),
                               const SizedBox(width:4),
-                              // Arşivle/Arşivden çıkar
+                              // Arsivle/Arsivden cikar
                               _aksBtn(arsiv?Icons.unarchive_outlined:Icons.archive_outlined,
                                   Colors.grey,()=>_arsivle(doc.id,arsiv)),
                             ]),
                           ]),
                         ]),
                       ),
-                      // Doluluk çubuğu
+                      // Doluluk cubugu
                       Padding(
                         padding:const EdgeInsets.only(left:14,right:14,bottom:12),
                         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1551,7 +1706,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                   );
                 });
           }),
-      // Tab 2: Doluluk Özeti
+      // Tab 2: Doluluk Ozeti
       StreamBuilder<QuerySnapshot>(
           stream:(){
             var q=FirebaseFirestore.instance.collection('services')
@@ -1569,7 +1724,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
               toplamOgr+=(d['ogrenciSayisi']??0) as int;
             }
             return Column(children:[
-              // Genel özet
+              // Genel ozet
               Container(margin:const EdgeInsets.all(16),padding:const EdgeInsets.all(16),
                   decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
                       boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)]),
@@ -1655,7 +1810,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
     ])),
   ]);
 
-  // ── SERVİS EKLE ─────────────────────────────────────────────────
+  // ── SERVIS EKLE ─────────────────────────────────────────────────
   void _ekle(){
     final adC=TextEditingController();
     final kapC=TextEditingController(text:'17');
@@ -1755,7 +1910,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                   'renkIndex':renkIdx,
                   'aktif':true,'arsiv':false,
                   'ogrenciSayisi':0,
-                  // 360 kamera altyapısı
+                  // 360 kamera altyapisi
                   'kameraOn':false,'kameraArkа':false,
                   'kameraIc':false,'kameraYanL':false,'kameraYanR':false,
                   'olusturmaTarihi':FieldValue.serverTimestamp(),
@@ -1766,7 +1921,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
         ])));
   }
 
-  // ── ÖĞRENCİ ATA DIALOG ──────────────────────────────────────────
+  // ── OGRENCI ATA DIALOG ──────────────────────────────────────────
   void _ogrenciAtaDialog(BuildContext context,String servisId,String servisAd){
     showDialog(context:context,builder:(_)=>AlertDialog(
         shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
@@ -1782,7 +1937,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
         content:SizedBox(
           width:520,height:500,
           child:Column(children:[
-            // Atanmış öğrenciler
+            // Atanmis ogrenciler
             Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),color:Colors.green.withValues(alpha:0.05),
                 child:const Row(children:[
                   Icon(Icons.check_circle_outline,color:Colors.green,size:14),SizedBox(width:6),
@@ -1810,7 +1965,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                                 onPressed:() async{
                                   await FirebaseFirestore.instance.collection('students').doc(docs[i].id)
                                       .update({'servisId':'','servisAd':'','updatedAt':FieldValue.serverTimestamp()});
-                                  // Servis sayısını güncelle
+                                  // Servis sayisini guncelle
                                   final cnt=await FirebaseFirestore.instance.collection('students')
                                       .where('firmaId',isEqualTo:widget.firmaId)
                                       .where('servisId',isEqualTo:servisId).count().get();
@@ -1820,7 +1975,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
                       });
                 })),
             const Divider(height:1),
-            // Atanmamış öğrenciler
+            // Atanmamis ogrenciler
             Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:8),color:Colors.orange.withValues(alpha:0.05),
                 child:const Row(children:[
                   Icon(Icons.pending_outlined,color:Colors.orange,size:14),SizedBox(width:6),
@@ -1868,7 +2023,7 @@ class _ServislerSekmeState extends State<_ServislerSekme>
         ]));
   }
 
-  // ── ARŞİVLE ─────────────────────────────────────────────────────
+  // ── ARSIVLE ─────────────────────────────────────────────────────
   Future<void> _arsivle(String docId,bool mevcutArsiv) async{
     if(!mevcutArsiv){
       final onay=await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
@@ -2197,10 +2352,10 @@ class _BekleyenBasvurularState extends State<_BekleyenBasvurular>{
   static const _navy=Color(0xFF1a3a6b);
 
   Future<void> _onaylaBasvuru(BuildContext context,String docId,Map<String,dynamic> d) async{
-    // Otomatik kayıt oluştur
+    // Otomatik kayit olustur
     final fb=FirebaseFirestore.instance;
     final batch=fb.batch();
-    // 1. Öğrenci kaydı
+    // 1. Ogrenci kaydi
     final ogrRef=fb.collection('students').doc();
     batch.set(ogrRef,{
       'firmaId':widget.firmaId,
@@ -2217,7 +2372,7 @@ class _BekleyenBasvurularState extends State<_BekleyenBasvurular>{
       'basvuruId':docId,
       'olusturmaTarihi':FieldValue.serverTimestamp(),
     });
-    // 2. Veli kaydı
+    // 2. Veli kaydi
     final veliRef=fb.collection('parents').doc();
     batch.set(veliRef,{
       'firmaId':widget.firmaId,
@@ -2231,7 +2386,7 @@ class _BekleyenBasvurularState extends State<_BekleyenBasvurular>{
       'ogrenciId':ogrRef.id,
       'olusturmaTarihi':FieldValue.serverTimestamp(),
     });
-    // 3. Tahsilat kaydı
+    // 3. Tahsilat kaydi
     if((d['fiyat']??0)>0){
       final tahRef=fb.collection('tahsilat').doc();
       batch.set(tahRef,{
@@ -2245,14 +2400,14 @@ class _BekleyenBasvurularState extends State<_BekleyenBasvurular>{
         'tarih':FieldValue.serverTimestamp(),
       });
     }
-    // 4. Başvuruyu onayla
+    // 4. Basvuruyu onayla
     batch.update(fb.collection('kayit_basvurulari').doc(docId),{
       'durum':'onaylandi',
       'ogrenciId':ogrRef.id,
       'veliId':veliRef.id,
       'onayTarihi':FieldValue.serverTimestamp(),
     });
-    // 5. Öğrenci veliId'sini güncelle
+    // 5. Ogrenci veliId'sini guncelle
     batch.update(ogrRef,{'veliId':veliRef.id});
     await batch.commit();
     if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -2657,7 +2812,7 @@ class _SozListesi extends StatelessWidget{
 
 //  FIYATLANDIRMA
 // ─────────────────────────────────────────────────────────────────
-//  HARİTA MODÜLÜ – Bölüm 10
+//  HARITA MODULU – Bolum 10
 // ─────────────────────────────────────────────────────────────────
 class _HaritaModul extends StatefulWidget{
   final String firmaId,projeId;
@@ -2701,7 +2856,7 @@ class _HaritaModulState extends State<_HaritaModul>{
   ]);
 }
 
-// ── ÖĞRENCİ DAĞILIMI ─────────────────────────────────────────────
+// ── OGRENCI DAGILIMI ─────────────────────────────────────────────
 class _OgrenciDagilimi extends StatefulWidget{
   final String firmaId,projeId;
   const _OgrenciDagilimi({required this.firmaId,required this.projeId});
@@ -2740,7 +2895,7 @@ class _OgrenciDagilimiState extends State<_OgrenciDagilimi>{
           if(_filtre=='atanmis')docs=docs.where((d)=>(d.data() as Map)['servisId']?.isNotEmpty==true).toList();
           if(_filtre=='atanmamis')docs=docs.where((d){final dd=d.data() as Map;return (dd['servisId']??'').isEmpty;}).toList();
 
-          // Servis bazlı gruplama
+          // Servis bazli gruplama
           final Map<String,List<Map<String,dynamic>>> servisGrubu={};
           final List<Map<String,dynamic>> atanmamis=[];
           for(final doc in docs){
@@ -2752,7 +2907,7 @@ class _OgrenciDagilimiState extends State<_OgrenciDagilimi>{
           }
 
           return Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            // Sol: İstatistik özeti
+            // Sol: Istatistik ozeti
             Container(width:220,color:Colors.white,padding:const EdgeInsets.all(16),
                 child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   const Text('Ozet',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:14)),
@@ -2784,7 +2939,7 @@ class _OgrenciDagilimiState extends State<_OgrenciDagilimi>{
                         ])),
                   ])),
                 ])),
-            // Sağ: Liste
+            // Sag: Liste
             Expanded(child:docs.isEmpty
                 ? _bos('Ogrenci bulunamadi','',Icons.school_outlined)
                 : ListView.builder(
@@ -2825,7 +2980,7 @@ class _OgrenciDagilimiState extends State<_OgrenciDagilimi>{
   ]));
 }
 
-// ── SERVİS DOLULUK ───────────────────────────────────────────────
+// ── SERVIS DOLULUK ───────────────────────────────────────────────
 class _ServisDoluluk extends StatelessWidget{
   final String firmaId,projeId;
   const _ServisDoluluk({required this.firmaId,required this.projeId});
@@ -2850,7 +3005,7 @@ class _ServisDoluluk extends StatelessWidget{
         }
 
         return Column(children:[
-          // Genel özet
+          // Genel ozet
           Container(margin:const EdgeInsets.all(16),padding:const EdgeInsets.all(16),
               decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
                   boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)]),
@@ -2933,7 +3088,7 @@ class _ServisDoluluk extends StatelessWidget{
   ]));
 }
 
-// ── ROTA YÖNETİMİ ────────────────────────────────────────────────
+// ── ROTA YONETIMI ────────────────────────────────────────────────
 class _RotaYonetimi extends StatefulWidget{
   final String firmaId,projeId;
   const _RotaYonetimi({required this.firmaId,required this.projeId});
@@ -2944,7 +3099,7 @@ class _RotaYonetimiState extends State<_RotaYonetimi>{
   String? _seciliServisId;
 
   @override Widget build(BuildContext context)=>Row(children:[
-    // Sol: Servis seçici
+    // Sol: Servis secici
     Container(width:240,color:Colors.white,
         child:Column(children:[
           Container(padding:const EdgeInsets.all(14),color:_navy,
@@ -2986,7 +3141,7 @@ class _RotaYonetimiState extends State<_RotaYonetimi>{
                     });
               })),
         ])),
-    // Sağ: Seçili servisin durakları
+    // Sag: Secili servisin duraklari
     Expanded(child:_seciliServisId==null
         ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
       Icon(Icons.touch_app_outlined,size:56,color:Colors.grey[300]),
@@ -3057,7 +3212,7 @@ class _ServisDuraklari extends StatelessWidget{
   ]);
 }
 
-// ── HARİTA RAPORU ────────────────────────────────────────────────
+// ── HARITA RAPORU ────────────────────────────────────────────────
 class _HaritaRaporu extends StatelessWidget{
   final String firmaId,projeId;
   const _HaritaRaporu({required this.firmaId,required this.projeId});
@@ -3075,7 +3230,7 @@ class _HaritaRaporu extends StatelessWidget{
           const Text('Harita ve Servis Raporu',
               style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:20),
-          // Özet kartlar
+          // Ozet kartlar
           Row(children:[
             _rKarti('Toplam Servis',(data['toplamServis']??0).toString(),_navy,Icons.directions_bus_outlined),
             const SizedBox(width:12),
@@ -3086,7 +3241,7 @@ class _HaritaRaporu extends StatelessWidget{
             _rKarti('Atanmamis',(data['atanmamis']??0).toString(),Colors.red,Icons.pending_outlined),
           ]),
           const SizedBox(height:24),
-          // Servis karşılaştırma
+          // Servis karsilastirma
           const Text('Servis Karsilastirma',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:10),
           Container(padding:const EdgeInsets.all(16),
@@ -3170,7 +3325,7 @@ class _HaritaRaporu extends StatelessWidget{
 
 
 // ─────────────────────────────────────────────────────────────────
-//  SÖZLEŞME ŞABLON YÖNETİMİ
+//  SOZLESME SABLON YONETIMI
 // ─────────────────────────────────────────────────────────────────
 class _SablonYonetim extends StatefulWidget{
   final String firmaId;
@@ -3208,10 +3363,10 @@ class _SablonYonetimState extends State<_SablonYonetim>{
           Container(padding:const EdgeInsets.all(10),
               decoration:BoxDecoration(color:_navy.withValues(alpha:0.04),borderRadius:BorderRadius.circular(8)),
               child:const Wrap(spacing:8,runSpacing:4,children:[
-                _TagChip('[VELİ_ADI]'),_TagChip('[ÖĞRENCİ_ADI]'),
-                _TagChip('[PROJE_ADI]'),_TagChip('[ÜCRET]'),
-                _TagChip('[TARİH]'),_TagChip('[FİRMA_ADI]'),
-                _TagChip('[ŞOFÖR_ADI]'),_TagChip('[ARAÇ_PLAKA]'),
+                _TagChip('[VELI_ADI]'),_TagChip('[OGRENCI_ADI]'),
+                _TagChip('[PROJE_ADI]'),_TagChip('[UCRET]'),
+                _TagChip('[TARIH]'),_TagChip('[FIRMA_ADI]'),
+                _TagChip('[SOFOR_ADI]'),_TagChip('[ARAC_PLAKA]'),
               ])),
           const SizedBox(height:8),
           TextField(controller:icerikCtrl,maxLines:12,
@@ -3248,8 +3403,8 @@ class _SablonYonetimState extends State<_SablonYonetim>{
   }
 
   String _varsayilanSablon()=>'SERVIS SOZLESMESI'
-      '\n\nSayin [VELİ_ADI],'
-      '\n\n[PROJE_ADI] projesi kapsaminda [OGRENCİ_ADI] isimli ogrencimizin'
+      '\n\nSayin [VELI_ADI],'
+      '\n\n[PROJE_ADI] projesi kapsaminda [OGRENCI_ADI] isimli ogrencimizin'
       '\nservis hizmetinden yararlanacagini teyid ederiz.'
       '\n\nAylik Servis Ucreti: [UCRET] TL'
       '\n\nSozlesme Tarihi: [TARIH]'
@@ -3337,7 +3492,7 @@ class _TagChip extends StatelessWidget{
 }
 
 // ─────────────────────────────────────────────────────────────────
-//  EVRAK MERKEZİ
+//  EVRAK MERKEZI
 // ─────────────────────────────────────────────────────────────────
 class _EvrakMerkezi extends StatefulWidget{
   final String firmaId;
@@ -3375,7 +3530,7 @@ class _EvrakMerkeziState extends State<_EvrakMerkezi>{
   ]);
 }
 
-// ─── ŞOFÖR EVRAKLARI ─────────────────────────────────────────────
+// ─── SOFOR EVRAKLARI ─────────────────────────────────────────────
 class _SoforEvraklari extends StatelessWidget{
   final String firmaId;
   const _SoforEvraklari({required this.firmaId});
@@ -3422,7 +3577,7 @@ class _SoforEvraklari extends StatelessWidget{
                         if(uyari)...[
                           const Icon(Icons.access_time_outlined,size:12,color:Colors.orange),
                           const SizedBox(width:4),
-                          const Text('Bitis tarihi yaklasıyor',style:TextStyle(fontSize:11,color:Colors.orange)),
+                          const Text('Bitis tarihi yaklasiyor',style:TextStyle(fontSize:11,color:Colors.orange)),
                         ],
                       ]),
                       children:[
@@ -3457,7 +3612,7 @@ class _SoforEvraklari extends StatelessWidget{
       ]));
 }
 
-// ─── ARAÇ EVRAKLARI ──────────────────────────────────────────────
+// ─── ARAC EVRAKLARI ──────────────────────────────────────────────
 class _AracEvraklari extends StatelessWidget{
   final String firmaId;
   const _AracEvraklari({required this.firmaId});
@@ -3506,7 +3661,7 @@ class _AracEvraklari extends StatelessWidget{
       });
 }
 
-// ─── ÖĞRENCİ EVRAKLARI ──────────────────────────────────────────
+// ─── OGRENCI EVRAKLARI ──────────────────────────────────────────
 class _OgrenciEvraklari extends StatelessWidget{
   final String firmaId;
   const _OgrenciEvraklari({required this.firmaId});
@@ -3574,7 +3729,7 @@ class _EvrakRaporu extends StatelessWidget{
             crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Evrak Raporu',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:20),
-          // Sözleşme özeti
+          // Sozlesme ozeti
           const Text('Sozlesme Durumu',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:10),
           Row(children:[
@@ -3587,7 +3742,7 @@ class _EvrakRaporu extends StatelessWidget{
             _rKarti('Suresi Doldu',(data['sozlesmeSuresiDoldu']??0).toString(),Colors.red,Icons.timer_off_outlined),
           ]),
           const SizedBox(height:24),
-          // Şoför evrak özeti
+          // Sofor evrak ozeti
           const Text('Sofor Evrak Durumu',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:10),
           Row(children:[
@@ -3598,7 +3753,7 @@ class _EvrakRaporu extends StatelessWidget{
             _rKarti('Bitis Yaklasan',(data['soforYaklasan']??0).toString(),Colors.orange,Icons.access_time_outlined),
           ]),
           const SizedBox(height:24),
-          // Araç evrak özeti
+          // Arac evrak ozeti
           const Text('Arac Evrak Durumu',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:10),
           Row(children:[
@@ -3675,7 +3830,7 @@ class _EvrakRaporu extends StatelessWidget{
 
 
 // ─────────────────────────────────────────────────────────────────
-//  FİYATLANDIRMA SEKMESİ – Bölüm 8 Tam Sürüm
+//  FIYATLANDIRMA SEKMESI – Bolum 8 Tam Surum
 // ─────────────────────────────────────────────────────────────────
 class _FiyatlandirmaSekme extends StatefulWidget{
   final String firmaId;
@@ -3722,7 +3877,7 @@ class _FiyatlandirmaSekmeState extends State<_FiyatlandirmaSekme>{
   ]);
 }
 
-// ── BÖLGE/MAHALLE FİYATI ─────────────────────────────────────────
+// ── BOLGE/MAHALLE FIYATI ─────────────────────────────────────────
 class _BolgeMahalleFiyat extends StatefulWidget{
   final String firmaId;
   const _BolgeMahalleFiyat({required this.firmaId});
@@ -3821,12 +3976,12 @@ class _BolgeMahalleFiyatState extends State<_BolgeMahalleFiyat>{
           })),
     ])),
     const VerticalDivider(width:1),
-    // Sağ: Form
+    // Sag: Form
     Container(width:300,padding:const EdgeInsets.all(24),color:Colors.white,
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Yeni Fiyat Ekle',style:TextStyle(fontSize:15,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:12),
-          // Tip seçici
+          // Tip secici
           Row(children:[for(final t in [('bolge','Bolge'),('mahalle','Mahalle'),('manuel','Manuel')])
             Expanded(child:GestureDetector(onTap:()=>setState(()=>_tip=t.$1),
                 child:Container(margin:const EdgeInsets.only(right:4),padding:const EdgeInsets.symmetric(vertical:8),
@@ -3867,7 +4022,7 @@ class _BolgeMahalleFiyatState extends State<_BolgeMahalleFiyat>{
   ]);
 }
 
-// ── KM BAZLI FİYAT ───────────────────────────────────────────────
+// ── KM BAZLI FIYAT ───────────────────────────────────────────────
 class _KmFiyat extends StatefulWidget{
   final String firmaId;
   const _KmFiyat({required this.firmaId});
@@ -3989,7 +4144,7 @@ class _KmFiyatState extends State<_KmFiyat>{
   ]);
 }
 
-// ── KARDEŞ İNDİRİMİ ─────────────────────────────────────────────
+// ── KARDES INDIRIMI ─────────────────────────────────────────────
 class _KardesIndirim extends StatefulWidget{
   final String firmaId;
   const _KardesIndirim({required this.firmaId});
@@ -3998,7 +4153,7 @@ class _KardesIndirim extends StatefulWidget{
 class _KardesIndirimState extends State<_KardesIndirim>{
   static const _navy=Color(0xFF1a3a6b);
   static const _t=Color(0xFFFF8C00);
-  // Kardeş indirimi ayarları
+  // Kardes indirimi ayarlari
   bool _aktif=false;
   double _ikinci=10; // %
   double _ucuncu=15;
@@ -4040,13 +4195,13 @@ class _KardesIndirimState extends State<_KardesIndirim>{
     if(!_yuklendi)return const Center(child:CircularProgressIndicator());
     return SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(
         crossAxisAlignment:CrossAxisAlignment.start,children:[
-      // Başlık
+      // Baslik
       Row(children:[
         const Icon(Icons.family_restroom_outlined,color:_navy,size:22),
         const SizedBox(width:10),
         const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Text('Kardes Indirimi',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
-          Text('Ayni aileden birden fazla ogrenci varsa indirim uygulayın.',
+          Text('Ayni aileden birden fazla ogrenci varsa indirim uygulayin.',
               style:TextStyle(fontSize:12,color:Colors.grey)),
         ])),
         Switch(value:_aktif,activeThumbColor:_t,onChanged:(v)=>setState(()=>_aktif=v)),
@@ -4054,7 +4209,7 @@ class _KardesIndirimState extends State<_KardesIndirim>{
             color:_aktif?Colors.green:Colors.grey)),
       ]),
       const SizedBox(height:24),
-      // İndirim oranları
+      // Indirim oranlari
       Container(padding:const EdgeInsets.all(20),
           decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),
               boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:8)]),
@@ -4068,7 +4223,7 @@ class _KardesIndirimState extends State<_KardesIndirim>{
             _indirimSatir('4. ve sonrasi',Icons.child_care_outlined,_dorduncu,(v)=>setState(()=>_dorduncu=v)),
           ])),
       const SizedBox(height:24),
-      // Örnek hesap
+      // Ornek hesap
       Container(padding:const EdgeInsets.all(16),
           decoration:BoxDecoration(color:_navy.withValues(alpha:0.04),borderRadius:BorderRadius.circular(12),
               border:Border.all(color:_navy.withValues(alpha:0.1))),
@@ -4121,7 +4276,7 @@ class _KardesIndirimState extends State<_KardesIndirim>{
   ]));
 }
 
-// ── ÖZEL FİYATLAR ───────────────────────────────────────────────
+// ── OZEL FIYATLAR ───────────────────────────────────────────────
 class _OzelFiyatlar extends StatefulWidget{
   final String firmaId;
   const _OzelFiyatlar({required this.firmaId});
@@ -4232,7 +4387,7 @@ class _OzelFiyatlarState extends State<_OzelFiyatlar>{
   }
 }
 
-// ── TOPLU GÜNCELLEME ─────────────────────────────────────────────
+// ── TOPLU GUNCELLEME ─────────────────────────────────────────────
 class _TopluGuncelleme extends StatefulWidget{
   final String firmaId;
   const _TopluGuncelleme({required this.firmaId});
@@ -4268,12 +4423,12 @@ class _TopluGuncellemeState extends State<_TopluGuncelleme>{
       final snap=await FirebaseFirestore.instance.collection(kolleksiyon)
           .where('firmaId',isEqualTo:widget.firmaId).get();
 
-      // Batch write ile güncelle
+      // Batch write ile guncelle
       var batch=FirebaseFirestore.instance.batch();
       int count=0;
       for(final doc in snap.docs){
         final d=doc.data() as Map<String,dynamic>;
-        // Kilitli sözleşmesi olanları atla
+        // Kilitli sozlesmesi olanlari atla
         if(_hedef=='students'&&d['sozlesmeKilitli']==true)continue;
         final mevcutFiyat=(d['fiyat'] as num?)?.toDouble()??0;
         if(mevcutFiyat==0)continue;
@@ -4313,7 +4468,7 @@ class _TopluGuncellemeState extends State<_TopluGuncelleme>{
               style:TextStyle(fontSize:12,color:Colors.orange))),
         ])),
     const SizedBox(height:24),
-    // İşlem tipi
+    // Islem tipi
     const Text('Islem Tipi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:14)),
     const SizedBox(height:10),
     Row(children:[
@@ -4391,7 +4546,7 @@ class _TopluGuncellemeState extends State<_TopluGuncelleme>{
   ]));
 }
 
-// ── ÜCRET RAPORU ─────────────────────────────────────────────────
+// ── UCRET RAPORU ─────────────────────────────────────────────────
 class _UcretRaporu extends StatelessWidget{
   final String firmaId;
   const _UcretRaporu({required this.firmaId});
@@ -4426,7 +4581,7 @@ class _UcretRaporu extends StatelessWidget{
             crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Ucret Raporu',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:20),
-          // Özet kartlar
+          // Ozet kartlar
           Row(children:[
             _rKarti('Ortalama Ucret',ortalama.round().toString()+' TL',_navy,Icons.calculate_outlined),
             const SizedBox(width:12),
@@ -4437,7 +4592,7 @@ class _UcretRaporu extends StatelessWidget{
             _rKarti('Toplam Gelir (Aylik)',toplam.round().toString()+' TL',Colors.teal,Icons.account_balance_wallet_outlined),
           ]),
           const SizedBox(height:24),
-          // Bölge dağılımı
+          // Bolge dagilimi
           if(bolgeMap.isNotEmpty)...[
             const Text('Bolge/Mahalle Ucret Dagilimi',
                 style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
@@ -4545,7 +4700,7 @@ class _DevamsizlikSekmeState extends State<_DevamsizlikSekme>{
 
 //  PLAKA TANIMA
 // ─────────────────────────────────────────────────────────────────
-//  PLAKA / QR / KOLEJ GİRİŞ SİSTEMİ – Bölüm 15
+//  PLAKA / QR / KOLEJ GIRIS SISTEMI – Bolum 15
 // ─────────────────────────────────────────────────────────────────
 class _PlakaTanimaSekme extends StatefulWidget{
   final String firmaId;
@@ -4618,7 +4773,7 @@ class _PlakaKayitlari extends StatelessWidget{
           final docs=snap.data?.docs??[];
           if(docs.isEmpty)return _bos('Plaka kaydi yok',
               'Araclar okul girisinde otomatik kayit olusturacak.',Icons.camera_alt_outlined);
-          // Bugün kaç giriş
+          // Bugun kac giris
           final bugun=DateTime.now();
           final bugunSay=docs.where((d){
             final ts=d['tarih'];
@@ -4752,7 +4907,7 @@ class _QrKayitlari extends StatelessWidget{
   ]);
 }
 
-// ── KOLEJ YÖNETİM WEB ────────────────────────────────────────────
+// ── KOLEJ YONETIM WEB ────────────────────────────────────────────
 class _KolejYonetimWeb extends StatelessWidget{
   final String firmaId;
   const _KolejYonetimWeb({required this.firmaId});
@@ -4767,7 +4922,7 @@ class _KolejYonetimWeb extends StatelessWidget{
         const Text('Kolej yonetimi icin ayri panel mevcuttur.',
             style:TextStyle(color:Colors.grey,fontSize:13)),
         const SizedBox(height:20),
-        // Hızlı erişim kartları
+        // Hizli erisim kartlari
         Row(children:[
           _akcKarti(context,'Kolej Panelini Ac',Icons.open_in_new_outlined,Colors.blue,()=>Navigator.pushNamed(context,'/web_kolej')),
           const SizedBox(width:12),
@@ -4776,7 +4931,7 @@ class _KolejYonetimWeb extends StatelessWidget{
           _akcKarti(context,'QR Afis',Icons.picture_as_pdf_outlined,Colors.orange,()=>Navigator.pushNamed(context,'/qr_afis')),
         ]),
         const SizedBox(height:24),
-        // Bugünün özeti
+        // Bugunun ozeti
         const Text('Bugunun Ozeti',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:14)),
         const SizedBox(height:10),
         FutureBuilder<Map<String,int>>(
@@ -4792,7 +4947,7 @@ class _KolejYonetimWeb extends StatelessWidget{
               ]);
             }),
         const SizedBox(height:24),
-        // Son girişler
+        // Son girisler
         const Text('Son Girisler',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:14)),
         const SizedBox(height:10),
         StreamBuilder<QuerySnapshot>(
@@ -4864,7 +5019,7 @@ class _KolejYonetimWeb extends StatelessWidget{
       ])));
 }
 
-// ── GELEN SERVİSLER ──────────────────────────────────────────────
+// ── GELEN SERVISLER ──────────────────────────────────────────────
 class _GelenServisler extends StatelessWidget{
   final String firmaId;
   const _GelenServisler({required this.firmaId});
@@ -4887,7 +5042,7 @@ class _GelenServisler extends StatelessWidget{
               .orderBy('tarih',descending:false).snapshots(),
           builder:(_,snap){
             final docs=snap.data?.docs??[];
-            if(docs.isEmpty)return _bos('Henuz gelen servis yok','Araçlar plaka ile dogrulandikca burada gorunur.',Icons.check_circle_outline);
+            if(docs.isEmpty)return _bos('Henuz gelen servis yok','Araclar plaka ile dogrulandikca burada gorunur.',Icons.check_circle_outline);
             return ListView.builder(
                 padding:const EdgeInsets.all(16),
                 itemCount:docs.length,
@@ -4924,7 +5079,7 @@ class _GelenServisler extends StatelessWidget{
   }
 }
 
-// ── GELMEYEN SERVİSLER ───────────────────────────────────────────
+// ── GELMEYEN SERVISLER ───────────────────────────────────────────
 class _GelmeyanServisler extends StatelessWidget{
   final String firmaId;
   const _GelmeyanServisler({required this.firmaId});
@@ -4972,7 +5127,7 @@ class _GelmeyanServisler extends StatelessWidget{
     try{
       final bugun=DateTime.now();
       final bugunStart=Timestamp.fromDate(DateTime(bugun.year,bugun.month,bugun.day));
-      // Bugün gelen plakalar
+      // Bugun gelen plakalar
       final girisSnap=await FirebaseFirestore.instance.collection('plate_logs')
           .where('firmaId',isEqualTo:firmaId).where('eslesti',isEqualTo:true)
           .where('tarih',isGreaterThanOrEqualTo:bugunStart).get();
@@ -4980,7 +5135,7 @@ class _GelmeyanServisler extends StatelessWidget{
       // Aktif servisler
       final servisSnap=await FirebaseFirestore.instance.collection('services')
           .where('firmaId',isEqualTo:firmaId).where('aktif',isEqualTo:true).get();
-      // Plakası gelenlerden çıkar
+      // Plakasi gelenlerden cikar
       return servisSnap.docs
           .map((d)=>{...d.data() as Map<String,dynamic>,'id':d.id})
           .where((s)=>!gelenPlakalar.contains(s['aracPlaka']??''))
@@ -4989,7 +5144,7 @@ class _GelmeyanServisler extends StatelessWidget{
   }
 }
 
-// ── GİRİŞ RAPORLARI ──────────────────────────────────────────────
+// ── GIRIS RAPORLARI ──────────────────────────────────────────────
 class _GirisRaporlari extends StatelessWidget{
   final String firmaId;
   const _GirisRaporlari({required this.firmaId});
@@ -5014,7 +5169,7 @@ class _GirisRaporlari extends StatelessWidget{
             _rKarti('Ort. Varis Saati',data['ortVaris']??'-',Colors.orange,Icons.access_time_outlined),
           ]),
           const SizedBox(height:24),
-          // Günlük dağılım
+          // Gunluk dagilim
           if((data['gunlukDagilim'] as List).isNotEmpty)...[
             const Text('Son 7 Gun Giris Dagilimi',
                 style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
@@ -5037,7 +5192,7 @@ class _GirisRaporlari extends StatelessWidget{
                     ]))).toList())),
           ],
           const SizedBox(height:20),
-          // Doğrulama yöntemi
+          // Dogrulama yontemi
           Row(children:[
             Expanded(child:Container(padding:const EdgeInsets.all(16),
                 decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
@@ -5569,7 +5724,7 @@ class _TanitimIstatistik extends StatelessWidget{
 
 //  BILDIRIMLER
 // ─────────────────────────────────────────────────────────────────
-//  BİLDİRİM VE AKILLI HABERLEŞME – Bölüm 12
+//  BILDIRIM VE AKILLI HABERLESME – Bolum 12
 // ─────────────────────────────────────────────────────────────────
 class _BildirimlerSekme extends StatefulWidget{
   final String firmaId;
@@ -5615,7 +5770,7 @@ class _BildirimlerSekmeState extends State<_BildirimlerSekme>{
   ]);
 }
 
-// ── OTOMATİK BİLDİRİMLER ─────────────────────────────────────────
+// ── OTOMATIK BILDIRIMLER ─────────────────────────────────────────
 class _OtomatikBildirimler extends StatelessWidget{
   final String firmaId;
   const _OtomatikBildirimler({required this.firmaId});
@@ -5623,16 +5778,16 @@ class _OtomatikBildirimler extends StatelessWidget{
   static const _t=Color(0xFFFF8C00);
 
   static const List<Map<String,dynamic>> _bildirimTipleri=[
-    {'tip':'servis_basladi','baslik':'Servis Başladı','aciklama':'Şoför servisi başlattığında gönderilir','ikon':Icons.play_circle_outline,'renk':Colors.green,'ornek':'Servisiniz hareket etmiştir.'},
-    {'tip':'servis_yaklasıyor','baslik':'Servis Yaklaşıyor','aciklama':'Belirlenen mesafeye ulaşıldığında gönderilir','ikon':Icons.directions_bus_outlined,'renk':Colors.orange,'ornek':'Servisiniz 5 dakika içinde durağınıza ulaşacak.'},
-    {'tip':'servis_geldi','baslik':'Servis Geldi','aciklama':'Servis durağa ulaştığında gönderilir','ikon':Icons.location_on_outlined,'renk':Colors.blue,'ornek':'Servis durağınıza ulaşmıştır.'},
-    {'tip':'ogrenci_alindi','baslik':'Öğrenci Alındı','aciklama':'Şoför öğrenciyi onayladığında gönderilir','ikon':Icons.person_add_outlined,'renk':Colors.purple,'ornek':'Çocuğunuz servise binmiştir.'},
-    {'tip':'okul_ulasti','baslik':'Okula Ulaştı','aciklama':'Servis okula ulaştığında gönderilir','ikon':Icons.school_outlined,'renk':Colors.teal,'ornek':'Servis okula ulaşmıştır.'},
-    {'tip':'servis_bitti','baslik':'Servis Tamamlandı','aciklama':'Şoför servisi bitirdiğinde gönderilir','ikon':Icons.check_circle_outline,'renk':Colors.grey,'ornek':'Bugünkü servis tamamlanmıştır.'},
-    {'tip':'gecikme','baslik':'Gecikme Bildirimi','aciklama':'Servis gecikmesi durumunda gönderilir','ikon':Icons.timer_outlined,'renk':Colors.red,'ornek':'Servisinizde gecikme yaşanmaktadır.'},
-    {'tip':'bugun_gelmeyecek','baslik':'Bugün Gelmeyecek','aciklama':'Veli gelmeyecek bildirdiğinde şoföre gönderilir','ikon':Icons.event_busy_outlined,'renk':Colors.red,'ornek':'[ÖĞRENCİ] bugün servisi kullanmayacaktır.'},
-    {'tip':'odeme_hatirlatma','baslik':'Ödeme Hatırlatma','aciklama':'Tahsilat sistemiyle entegre','ikon':Icons.payments_outlined,'renk':Colors.orange,'ornek':'Bu ayki servis ödemenizin son günü yaklaşmaktadır.'},
-    {'tip':'evrak_uyari','baslik':'Evrak Uyarısı','aciklama':'Süresi dolacak evraklar için','ikon':Icons.folder_outlined,'renk':Colors.amber,'ornek':'Şoförünüzün SRC belgesi 30 gün içinde sona erecek.'},
+    {'tip':'servis_basladi','baslik':'Servis Basladi','aciklama':'Sofor servisi baslattiginda gonderilir','ikon':Icons.play_circle_outline,'renk':Colors.green,'ornek':'Servisiniz hareket etmistir.'},
+    {'tip':'servis_yaklasiyor','baslik':'Servis Yaklasiyor','aciklama':'Belirlenen mesafeye ulasildiginda gonderilir','ikon':Icons.directions_bus_outlined,'renk':Colors.orange,'ornek':'Servisiniz 5 dakika icinde duraginiza ulasacak.'},
+    {'tip':'servis_geldi','baslik':'Servis Geldi','aciklama':'Servis duraga ulastiginda gonderilir','ikon':Icons.location_on_outlined,'renk':Colors.blue,'ornek':'Servis duraginiza ulasmistir.'},
+    {'tip':'ogrenci_alindi','baslik':'Ogrenci Alindi','aciklama':'Sofor ogrenciyi onayladiginda gonderilir','ikon':Icons.person_add_outlined,'renk':Colors.purple,'ornek':'Cocugunuz servise binmistir.'},
+    {'tip':'okul_ulasti','baslik':'Okula Ulasti','aciklama':'Servis okula ulastiginda gonderilir','ikon':Icons.school_outlined,'renk':Colors.teal,'ornek':'Servis okula ulasmistir.'},
+    {'tip':'servis_bitti','baslik':'Servis Tamamlandi','aciklama':'Sofor servisi bitirdiginde gonderilir','ikon':Icons.check_circle_outline,'renk':Colors.grey,'ornek':'Bugunku servis tamamlanmistir.'},
+    {'tip':'gecikme','baslik':'Gecikme Bildirimi','aciklama':'Servis gecikmesi durumunda gonderilir','ikon':Icons.timer_outlined,'renk':Colors.red,'ornek':'Servisinizde gecikme yasanmaktadir.'},
+    {'tip':'bugun_gelmeyecek','baslik':'Bugun Gelmeyecek','aciklama':'Veli gelmeyecek bildirdiginde sofore gonderilir','ikon':Icons.event_busy_outlined,'renk':Colors.red,'ornek':'[OGRENCI] bugun servisi kullanmayacaktir.'},
+    {'tip':'odeme_hatirlatma','baslik':'Odeme Hatirlatma','aciklama':'Tahsilat sistemiyle entegre','ikon':Icons.payments_outlined,'renk':Colors.orange,'ornek':'Bu ayki servis odemenizin son gunu yaklasmaktadir.'},
+    {'tip':'evrak_uyari','baslik':'Evrak Uyarisi','aciklama':'Suresi dolacak evraklar icin','ikon':Icons.folder_outlined,'renk':Colors.amber,'ornek':'Soforunuzun SRC belgesi 30 gun icinde sona erecek.'},
   ];
 
   @override Widget build(BuildContext context)=>SingleChildScrollView(
@@ -5645,7 +5800,7 @@ class _OtomatikBildirimler extends StatelessWidget{
                 border:Border.all(color:Colors.green.withValues(alpha:0.2))),
             child:const Row(children:[
               Icon(Icons.info_outline,color:Colors.green,size:16),SizedBox(width:8),
-              Expanded(child:Text('Otomatik bildirimler sistem tarafından gönderilir. Admin tek tek göndermek zorunda değildir.',
+              Expanded(child:Text('Otomatik bildirimler sistem tarafindan gonderilir. Admin tek tek gondermek zorunda degildir.',
                   style:TextStyle(fontSize:12,color:Colors.green))),
             ])),
         const SizedBox(height:20),
@@ -5782,7 +5937,7 @@ class _TopluMesajSekmeState extends State<_TopluMesajSekme>{
               border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
               contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10))),
       const SizedBox(height:16),
-      // Hazır mesaj şablonları
+      // Hazir mesaj sablonlari
       const Text('Hazir Mesaj Sablonlari',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
       const SizedBox(height:8),
       Wrap(spacing:8,runSpacing:8,children:[
@@ -5810,7 +5965,7 @@ class _TopluMesajSekmeState extends State<_TopluMesajSekme>{
           const Icon(Icons.send_outlined,size:16),
           label:Text(_gonderiyor?'Gonderiyor...':'Toplu Mesaj Gonder'))),
     ]))),
-    // Son gönderilen mesajlar
+    // Son gonderilen mesajlar
     Container(width:280,color:Colors.white,padding:const EdgeInsets.all(16),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text('Son Gonderilen',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:14)),
@@ -5853,7 +6008,7 @@ class _TopluMesajSekmeState extends State<_TopluMesajSekme>{
   ]);
 }
 
-// ── ACİL DURUM MERKEZİ ───────────────────────────────────────────
+// ── ACIL DURUM MERKEZI ───────────────────────────────────────────
 class _AcilDurumMerkezi extends StatelessWidget{
   final String firmaId;
   const _AcilDurumMerkezi({required this.firmaId});
@@ -5867,7 +6022,7 @@ class _AcilDurumMerkezi extends StatelessWidget{
           Icon(Icons.emergency_outlined,color:Colors.red,size:20),SizedBox(width:10),
           Text('Acil Durum Merkezi',style:TextStyle(fontWeight:FontWeight.bold,color:Colors.red,fontSize:16)),
           Spacer(),
-          Text('Soforler tarafından bildirilen acil durumlar',style:TextStyle(fontSize:12,color:Colors.grey)),
+          Text('Soforler tarafindan bildirilen acil durumlar',style:TextStyle(fontSize:12,color:Colors.grey)),
         ])),
     Expanded(child:StreamBuilder<QuerySnapshot>(
         stream:FirebaseFirestore.instance.collection('bildirimler')
@@ -5883,7 +6038,7 @@ class _AcilDurumMerkezi extends StatelessWidget{
             const SizedBox(height:16),
             const Text('Aktif Acil Durum Yok',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:Colors.green)),
             const SizedBox(height:8),
-            const Text('Şoförlerden gelen acil bildirimler burada görünür.',style:TextStyle(color:Colors.grey)),
+            const Text('Soforlerden gelen acil bildirimler burada gorunur.',style:TextStyle(color:Colors.grey)),
           ]));
           return ListView.builder(padding:const EdgeInsets.all(16),itemCount:docs.length,
               itemBuilder:(_,i){
@@ -5980,7 +6135,7 @@ class _DuyurularSekmeState extends State<_DuyurularSekme>{
         crossAxisAlignment:CrossAxisAlignment.start,children:[
       const Text('Duyuru Olustur',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
       const SizedBox(height:8),
-      const Text('Duyurular veli uygulamasında "Duyurular" menüsünde görünür.',
+      const Text('Duyurular veli uygulamasinda "Duyurular" menusunde gorunur.',
           style:TextStyle(fontSize:12,color:Colors.grey)),
       const SizedBox(height:20),
       TextField(controller:_baslikCtrl,
@@ -5995,7 +6150,7 @@ class _DuyurularSekmeState extends State<_DuyurularSekme>{
               border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
               contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10))),
       const SizedBox(height:14),
-      // Örnek duyurular
+      // Ornek duyurular
       const Text('Ornek Duyurular',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:13)),
       const SizedBox(height:8),
       ...const[
@@ -6064,7 +6219,7 @@ class _DuyurularSekmeState extends State<_DuyurularSekme>{
   ]);
 }
 
-// ── BİLDİRİM GEÇMİŞİ ────────────────────────────────────────────
+// ── BILDIRIM GECMISI ────────────────────────────────────────────
 class _BildirimGecmisi extends StatefulWidget{
   final String firmaId;
   const _BildirimGecmisi({required this.firmaId});
@@ -6140,7 +6295,7 @@ class _BildirimGecmisiState extends State<_BildirimGecmisi>{
   ]);
 }
 
-// ── BİLDİRİM AYARLARI ────────────────────────────────────────────
+// ── BILDIRIM AYARLARI ────────────────────────────────────────────
 class _BildirimAyarlari extends StatefulWidget{
   final String firmaId;
   const _BildirimAyarlari({required this.firmaId});
@@ -6192,17 +6347,17 @@ class _BildirimAyarlariState extends State<_BildirimAyarlari>{
         crossAxisAlignment:CrossAxisAlignment.start,children:[
       const Text('Bildirim Ayarlari',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
       const SizedBox(height:24),
-      // Yaklaşıyor mesafesi
+      // Yaklasiyor mesafesi
       Container(padding:const EdgeInsets.all(20),
           decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),
               boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:8)]),
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             const Row(children:[
               Icon(Icons.directions_bus_outlined,color:_navy,size:20),SizedBox(width:10),
-              Text('Yaklasıyor Bildirimi Mesafesi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:15)),
+              Text('Yaklasiyor Bildirimi Mesafesi',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:15)),
             ]),
             const SizedBox(height:6),
-            const Text('Servis ne kadar uzaktayken bildirim gönderilsin?',
+            const Text('Servis ne kadar uzaktayken bildirim gonderilsin?',
                 style:TextStyle(color:Colors.grey,fontSize:12)),
             const SizedBox(height:14),
             Wrap(spacing:10,children:[
@@ -6228,7 +6383,7 @@ class _BildirimAyarlariState extends State<_BildirimAyarlari>{
               const Icon(Icons.nights_stay_outlined,color:_navy,size:20),const SizedBox(width:10),
               const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Text('Sessiz Saatler',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:15)),
-                Text('Bu saatler arasında bildirim gönderilmez.',style:TextStyle(color:Colors.grey,fontSize:12)),
+                Text('Bu saatler arasinda bildirim gonderilmez.',style:TextStyle(color:Colors.grey,fontSize:12)),
               ])),
               Switch(value:_sessizSaatAktif,activeThumbColor:_t,onChanged:(v)=>setState(()=>_sessizSaatAktif=v)),
             ]),
@@ -6364,7 +6519,7 @@ class _ArsivListesi extends StatelessWidget{
         final docs=snap.data?.docs??[];
         if(docs.isEmpty)return _bos('Bu kategori bos','Arsivlenen kayitlar burada gorunur.',Icons.archive_outlined);
         return Column(children:[
-          // Özet bar
+          // Ozet bar
           Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:10),color:Colors.white,
               child:Row(children:[
                 Icon(Icons.archive_outlined,color:Colors.grey[400],size:16),
@@ -6399,7 +6554,7 @@ class _ArsivListesi extends StatelessWidget{
                         if((d['sebep']??'').toString().isNotEmpty)Text(d['sebep'],
                             style:TextStyle(fontSize:11,color:Colors.grey[400])),
                       ])),
-                      // Geri getir butonu (log hariç)
+                      // Geri getir butonu (log haric)
                       if(tab<5)GestureDetector(
                           onTap:()=>_geriGetir(context,docs[i].id),
                           child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
@@ -7793,7 +7948,7 @@ class _GuvenlikRaporu extends StatelessWidget{
 
 
 
-// ─── DASHBOARD TAHSİLAT ÖZETİ ────────────────────────────────
+// ─── DASHBOARD TAHSILAT OZETI ────────────────────────────────
 class _DashTahsilatOzeti extends StatelessWidget{
   final String firmaId;
   const _DashTahsilatOzeti({required this.firmaId});
@@ -8060,6 +8215,130 @@ class _TipBtn extends StatelessWidget{
   }
 }
 
+
+
+
+// ─── OGRENCILER SEKMESI (inline - import gerektirmez) ────────────
+class _WebOgrencilerSekme extends StatefulWidget{
+  final String firmaId;
+  const _WebOgrencilerSekme({required this.firmaId});
+  @override State<_WebOgrencilerSekme> createState()=>_WebOgrencilerSekmeState();
+}
+class _WebOgrencilerSekmeState extends State<_WebOgrencilerSekme>{
+  static const _navy=Color(0xFF1a3a6b);
+  static const _t=Color(0xFFFF8C00);
+  int _tab=0;
+
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(color:Colors.white,child:Row(children:[
+      for(final t in [(0,'Tum Ogrenciler'),(1,'Veliler'),(2,'Basvurular')])
+        GestureDetector(onTap:()=>setState(()=>_tab=t.$1),
+            child:Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:14),
+                decoration:BoxDecoration(border:Border(bottom:BorderSide(
+                    color:_tab==t.$1?_t:Colors.transparent,width:2))),
+                child:Text(t.$2,style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,
+                    color:_tab==t.$1?_navy:Colors.grey)))),
+    ])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:FirebaseFirestore.instance.collection(
+            _tab==1?'parents':_tab==2?'kayit_basvurulari':'students')
+            .where('firmaId',isEqualTo:widget.firmaId)
+            .where('aktif',isEqualTo:true).snapshots(),
+        builder:(_,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return _bos('Kayit bulunamadi','',Icons.school_outlined);
+          return ListView.builder(
+              padding:const EdgeInsets.all(16),
+              itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;
+                final ad=(d['ad']??d['ogrenciAd']??d['veliAd']??'').toString();
+                return Container(margin:const EdgeInsets.only(bottom:6),
+                    padding:const EdgeInsets.all(12),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                    child:Row(children:[
+                      CircleAvatar(radius:18,backgroundColor:_navy.withValues(alpha:0.1),
+                          child:Text(ad.isNotEmpty?ad[0]:'?',style:const TextStyle(color:_navy,fontWeight:FontWeight.bold))),
+                      const SizedBox(width:12),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(ad,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:13)),
+                        Text(d['adres']??d['okul']??'',style:TextStyle(fontSize:11,color:Colors.grey[500])),
+                      ])),
+                      Text(d['fiyat']!=null?d['fiyat'].toString()+' TL':'',
+                          style:const TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:12)),
+                    ]));
+              });
+        })),
+  ]);
+}
+
+// ─── RAPORLAR SEKMESI (inline) ────────────────────────────────────
+class _WebRaporlarSekme extends StatefulWidget{
+  final String firmaId;
+  final String projeId;
+  const _WebRaporlarSekme({required this.firmaId,required this.projeId});
+  @override State<_WebRaporlarSekme> createState()=>_WebRaporlarSekmeState();
+}
+class _WebRaporlarSekmeState extends State<_WebRaporlarSekme>{
+  static const _navy=Color(0xFF1a3a6b);
+  static const _t=Color(0xFFFF8C00);
+  int _tab=0;
+
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(color:Colors.white,child:Row(children:[
+      for(final t in [(0,'Genel Durum'),(1,'Ogrenci'),(2,'Sofor'),(3,'Servis'),(4,'Tahsilat')])
+        GestureDetector(onTap:()=>setState(()=>_tab=t.$1),
+            child:Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:14),
+                decoration:BoxDecoration(border:Border(bottom:BorderSide(
+                    color:_tab==t.$1?_t:Colors.transparent,width:2))),
+                child:Text(t.$2,style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,
+                    color:_tab==t.$1?_navy:Colors.grey)))),
+    ])),
+    Expanded(child:FutureBuilder<Map<String,int>>(
+        future:_istatistik(),
+        builder:(_,snap){
+          if(!snap.hasData)return const Center(child:CircularProgressIndicator());
+          final d=snap.data!;
+          return SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(
+              crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const Text('Genel Durum Raporu',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
+            const SizedBox(height:20),
+            Wrap(spacing:16,runSpacing:16,children:[
+              for(final k in [
+                ('Toplam Ogrenci',d['ogrenci']??0,Icons.school_outlined,_navy),
+                ('Toplam Sofor',d['sofor']??0,Icons.person_outlined,Colors.teal),
+                ('Toplam Servis',d['servis']??0,Icons.directions_bus_outlined,Colors.green),
+                ('Bekleyen Tahsilat',d['tahsilat']??0,Icons.payments_outlined,Colors.orange),
+              ])Container(width:180,padding:const EdgeInsets.all(16),
+                  decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
+                      border:Border.all(color:(k.$4 as Color).withValues(alpha:0.2)),
+                      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)]),
+                  child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Icon(k.$3 as IconData,color:k.$4 as Color,size:20),
+                    const SizedBox(height:8),
+                    Text(k.$2.toString(),style:TextStyle(fontWeight:FontWeight.bold,fontSize:22,color:k.$4 as Color)),
+                    Text(k.$1 as String,style:const TextStyle(fontSize:11,color:Colors.grey)),
+                  ])),
+            ]),
+          ]));
+        })),
+  ]);
+
+  Future<Map<String,int>> _istatistik() async{
+    try{
+      final r=await Future.wait<AggregateQuerySnapshot>([
+        FirebaseFirestore.instance.collection('students').where('firmaId',isEqualTo:widget.firmaId).where('aktif',isEqualTo:true).count().get(),
+        FirebaseFirestore.instance.collection('drivers').where('firmaId',isEqualTo:widget.firmaId).where('aktif',isEqualTo:true).count().get(),
+        FirebaseFirestore.instance.collection('services').where('firmaId',isEqualTo:widget.firmaId).where('aktif',isEqualTo:true).count().get(),
+        FirebaseFirestore.instance.collection('tahsilat').where('firmaId',isEqualTo:widget.firmaId).where('durum',isEqualTo:'bekleyen').count().get(),
+      ]);
+      return{'ogrenci':r[0].count??0,'sofor':r[1].count??0,'servis':r[2].count??0,'tahsilat':r[3].count??0};
+    }catch(_){return{};}
+  }
+}
+
+
 Widget _bos(String b,String a,IconData i)=>Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
   Icon(i,size:64,color:Colors.grey[300]),const SizedBox(height:14),
   Text(b,style:const TextStyle(fontSize:16,color:Colors.grey,fontWeight:FontWeight.bold)),
@@ -8068,10 +8347,10 @@ Widget _bos(String b,String a,IconData i)=>Center(child:Column(mainAxisAlignment
 
 // Web'de RotalarScreen'i AppBar olmadan goster
 // ─────────────────────────────────────────────────────────────────
-//  TAHSİLAT SEKMESİ
+//  TAHSILAT SEKMESI
 // ─────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────
-//  TAHSİLAT BÖLÜM 13 – YENİ CLASS'LAR
+//  TAHSILAT BOLUM 13 – YENI CLASS'LAR
 // ─────────────────────────────────────────────────────────────────
 
 // ── GENEL DURUM ──────────────────────────────────────────────────
@@ -8111,7 +8390,7 @@ class _TahsilatGenelDurum extends StatelessWidget{
             _kart('Tahsilat Orani',(data['oran']??'0')+'%',Colors.teal,Icons.donut_small_outlined),
           ]),
           const SizedBox(height:24),
-          // Tahsilat oranı progress
+          // Tahsilat orani progress
           Container(padding:const EdgeInsets.all(20),
               decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(16),
                   boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:8)]),
@@ -8133,7 +8412,7 @@ class _TahsilatGenelDurum extends StatelessWidget{
                         valueColor:const AlwaysStoppedAnimation<Color>(Colors.green))),
               ])),
           const SizedBox(height:20),
-          // Aylık özet
+          // Aylik ozet
           if((data['aylikOzet'] as List).isNotEmpty)...[
             const Text('Aylik Ozet',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:14)),
             const SizedBox(height:10),
@@ -8184,13 +8463,13 @@ class _TahsilatGenelDurum extends StatelessWidget{
         else bekleyen+=tutar;
       }
 
-      // Öğrenci sayıları
+      // Ogrenci sayilari
       var ogrQ=FirebaseFirestore.instance.collection('students').where('firmaId',isEqualTo:firmaId);
       if(projeId.isNotEmpty)ogrQ=ogrQ.where('projeId',isEqualTo:projeId);
       final ogrSnap=await ogrQ.count().get();
       final toplamOgr=ogrSnap.count??0;
 
-      // Ödeme yapan öğrenci sayısı
+      // Odeme yapan ogrenci sayisi
       final odeyenQuery=await FirebaseFirestore.instance.collection('tahsilat')
           .where('firmaId',isEqualTo:firmaId).where('durum',isEqualTo:'odendi').get();
       final odeyenOgrSet=odeyenQuery.docs.map((d)=>(d.data() as Map)['ogrenciId']).toSet();
@@ -8225,7 +8504,7 @@ class _TahsilatGenelDurum extends StatelessWidget{
       ])));
 }
 
-// ── ÖĞRENCİ KARTLARI ─────────────────────────────────────────────
+// ── OGRENCI KARTLARI ─────────────────────────────────────────────
 class _OgrenciKartlari extends StatefulWidget{
   final String firmaId,projeId;
   const _OgrenciKartlari({required this.firmaId,required this.projeId});
@@ -8296,7 +8575,7 @@ class _OgrenciKartlariState extends State<_OgrenciKartlari>{
                                     style:TextStyle(fontSize:11,color:Colors.grey[500]),
                                     maxLines:1,overflow:TextOverflow.ellipsis),
                               ])),
-                              // Ödeme durumu
+                              // Odeme durumu
                               Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
                                 Text(aylikUcret.toString()+' TL/ay',
                                     style:const TextStyle(fontWeight:FontWeight.bold,fontSize:13,color:_navy)),
@@ -8309,7 +8588,7 @@ class _OgrenciKartlariState extends State<_OgrenciKartlari>{
                                             color:kalan>0?Colors.orange:Colors.green))),
                               ]),
                             ])),
-                            // İstatistik çubuğu
+                            // Istatistik cubugu
                             Padding(padding:const EdgeInsets.only(left:14,right:14,bottom:12),
                                 child:Row(children:[
                                   Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -8330,7 +8609,7 @@ class _OgrenciKartlariState extends State<_OgrenciKartlari>{
                                             valueColor:const AlwaysStoppedAnimation<Color>(Colors.green))),
                                   ])),
                                   const SizedBox(width:10),
-                                  // Ödeme ekle butonu
+                                  // Odeme ekle butonu
                                   GestureDetector(
                                     onTap:()=>_odemeEkleDialog(context,ogrId,d['ad']??'',widget.firmaId,widget.projeId),
                                     child:Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
@@ -8413,7 +8692,7 @@ class _OgrenciKartlariState extends State<_OgrenciKartlari>{
   }
 }
 
-// ── TOPLU TAHSİLAT İŞLEMİ ────────────────────────────────────────
+// ── TOPLU TAHSILAT ISLEMI ────────────────────────────────────────
 class _TopluTahsilatIslem extends StatefulWidget{
   final String firmaId,projeId;
   const _TopluTahsilatIslem({required this.firmaId,required this.projeId});
@@ -8468,7 +8747,7 @@ class _TopluTahsilatIslemState extends State<_TopluTahsilatIslem>{
         child:Row(children:[
           const Text('Toplu Tahsilat',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:15)),
           const Spacer(),
-          // Ay seçici
+          // Ay secici
           DropdownButton<String>(
               value:_ay,underline:const SizedBox(),
               items:['Ocak','Subat','Mart','Nisan','Mayis','Haziran',
@@ -8536,7 +8815,7 @@ class _TopluTahsilatIslemState extends State<_TopluTahsilatIslem>{
   ]);
 }
 
-// ── TAHSİLAT ARŞİVİ ──────────────────────────────────────────────
+// ── TAHSILAT ARSIVI ──────────────────────────────────────────────
 class _TahsilatArsiv extends StatelessWidget{
   final String firmaId,projeId;
   const _TahsilatArsiv({required this.firmaId,required this.projeId});
@@ -8625,7 +8904,7 @@ class _TahsilatSekmeState extends State<_TahsilatSekme>
           Tab(icon:Icon(Icons.bar_chart_outlined,size:16),text:'Rapor'),
           Tab(icon:Icon(Icons.archive_outlined,size:16),text:'Arsiv'),
         ])),
-    // Arama + Yeni Ödeme
+    // Arama + Yeni Odeme
     Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:10),color:Colors.white,
         child:Row(children:[
           Expanded(child:TextField(
@@ -8752,12 +9031,12 @@ class _OdemeListesi extends StatelessWidget{
             Text(filtre=='gecikti'?'Geciken odeme yok':'Odeme kaydi yok',
                 style:const TextStyle(color:Colors.grey,fontSize:16)),
           ]));
-          // Özet
+          // Ozet
           final toplam=docs.fold<double>(0,(s,d)=>s+(((d.data() as Map<String,dynamic>)['tutar'] as num?)?.toDouble()??0));
           final odendi=docs.where((d)=>(d.data() as Map<String,dynamic>)['durum']=='odendi')
               .fold<double>(0,(s,d)=>s+(((d.data() as Map<String,dynamic>)['tutar'] as num?)?.toDouble()??0));
           return Column(children:[
-            // Özet banner
+            // Ozet banner
             Container(
               margin:const EdgeInsets.all(16),
               padding:const EdgeInsets.all(16),
@@ -8929,7 +9208,7 @@ class _TahsilatRaporu extends StatelessWidget{
           return SingleChildScrollView(
               padding:const EdgeInsets.all(24),
               child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                // Genel özet
+                // Genel ozet
                 const Text('Genel Ozet',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:_navy)),
                 const SizedBox(height:14),
                 Row(children:[
@@ -8942,7 +9221,7 @@ class _TahsilatRaporu extends StatelessWidget{
                   _raporKarti('Bekleyen',bekliyor.toStringAsFixed(0)+' TL',Colors.orange,Icons.pending_outlined),
                 ]),
                 const SizedBox(height:24),
-                // Tahsilat oranı
+                // Tahsilat orani
                 const Text('Tahsilat Orani',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
                 const SizedBox(height:10),
                 Container(padding:const EdgeInsets.all(16),
@@ -8963,7 +9242,7 @@ class _TahsilatRaporu extends StatelessWidget{
                               valueColor:const AlwaysStoppedAnimation<Color>(Colors.green))),
                     ])),
                 const SizedBox(height:24),
-                // Aylık dağılım
+                // Aylik dagilim
                 if(aylikOdeme.isNotEmpty)...[
                   const Text('Aylik Dagilim',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
                   const SizedBox(height:10),
@@ -9005,7 +9284,7 @@ class _TahsilatRaporu extends StatelessWidget{
 
 
 // ─────────────────────────────────────────────────────────────────
-//  CANLI TAKİP WEB MODÜLÜ – Bölüm 11
+//  CANLI TAKIP WEB MODULU – Bolum 11
 // ─────────────────────────────────────────────────────────────────
 class _CanliTakipEkrani extends StatefulWidget{
   const _CanliTakipEkrani();
@@ -9050,7 +9329,7 @@ class _CanliTakipEkraniState extends State<_CanliTakipEkrani>{
                             color:_tab==t.$1?_navy:Colors.grey)),
                       ]))),
           ]))),
-      // Canlı yenileme göstergesi
+      // Canli yenileme gostergesi
       Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:6),color:Colors.white,
           child:Row(children:[
             Container(width:8,height:8,decoration:const BoxDecoration(
@@ -9079,7 +9358,7 @@ class _CanliTakipEkraniState extends State<_CanliTakipEkrani>{
   }
 }
 
-// ── AKTİF SERVİSLER ─────────────────────────────────────────────
+// ── AKTIF SERVISLER ─────────────────────────────────────────────
 class _AktifServisler extends StatelessWidget{
   final String firmaId,projeId;
   const _AktifServisler({required this.firmaId,required this.projeId});
@@ -9103,11 +9382,11 @@ class _AktifServisler extends StatelessWidget{
             const SizedBox(height:16),
             const Text('Aktif Servis Yok',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold,color:_navy)),
             const SizedBox(height:8),
-            const Text('Soforler servisi baslattıgında burada gorunur.',style:TextStyle(color:Colors.grey)),
+            const Text('Soforler servisi baslattiginda burada gorunur.',style:TextStyle(color:Colors.grey)),
           ]));
 
           return Column(children:[
-            // Özet banner
+            // Ozet banner
             Container(margin:const EdgeInsets.all(16),padding:const EdgeInsets.all(16),
                 decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.08),borderRadius:BorderRadius.circular(14),
                     border:Border.all(color:Colors.green.withValues(alpha:0.2))),
@@ -9120,7 +9399,7 @@ class _AktifServisler extends StatelessWidget{
                   Text(TimeOfDay.now().format(context),
                       style:const TextStyle(color:Colors.green,fontWeight:FontWeight.w600)),
                 ])),
-            // Aktif şoförler
+            // Aktif soforler
             Expanded(child:ListView.builder(
                 padding:const EdgeInsets.symmetric(horizontal:16),
                 itemCount:docs.length,
@@ -9163,13 +9442,13 @@ class _AktifServisler extends StatelessWidget{
                                 Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
                                     decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.1),
                                         borderRadius:BorderRadius.circular(8)),
-                                    child:const Text('AKTİF',style:TextStyle(fontSize:10,
+                                    child:const Text('AKTIF',style:TextStyle(fontSize:10,
                                         fontWeight:FontWeight.bold,color:Colors.green))),
                                 if(sonGorStr.isNotEmpty)Text(sonGorStr,
                                     style:TextStyle(fontSize:10,color:Colors.grey[400])),
                               ]),
                             ])),
-                        // İstatistikler
+                        // Istatistikler
                         Padding(padding:const EdgeInsets.all(14),child:Row(children:[
                           _statKarti(ogrSay.toString(),'Ogrenci',Icons.school_outlined,Colors.blue),
                           _statKarti(hiz+' km/s','Hiz',Icons.speed_outlined,Colors.teal),
@@ -9194,7 +9473,7 @@ class _AktifServisler extends StatelessWidget{
   ]));
 }
 
-// ── YAKLAŞAN SERVİSLER ──────────────────────────────────────────
+// ── YAKLASAN SERVISLER ──────────────────────────────────────────
 class _YaklasanServisler extends StatelessWidget{
   final String firmaId,projeId;
   const _YaklasanServisler({required this.firmaId,required this.projeId});
@@ -9204,7 +9483,7 @@ class _YaklasanServisler extends StatelessWidget{
     final now=TimeOfDay.now();
     final nowStr=(now.hour*60+now.minute).toString();
 
-    // 60 dk içinde başlayacak servisler
+    // 60 dk icinde baslayacak servisler
     var q=FirebaseFirestore.instance.collection('services')
         .where('firmaId',isEqualTo:firmaId).where('aktif',isEqualTo:true);
     if(projeId.isNotEmpty)q=q.where('projeId',isEqualTo:projeId);
@@ -9213,7 +9492,7 @@ class _YaklasanServisler extends StatelessWidget{
         stream:q.snapshots(),
         builder:(_,snap){
           final docs=snap.data?.docs??[];
-          // Saatine göre filtrele (60 dk içinde)
+          // Saatine gore filtrele (60 dk icinde)
           final yaklasan=docs.where((doc){
             final d=doc.data() as Map<String,dynamic>;
             for(final saatField in ['sabahSaati','aksamSaati']){
@@ -9232,7 +9511,7 @@ class _YaklasanServisler extends StatelessWidget{
               mainAxisAlignment:MainAxisAlignment.center,children:[
             Icon(Icons.schedule_outlined,size:56,color:Colors.grey[300]),
             const SizedBox(height:12),
-            const Text('60 Dakika İcinde Yaklasan Servis Yok',
+            const Text('60 Dakika Icinde Yaklasan Servis Yok',
                 style:TextStyle(fontSize:16,color:Colors.grey)),
           ]));
 
@@ -9240,7 +9519,7 @@ class _YaklasanServisler extends StatelessWidget{
               itemCount:yaklasan.length,
               itemBuilder:(_,i){
                 final d=yaklasan[i].data() as Map<String,dynamic>;
-                // En yakın saat
+                // En yakin saat
                 String yakSaat='';
                 int minKalan=9999;
                 for(final sf in ['sabahSaati','aksamSaati']){
@@ -9280,7 +9559,7 @@ class _YaklasanServisler extends StatelessWidget{
   }
 }
 
-// ── TAMAMLANAN SERVİSLER ─────────────────────────────────────────
+// ── TAMAMLANAN SERVISLER ─────────────────────────────────────────
 class _TamamlananServisler extends StatelessWidget{
   final String firmaId,projeId;
   const _TamamlananServisler({required this.firmaId,required this.projeId});
@@ -9295,9 +9574,9 @@ class _TamamlananServisler extends StatelessWidget{
         stream:q.orderBy('tarih',descending:true).limit(50).snapshots(),
         builder:(_,snap){
           final docs=snap.data?.docs??[];
-          if(docs.isEmpty)return _bos('Tamamlanan rapor yok','Servisler tamamlandıgında burada gorunur.',Icons.check_circle_outline);
+          if(docs.isEmpty)return _bos('Tamamlanan rapor yok','Servisler tamamlandiginda burada gorunur.',Icons.check_circle_outline);
 
-          // Bugünkü raporlar
+          // Bugunku raporlar
           final bugun=DateTime.now();
           final bugunRapor=docs.where((d){
             final ts=d['tarih'];
@@ -9307,7 +9586,7 @@ class _TamamlananServisler extends StatelessWidget{
           }).toList();
 
           return Column(children:[
-            // Özet
+            // Ozet
             Container(margin:const EdgeInsets.all(16),padding:const EdgeInsets.all(14),
                 decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
                     boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)]),
@@ -9359,7 +9638,7 @@ class _TamamlananServisler extends StatelessWidget{
       child:Text(t,style:TextStyle(fontSize:10,color:c,fontWeight:FontWeight.bold)));
 }
 
-// ── DURUM GEÇMİŞİ ────────────────────────────────────────────────
+// ── DURUM GECMISI ────────────────────────────────────────────────
 class _DurumGecmisi extends StatelessWidget{
   final String firmaId,projeId;
   const _DurumGecmisi({required this.firmaId,required this.projeId});
@@ -9374,7 +9653,7 @@ class _DurumGecmisi extends StatelessWidget{
         stream:q.orderBy('tarih',descending:true).limit(100).snapshots(),
         builder:(_,snap){
           final docs=snap.data?.docs??[];
-          if(docs.isEmpty)return _bos('Durum geçmişi yok','',Icons.history_outlined);
+          if(docs.isEmpty)return _bos('Durum gecmisi yok','',Icons.history_outlined);
           return ListView.builder(
               padding:const EdgeInsets.all(16),
               itemCount:docs.length,
@@ -9426,7 +9705,7 @@ class _DurumGecmisi extends StatelessWidget{
   }
 }
 
-// ── TAKİP RAPORU ─────────────────────────────────────────────────
+// ── TAKIP RAPORU ─────────────────────────────────────────────────
 class _TakipRaporu extends StatelessWidget{
   final String firmaId,projeId;
   const _TakipRaporu({required this.firmaId,required this.projeId});
@@ -9451,7 +9730,7 @@ class _TakipRaporu extends StatelessWidget{
             _rKarti('Gelmeyen',(data['gelmeyen']??0).toString(),Colors.red,Icons.person_off_outlined),
           ]),
           const SizedBox(height:24),
-          // Son 7 gün
+          // Son 7 gun
           const Text('Son 7 Gun Ozeti',style:TextStyle(fontSize:14,fontWeight:FontWeight.bold,color:_navy)),
           const SizedBox(height:10),
           Container(padding:const EdgeInsets.all(16),

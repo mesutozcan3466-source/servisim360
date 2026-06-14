@@ -1,53 +1,177 @@
 {
   "indexes": [
     {
-      "collectionGroup": "services",
+      "collectionGroup": "drivers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "olusturma", "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "services",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "projeId", "order": "ASCENDING" },
-        { "fieldPath": "olusturma", "order": "ASCENDING" }
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "aktif", "order": "ASCENDING"},
+        {"fieldPath": "olusturmaTarihi", "order": "DESCENDING"}
       ]
     },
     {
       "collectionGroup": "drivers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "soforDurum", "order": "ASCENDING" },
-        { "fieldPath": "olusturma", "order": "DESCENDING" }
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "ad", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "drivers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "aktif", "order": "ASCENDING"},
+        {"fieldPath": "ad", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "services",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "aktif", "order": "ASCENDING"},
+        {"fieldPath": "ad", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "services",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "projeId", "order": "ASCENDING"},
+        {"fieldPath": "sira", "order": "ASCENDING"}
       ]
     },
     {
       "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "ad", "order": "ASCENDING" }
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "aktif", "order": "ASCENDING"},
+        {"fieldPath": "olusturmaTarihi", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "projeId", "order": "ASCENDING"},
+        {"fieldPath": "sira", "order": "ASCENDING"}
       ]
     },
     {
       "collectionGroup": "absence_requests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tarih", "order": "DESCENDING" }
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "tarih", "order": "DESCENDING"}
       ]
     },
     {
-      "collectionGroup": "fiyatlar",
+      "collectionGroup": "absence_requests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "firmaId", "order": "ASCENDING" },
-        { "fieldPath": "tip", "order": "ASCENDING" },
-        { "fieldPath": "kmBaslangic", "order": "ASCENDING" }
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "durum", "order": "ASCENDING"},
+        {"fieldPath": "tarih", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "tahsilat",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "durum", "order": "ASCENDING"},
+        {"fieldPath": "olusturmaTarihi", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "sozlesmeler",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "durum", "order": "ASCENDING"},
+        {"fieldPath": "olusturmaTarihi", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "bildirimler",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "tip", "order": "ASCENDING"},
+        {"fieldPath": "tarih", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "bildirimler",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "okundu", "order": "ASCENDING"},
+        {"fieldPath": "tarih", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "plate_logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "girisSaati", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "islem_loglari",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "tarih", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "giris_loglari",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "tarih", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "kayit_linkleri",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "olusturmaTarihi", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "vehicles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "tip", "order": "ASCENDING"},
+        {"fieldPath": "tip", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "projects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "aktif", "order": "ASCENDING"},
+        {"fieldPath": "olusturmaTarihi", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "routes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "firmaId", "order": "ASCENDING"},
+        {"fieldPath": "projeId", "order": "ASCENDING"},
+        {"fieldPath": "kmBaslangic", "order": "ASCENDING"}
       ]
     }
   ],

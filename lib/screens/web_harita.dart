@@ -75,7 +75,7 @@ class _WebHaritaState extends State<WebHarita> {
   }
 
 
-  // Aktif araçları dinle — surucu_konumlar koleksiyonu
+  // Aktif araclari dinle — surucu_konumlar koleksiyonu
   void _aktifAraclariDinle() {
     FirebaseFirestore.instance
         .collection('surucu_konumlar')
@@ -112,7 +112,7 @@ class _WebHaritaState extends State<WebHarita> {
         ));
       }
       setState(() {
-        // Araç markerlarını güncelle
+        // Arac markerlarini guncelle
         _markerlar.removeWhere((m) => m.markerId.value.startsWith('arac_'));
         _markerlar.addAll(newMarkers);
       });
@@ -158,7 +158,7 @@ class _WebHaritaState extends State<WebHarita> {
     _sub = sofQuery.snapshots().listen((snap) {
       if (!mounted) return;
       _soforler = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      // setState sadece şoförler değiştiyse çağır
+      // setState sadece soforler degistiyse cagir
       if (mounted) {
         _markerlarOlustur();
         setState(() => _sonGuncelleme = DateTime.now());
@@ -180,13 +180,13 @@ class _WebHaritaState extends State<WebHarita> {
     return R * 2 * math.atan2(math.sqrt(x), math.sqrt(1 - x));
   }
 
-  // ── Nearest Neighbor — en yakın komşu algoritması ─────────────
-  // 17 öğrenci için bile saniyeler içinde en kısa rotayı bulur
+  // ── Nearest Neighbor — en yakin komsu algoritmasi ─────────────
+  // 17 ogrenci icin bile saniyeler icinde en kisa rotayi bulur
   List<Map<String, dynamic>> _rotaSirala(
       List<Map<String, dynamic>> ogrenciler, LatLng? baslangic) {
     if (ogrenciler.isEmpty) return ogrenciler;
 
-    // Konumu olan öğrencileri filtrele
+    // Konumu olan ogrencileri filtrele
     final konumluOgrenciler = ogrenciler
         .where((o) => _konumAl(o) != null).toList();
     final konumsuzlar = ogrenciler
@@ -197,11 +197,11 @@ class _WebHaritaState extends State<WebHarita> {
     final siralananlar = <Map<String, dynamic>>[];
     final kalan = List<Map<String, dynamic>>.from(konumluOgrenciler);
 
-    // Başlangıç noktası: şoför konumu yoksa ilk öğrenci
+    // Baslangic noktasi: sofor konumu yoksa ilk ogrenci
     LatLng mevcutKonum = baslangic ?? _konumAl(kalan.first)!;
 
     while (kalan.isNotEmpty) {
-      // En yakın öğrenciyi bul
+      // En yakin ogrenciyi bul
       double minMesafe = double.infinity;
       int enYakinIdx = 0;
 
@@ -264,7 +264,7 @@ class _WebHaritaState extends State<WebHarita> {
         ));
       }
 
-      // Öğrencileri en yakın komşu algoritmasıyla sırala
+      // Ogrencileri en yakin komsu algoritmasiyla sirala
       final tumOgrenciler =
       _ogrenciler.where((o) => (o['surucuId'] ?? '') == sid).toList();
       final siraliOgrenciler = _rotaSirala(tumOgrenciler, soforKonum);
@@ -317,6 +317,62 @@ class _WebHaritaState extends State<WebHarita> {
     if (_markerlar.isNotEmpty && _mapController != null) {
       _kameraFit();
     }
+  }
+
+  void _soforDuzenle(BuildContext ctx, Map<String,dynamic> sofor) {
+    final soforId = sofor['id'] as String;
+    final adCtrl    = TextEditingController(text: sofor['ad'] ?? '');
+    final telCtrl   = TextEditingController(text: sofor['telefon'] ?? '');
+    final plakaCtrl = TextEditingController(text: sofor['aracPlaka'] ?? sofor['plaka'] ?? '');
+    bool kaydediliyor = false;
+    showDialog(context: ctx, builder: (_) => StatefulBuilder(
+        builder: (dCtx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            const Icon(Icons.person_outlined, color: Color(0xFF1a3a6b)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(adCtrl.text.isNotEmpty ? adCtrl.text : 'Sofor Duzenle',
+                style: const TextStyle(fontSize: 15, color: Color(0xFF1a3a6b)))),
+          ]),
+          content: SizedBox(width: 400, child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: adCtrl,
+                decoration: InputDecoration(labelText: 'Ad Soyad', prefixIcon: const Icon(Icons.person_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12))),
+            const SizedBox(height: 10),
+            TextField(controller: telCtrl,
+                decoration: InputDecoration(labelText: 'Telefon', prefixIcon: const Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12))),
+            const SizedBox(height: 10),
+            TextField(controller: plakaCtrl,
+                decoration: InputDecoration(labelText: 'Arac Plakasi', prefixIcon: const Icon(Icons.directions_bus_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12))),
+          ])),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Iptal')),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
+              onPressed: kaydediliyor ? null : () async {
+                setS(() => kaydediliyor = true);
+                try {
+                  await FirebaseFirestore.instance.collection('drivers').doc(soforId).update({
+                    'ad': adCtrl.text.trim(), 'telefon': telCtrl.text.trim(),
+                    'aracPlaka': plakaCtrl.text.trim(), 'plaka': plakaCtrl.text.trim(),
+                  });
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  _yukle();
+                  if (mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                      content: Text('Sofor guncellendi'), backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating));
+                } catch (e) { setS(() => kaydediliyor = false); }
+              },
+              icon: kaydediliyor ? const SizedBox(width:14,height:14,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)) : const Icon(Icons.save_outlined, size: 16),
+              label: const Text('Kaydet'),
+            ),
+          ],
+        )));
   }
 
   void _kameraFit() {
@@ -374,7 +430,7 @@ class _WebHaritaState extends State<WebHarita> {
                 Text(
                     '${_sonGuncelleme.hour.toString().padLeft(2, '0')}:'
                         '${_sonGuncelleme.minute.toString().padLeft(2, '0')}'
-                        ' güncellendi',
+                        ' guncellendi',
                     style: const TextStyle(color: Colors.white54, fontSize: 9)),
               ])),
               GestureDetector(
@@ -396,7 +452,7 @@ class _WebHaritaState extends State<WebHarita> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: const Color(0xFFF8F9FA),
             child: Row(children: [
-              _OzetChip('${_soforler.length}', 'Servis', Colors.blue),
+              _OzetChip('${_soforler.where((s)=>s['aktif']==true||s['aktifMi']==true).length}', 'Aktif', Colors.green),
               const SizedBox(width: 8),
               _OzetChip('${_ogrenciler.length}', 'Ogrenci', _navy),
               const SizedBox(width: 8),
@@ -464,8 +520,25 @@ class _WebHaritaState extends State<WebHarita> {
                       ],
                       if (!konumVar)
                         const Text('Konum yok', style: TextStyle(color: Colors.red, fontSize: 9)),
-                      if (secili && ogrSayi > 0) ...[
+                      if (konumVar && s['sonKonumZamani'] != null)
+                        Text(
+                                () { final ts = s['sonKonumZamani']; if (ts is Timestamp) { final dt = ts.toDate(); return 'Son: ' + dt.hour.toString().padLeft(2,'0') + ':' + dt.minute.toString().padLeft(2,'0'); } return ''; }(),
+                            style: const TextStyle(color: Colors.green, fontSize: 9)),
+                      if (secili) ...[
                         const SizedBox(height: 6),
+                        SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF1a3a6b),
+                              side: const BorderSide(color: Color(0xFF1a3a6b)),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                          icon: const Icon(Icons.edit_outlined, size: 12),
+                          label: const Text('Duzenle', style: TextStyle(fontSize: 10)),
+                          onPressed: () => _soforDuzenle(context, s),
+                        )),
+                      ],
+                      if (secili && ogrSayi > 0) ...[
+                        const SizedBox(height: 4),
                         Text('$bindiSayi/$ogrSayi bindi',
                             style: const TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.w600)),
                       ],
@@ -517,7 +590,7 @@ class _WebHaritaState extends State<WebHarita> {
             mapToolbarEnabled: false,
             mapType: _mapTipi,
           ),
-          // Loading overlay - harita hep görünür kalır
+          // Loading overlay - harita hep gorunur kalir
           if (_yukleniyor)
             Container(
               color: Colors.white.withValues(alpha: 0.7),

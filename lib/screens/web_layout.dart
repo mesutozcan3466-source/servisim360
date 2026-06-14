@@ -4,10 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/session_service.dart';
 import 'web_dashboard.dart';
-import 'web_ogrenciler.dart';
-import 'web_soforler.dart';
+import 'package:servisim360/screens/web_admin_panel.dart' show WebAdminPanel;
 import 'web_harita.dart';
-import 'web_raporlar.dart';
 import 'web_fiyat.dart';
 import 'web_ayarlar.dart';
 import 'web_super_admin.dart';
@@ -339,10 +337,10 @@ class _WebLayoutState extends State<WebLayout> {
     } else {
       switch (_seciliMenu) {
         case 0: return const WebDashboard();
-        case 1: return const WebOgrenciler();
-        case 2: return const WebSoforler();
+        case 1: return const WebAdminPanelRedirect(menu:5);
+        case 2: return const WebAdminPanelRedirect(menu:4);
         case 3: return const WebHarita();
-        case 4: return const WebRaporlar(projeId:'');
+        case 4: return const WebAdminPanelRedirect(menu:15);
         case 5: return const WebFiyat();
         case 6: return const WebAyarlar();
         default: return const WebDashboard();
@@ -360,4 +358,10 @@ class _MenuItem {
   final IconData ikon;
   final String etiket;
   const _MenuItem(this.ikon, this.etiket);
+}
+
+class WebAdminPanelRedirect extends StatelessWidget{
+  final int menu;
+  const WebAdminPanelRedirect({required this.menu});
+  @override Widget build(BuildContext context)=>const WebAdminPanel();
 }
