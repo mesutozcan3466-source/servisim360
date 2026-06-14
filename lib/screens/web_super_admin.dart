@@ -22,6 +22,8 @@ class _WebSuperAdminSayfasiState extends State<WebSuperAdminSayfasi> {
     {'ikon': Icons.map_outlined,           'etiket': 'Global Harita'},
     {'ikon': Icons.people_outline,         'etiket': 'Kullanicilar'},
     {'ikon': Icons.settings_outlined,      'etiket': 'Sistem'},
+    {'ikon': Icons.bug_report_outlined,   'etiket': 'Hata Kayitlari'},
+    {'ikon': Icons.support_agent_outlined, 'etiket': 'Destek'},
   ];
 
   @override
@@ -142,13 +144,15 @@ class _WebSuperAdminSayfasiState extends State<WebSuperAdminSayfasi> {
       case 3: return const WebSuperAdminHarita();
       case 4: return const WebSuperAdminKullanicilar();
       case 5: return const _SaSistem();
+      case 6: return const _SaHataKayitlari();
+      case 7: return const _SaDestekTalepleri();
       default: return const WebSuperAdminIstatistik();
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════
-//  İSTATİSTİKLER
+//  ISTATISTIKLER
 // ═══════════════════════════════════════════════════════
 class WebSuperAdminIstatistik extends StatefulWidget {
   const WebSuperAdminIstatistik({super.key});
@@ -242,7 +246,7 @@ class _WebSuperAdminIstatistikState extends State<WebSuperAdminIstatistik> {
 }
 
 // ═══════════════════════════════════════════════════════
-//  FİRMALAR
+//  FIRMALAR
 // ═══════════════════════════════════════════════════════
 class WebSuperAdminFirmalar extends StatefulWidget {
   const WebSuperAdminFirmalar({super.key});
@@ -614,7 +618,7 @@ class _WebSuperAdminFirmalarState extends State<WebSuperAdminFirmalar> {
 }
 
 // ═══════════════════════════════════════════════════════
-//  LİSANSLAR
+//  LISANSLAR
 // ═══════════════════════════════════════════════════════
 class WebSuperAdminLisanslar extends StatefulWidget {
   const WebSuperAdminLisanslar({super.key});
@@ -658,7 +662,7 @@ class _WebSuperAdminLisanslarState extends State<WebSuperAdminLisanslar> {
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: _saNavy, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            onPressed: () {}, // Firmalar üzerinden yönetilir
+            onPressed: () {}, // Firmalar uzerinden yonetilir
             icon: const Icon(Icons.info_outline, size: 18),
             label: const Text('Lisanslar Firmalar uzerinden yonetilir'),
           ),
@@ -727,7 +731,7 @@ class _WebSuperAdminLisanslarState extends State<WebSuperAdminLisanslar> {
 }
 
 // ═══════════════════════════════════════════════════════
-//  GLOBAL HARİTA
+//  GLOBAL HARITA
 // ═══════════════════════════════════════════════════════
 class WebSuperAdminHarita extends StatelessWidget {
   const WebSuperAdminHarita({super.key});
@@ -861,7 +865,7 @@ class _WebSuperAdminKullanicilarState extends State<WebSuperAdminKullanicilar> {
 }
 
 // ═══════════════════════════════════════════════════════
-//  SİSTEM
+//  SISTEM
 // ═══════════════════════════════════════════════════════
 class _SaSistem extends StatelessWidget {
   const _SaSistem();
@@ -872,7 +876,7 @@ class _SaSistem extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Sistem Ayarlari', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _saNavy)),
         const SizedBox(height: 24),
-        _SistemKart(Icons.notifications_outlined, 'Bildirim Ayarlari', 'FCM ve push bildirim yapılandırması', onTap: () {
+        _SistemKart(Icons.notifications_outlined, 'Bildirim Ayarlari', 'FCM ve push bildirim yapilandirmasi', onTap: () {
           showDialog(context: context, builder: (_) => AlertDialog(
             title: const Text('Bildirim Ayarlari'),
             content: const Text('FCM Server Key ve bildirim ayarlari Firebase Console uzerinden yonetilir.'),
@@ -943,5 +947,181 @@ class _SistemKart extends StatelessWidget {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+//  HATA KAYITLARI – Bolum 17
+// ─────────────────────────────────────────────────────────────────
+class _SaHataKayitlari extends StatefulWidget{
+  const _SaHataKayitlari();
+  @override State<_SaHataKayitlari> createState()=>_SaHataKayitlariState();
+}
+class _SaHataKayitlariState extends State<_SaHataKayitlari>{
+  static const _navy=Color(0xFF1a3a6b);
+  String _filtre='hepsi';
 
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),color:Colors.white,
+        child:Row(children:[
+          const Text('Sistem Hata Kayitlari',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:16)),
+          const Spacer(),
+          for(final f in [('hepsi','Tumu'),('hata','Hatalar'),('uyari','Uyarilar')])
+            GestureDetector(onTap:()=>setState(()=>_filtre=f.$1),
+                child:Container(margin:const EdgeInsets.only(left:8),
+                    padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+                    decoration:BoxDecoration(
+                        color:_filtre==f.$1?_navy:Colors.grey[100],
+                        borderRadius:BorderRadius.circular(8)),
+                    child:Text(f.$2,style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,
+                        color:_filtre==f.$1?Colors.white:Colors.grey)))),
+        ])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:(){
+          var q=FirebaseFirestore.instance.collection('sistem_hatalari').orderBy('tarih',descending:true).limit(100);
+          return q.snapshots();
+        }(),
+        builder:(_,snap){
+          var docs=snap.data?.docs??[];
+          if(_filtre!='hepsi'){
+            docs=docs.where((d)=>(d.data() as Map)['tip']==_filtre).toList();
+          }
+          if(docs.isEmpty)return Center(child:Column(
+              mainAxisAlignment:MainAxisAlignment.center,children:[
+            const Icon(Icons.check_circle_outline,size:56,color:Colors.green),
+            const SizedBox(height:12),
+            const Text('Hata kaydi yok',style:TextStyle(fontSize:16,color:Colors.green)),
+          ]));
+          return ListView.builder(
+              padding:const EdgeInsets.all(16),
+              itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;
+                final tip=(d['tip']??'hata').toString();
+                final tipRenk=tip=='hata'?Colors.red:Colors.orange;
+                final ts=d['tarih'];
+                String tarihStr='';
+                if(ts is Timestamp){final dt=ts.toDate();
+                tarihStr=dt.day.toString().padLeft(2,'0')+'.'+dt.month.toString().padLeft(2,'0')+'.'+dt.year.toString()+' '+
+                    dt.hour.toString().padLeft(2,'0')+':'+dt.minute.toString().padLeft(2,'0');}
+                return Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(14),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),
+                        border:Border(left:BorderSide(color:tipRenk,width:3)),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:4)]),
+                    child:Row(children:[
+                      Icon(tip=='hata'?Icons.error_outline:Icons.warning_amber_outlined,
+                          color:tipRenk,size:20),
+                      const SizedBox(width:12),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(d['mesaj']??d['hata']??'',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:13)),
+                        if((d['firmaId']??'').isNotEmpty)Text('Firma: '+d['firmaId'],
+                            style:TextStyle(fontSize:11,color:Colors.grey[500])),
+                        if((d['modul']??'').isNotEmpty)Text('Modul: '+d['modul'],
+                            style:TextStyle(fontSize:11,color:Colors.grey[400])),
+                      ])),
+                      Text(tarihStr,style:TextStyle(fontSize:10,color:Colors.grey[400])),
+                    ]));
+              });
+        })),
+  ]);
+}
 
+// ─────────────────────────────────────────────────────────────────
+//  DESTEK TALEPLERI – Bolum 17
+// ─────────────────────────────────────────────────────────────────
+class _SaDestekTalepleri extends StatefulWidget{
+  const _SaDestekTalepleri();
+  @override State<_SaDestekTalepleri> createState()=>_SaDestekTalepleriState();
+}
+class _SaDestekTalepleriState extends State<_SaDestekTalepleri>{
+  static const _navy=Color(0xFF1a3a6b);
+  static const _t=Color(0xFFFF8C00);
+  String _filtre='yeni';
+
+  @override Widget build(BuildContext context)=>Column(children:[
+    Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:12),color:Colors.white,
+        child:Row(children:[
+          const Text('Destek Talepleri',style:TextStyle(fontWeight:FontWeight.bold,color:_navy,fontSize:16)),
+          const Spacer(),
+          for(final f in [('yeni','Yeni'),('inceleniyor','Inceleniyor'),('cozuldu','Cozuldu'),('hepsi','Tumu')])
+            GestureDetector(onTap:()=>setState(()=>_filtre=f.$1),
+                child:Container(margin:const EdgeInsets.only(left:8),
+                    padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
+                    decoration:BoxDecoration(
+                        color:_filtre==f.$1?_navy:Colors.grey[100],
+                        borderRadius:BorderRadius.circular(8)),
+                    child:Text(f.$2,style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,
+                        color:_filtre==f.$1?Colors.white:Colors.grey)))),
+        ])),
+    Expanded(child:StreamBuilder<QuerySnapshot>(
+        stream:(){
+          var q=FirebaseFirestore.instance.collection('destek_talepleri').orderBy('tarih',descending:true);
+          if(_filtre!='hepsi')q=q.where('durum',isEqualTo:_filtre);
+          return q.limit(50).snapshots();
+        }(),
+        builder:(_,snap){
+          final docs=snap.data?.docs??[];
+          if(docs.isEmpty)return Center(child:Column(
+              mainAxisAlignment:MainAxisAlignment.center,children:[
+            Icon(Icons.support_agent_outlined,size:56,color:Colors.grey[300]),
+            const SizedBox(height:12),
+            Text(_filtre=='yeni'?'Yeni talep yok':'Talep bulunamadi',
+                style:const TextStyle(fontSize:16,color:Colors.grey)),
+          ]));
+          return ListView.builder(
+              padding:const EdgeInsets.all(16),
+              itemCount:docs.length,
+              itemBuilder:(_,i){
+                final d=docs[i].data() as Map<String,dynamic>;
+                final durum=(d['durum']??'yeni').toString();
+                final durumRenk=durum=='yeni'?Colors.red:durum=='inceleniyor'?Colors.orange:Colors.green;
+                final ts=d['tarih'];
+                String tarihStr='';
+                if(ts is Timestamp){final dt=ts.toDate();
+                tarihStr=dt.day.toString().padLeft(2,'0')+'.'+dt.month.toString().padLeft(2,'0')+' '+
+                    dt.hour.toString().padLeft(2,'0')+':'+dt.minute.toString().padLeft(2,'0');}
+                return Container(margin:const EdgeInsets.only(bottom:10),
+                    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
+                        border:Border.all(color:durumRenk.withValues(alpha:0.2)),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:0.04),blurRadius:6)]),
+                    child:Column(children:[
+                      Container(padding:const EdgeInsets.all(14),
+                          decoration:BoxDecoration(
+                              color:durumRenk.withValues(alpha:0.05),
+                              borderRadius:const BorderRadius.vertical(top:Radius.circular(14))),
+                          child:Row(children:[
+                            Container(padding:const EdgeInsets.all(8),
+                                decoration:BoxDecoration(color:durumRenk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(8)),
+                                child:Icon(Icons.support_agent_outlined,color:durumRenk,size:18)),
+                            const SizedBox(width:12),
+                            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                              Text(d['konu']??d['baslik']??'Destek Talebi',
+                                  style:const TextStyle(fontWeight:FontWeight.bold,fontSize:14)),
+                              Text((d['firmaAd']??d['firmaId']??'').toString(),
+                                  style:TextStyle(fontSize:12,color:Colors.grey[500])),
+                            ])),
+                            Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+                              Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                                  decoration:BoxDecoration(color:durumRenk.withValues(alpha:0.1),borderRadius:BorderRadius.circular(6)),
+                                  child:Text(durum,style:TextStyle(fontSize:10,color:durumRenk,fontWeight:FontWeight.bold))),
+                              Text(tarihStr,style:TextStyle(fontSize:10,color:Colors.grey[400])),
+                            ]),
+                          ])),
+                      Padding(padding:const EdgeInsets.all(14),
+                          child:Row(children:[
+                            Expanded(child:Text(d['mesaj']??'',style:const TextStyle(fontSize:13))),
+                            const SizedBox(width:12),
+                            // Durum guncelleme
+                            if(durum!='cozuldu')PopupMenuButton<String>(
+                                icon:const Icon(Icons.more_vert_outlined,size:18,color:Colors.grey),
+                                onSelected:(v) async{
+                                  await FirebaseFirestore.instance.collection('destek_talepleri')
+                                      .doc(docs[i].id).update({'durum':v});
+                                },
+                                itemBuilder:(_)=>[
+                                  if(durum=='yeni')const PopupMenuItem(value:'inceleniyor',child:Text('Incelemeye Al')),
+                                  const PopupMenuItem(value:'cozuldu',child:Text('Cozuldu Olarak Isaretle')),
+                                ]),
+                          ])),
+                    ]));
+              });
+        })),
+  ]);
+}

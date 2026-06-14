@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/session_service.dart';
 
 // ════════════════════════════════════════════════════════════════
-//  WEB AYARLAR — Firma Bilgileri | Bildirimler | Hesap | Şifre
+//  WEB AYARLAR — Firma Bilgileri | Bildirimler | Hesap | Sifre
 // ════════════════════════════════════════════════════════════════
 class WebAyarlar extends StatefulWidget {
   const WebAyarlar({super.key});
@@ -29,7 +29,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
   final _vergiCtrl      = TextEditingController();
   final _websiteCtrl    = TextEditingController();
 
-  // Bildirim ayarları
+  // Bildirim ayarlari
   bool _bildWhatsapp   = true;
   bool _bildSms        = false;
   bool _bildYaklasiyor = true;
@@ -39,7 +39,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
   bool _bildEvrakBitis = true;
   bool _bildSofor      = true;
 
-  // Şifre
+  // Sifre
   final _eskiSifreCtrl = TextEditingController();
   final _yeniSifreCtrl = TextEditingController();
   final _yeniSifre2Ctrl= TextEditingController();
@@ -73,7 +73,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
       _vergiCtrl.text    = d['vergiBilgisi']  ?? '';
       _websiteCtrl.text  = d['website']       ?? '';
 
-      // Bildirim ayarları
+      // Bildirim ayarlari
       final bild = d['bildirimAyarlari'] as Map<String, dynamic>? ?? {};
       _bildWhatsapp   = bild['whatsapp']   ?? true;
       _bildSms        = bild['sms']        ?? false;
@@ -119,15 +119,15 @@ class _WebAyarlarState extends State<WebAyarlar> {
       },
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    _snack('Bildirim ayarları kaydedildi ✓', Colors.green);
+    _snack('Bildirim ayarlari kaydedildi ✓', Colors.green);
   }
 
   Future<void> _sifreDegistir() async {
     if (_yeniSifreCtrl.text != _yeniSifre2Ctrl.text) {
-      _snack('Şifreler eşleşmiyor!', Colors.red); return;
+      _snack('Sifreler eslesmiyor!', Colors.red); return;
     }
     if (_yeniSifreCtrl.text.length < 6) {
-      _snack('Şifre en az 6 karakter olmalı!', Colors.red); return;
+      _snack('Sifre en az 6 karakter olmali!', Colors.red); return;
     }
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -137,9 +137,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
       await user.reauthenticateWithCredential(cred);
       await user.updatePassword(_yeniSifreCtrl.text);
       _eskiSifreCtrl.clear(); _yeniSifreCtrl.clear(); _yeniSifre2Ctrl.clear();
-      _snack('Şifre güncellendi ✓', Colors.green);
+      _snack('Sifre guncellendi ✓', Colors.green);
     } catch (e) {
-      _snack('Hata: Mevcut şifre yanlış olabilir', Colors.red);
+      _snack('Hata: Mevcut sifre yanlis olabilir', Colors.red);
     }
   }
 
@@ -151,7 +151,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
     if (_yukleniyor) return const Center(child: CircularProgressIndicator());
 
     return Row(children: [
-      // Sol sekme menüsü
+      // Sol sekme menusu
       Container(
         width: 200,
         color: const Color(0xFFF8F9FA),
@@ -169,17 +169,18 @@ class _WebAyarlarState extends State<WebAyarlar> {
           _sekmeBtn(0, Icons.business_outlined,       'Firma Bilgileri'),
           _sekmeBtn(1, Icons.notifications_outlined,  'Bildirimler'),
           _sekmeBtn(2, Icons.account_circle_outlined, 'Hesap Bilgileri'),
-          _sekmeBtn(3, Icons.lock_outlined,           'Şifre Değiştir'),
+          _sekmeBtn(3, Icons.lock_outlined,           'Sifre Degistir'),
           _sekmeBtn(4, Icons.folder_outlined,         'Proje Ayarlari'),
           _sekmeBtn(5, Icons.map_outlined,            'Harita Ayarlari'),
           _sekmeBtn(6, Icons.manage_accounts_outlined,'Kullanici Yonetimi'),
           _sekmeBtn(7, Icons.backup_outlined,             'Yedekleme'),
           _sekmeBtn(8, Icons.archive_outlined,            'Arsiv Ayarlari'),
           _sekmeBtn(9, Icons.security_outlined,           'Guvenlik'),
+          _sekmeBtn(10, Icons.code_outlined,              'Gelistirme'),
         ]),
       ),
       const VerticalDivider(width: 1),
-      // İçerik
+      // Icerik
       Expanded(child: [
         _firmaTab(),
         _bildirimTab(),
@@ -191,6 +192,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
         _yedeklemeTab(),
         _arsivAyarlariTab(),
         _guvenlikTab(),
+        _gelistirmeKurallarTab(),
       ][_sekme]),
     ]);
   }
@@ -218,13 +220,13 @@ class _WebAyarlarState extends State<WebAyarlar> {
     );
   }
 
-  // ── TAB 1: FİRMA BİLGİLERİ ───────────────────────────────────
+  // ── TAB 1: FIRMA BILGILERI ───────────────────────────────────
   Widget _firmaTab() => SingleChildScrollView(
     padding: const EdgeInsets.all(24),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _baslik('Firma Bilgileri', Icons.business_outlined),
       const SizedBox(height: 4),
-      const Text('Bu bilgiler sözleşmelerde ve PDF belgelerinde otomatik kullanılır',
+      const Text('Bu bilgiler sozlesmelerde ve PDF belgelerinde otomatik kullanilir',
           style: TextStyle(color: Colors.grey, fontSize: 12)),
       const SizedBox(height: 20),
       Card(
@@ -233,9 +235,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
           padding: const EdgeInsets.all(20),
           child: Column(children: [
             Row(children: [
-              Expanded(child: _inp(_firmaAdCtrl, 'Firma Adı *', Icons.business_outlined)),
+              Expanded(child: _inp(_firmaAdCtrl, 'Firma Adi *', Icons.business_outlined)),
               const SizedBox(width: 12),
-              Expanded(child: _inp(_yetkiliCtrl, 'Yetkili Adı *', Icons.person_outlined)),
+              Expanded(child: _inp(_yetkiliCtrl, 'Yetkili Adi *', Icons.person_outlined)),
             ]),
             const SizedBox(height: 12),
             Row(children: [
@@ -267,11 +269,11 @@ class _WebAyarlarState extends State<WebAyarlar> {
     ]),
   );
 
-  // ── TAB 2: BİLDİRİMLER ───────────────────────────────────────
+  // ── TAB 2: BILDIRIMLER ───────────────────────────────────────
   Widget _bildirimTab() => SingleChildScrollView(
     padding: const EdgeInsets.all(24),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _baslik('Bildirim Ayarları', Icons.notifications_outlined),
+      _baslik('Bildirim Ayarlari', Icons.notifications_outlined),
       const SizedBox(height: 20),
 
       // Kanal
@@ -280,9 +282,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Bildirim Kanalları', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+            const Text('Bildirim Kanallari', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
             const SizedBox(height: 12),
-            _switchSatir('WhatsApp Bildirimleri', 'Olaylar WhatsApp üzerinden iletilir',
+            _switchSatir('WhatsApp Bildirimleri', 'Olaylar WhatsApp uzerinden iletilir',
                 Icons.message_rounded, const Color(0xFF25D366), _bildWhatsapp,
                     (v) => setState(() => _bildWhatsapp = v)),
             _switchSatir('SMS Bildirimleri', 'Olaylar SMS olarak iletilir',
@@ -293,30 +295,30 @@ class _WebAyarlarState extends State<WebAyarlar> {
       ),
       const SizedBox(height: 16),
 
-      // Olay türleri
+      // Olay turleri
       Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Bildirim Olayları', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
+            const Text('Bildirim Olaylari', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
             const SizedBox(height: 12),
-            _switchSatir('Yeni Öğrenci Kaydı', 'Veli kayıt formu doldurduğunda',
+            _switchSatir('Yeni Ogrenci Kaydi', 'Veli kayit formu doldurdugunda',
                 Icons.person_add_rounded, Colors.green, _bildYeniKayit,
                     (v) => setState(() => _bildYeniKayit = v)),
-            _switchSatir('Araç Yaklaşıyor', 'Servis 5 dakika uzaktayken veliye gönder',
+            _switchSatir('Arac Yaklasiyor', 'Servis 5 dakika uzaktayken veliye gonder',
                 Icons.directions_bus_rounded, Colors.orange, _bildYaklasiyor,
                     (v) => setState(() => _bildYaklasiyor = v)),
-            _switchSatir('Öğrenci Bindi / İndi', 'Her biniş ve inişte veliye bildir',
+            _switchSatir('Ogrenci Bindi / Indi', 'Her binis ve iniste veliye bildir',
                 Icons.how_to_reg_rounded, Colors.teal, _bildBindi,
                     (v) => setState(() => _bildBindi = v)),
-            _switchSatir('Sözleşme Onaylandı', 'Veli sözleşmeyi imzaladığında',
+            _switchSatir('Sozlesme Onaylandi', 'Veli sozlesmeyi imzaladiginda',
                 Icons.verified_outlined, Colors.purple, _bildSozlesme,
                     (v) => setState(() => _bildSozlesme = v)),
-            _switchSatir('Şoför Göreve Başladı', 'Şoför servisi başlattığında',
+            _switchSatir('Sofor Goreve Basladi', 'Sofor servisi baslattiginda',
                 Icons.drive_eta_rounded, Colors.indigo, _bildSofor,
                     (v) => setState(() => _bildSofor = v)),
-            _switchSatir('Evrak Süresi Bitiyor', 'Ehliyet, sigorta vb. süresi yaklaşınca',
+            _switchSatir('Evrak Suresi Bitiyor', 'Ehliyet, sigorta vb. suresi yaklasinca',
                 Icons.warning_amber_rounded, Colors.red, _bildEvrakBitis,
                     (v) => setState(() => _bildEvrakBitis = v)),
           ]),
@@ -330,7 +332,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         onPressed: _bildirimKaydet,
         icon: const Icon(Icons.save_rounded, size: 18),
-        label: const Text('Bildirim Ayarlarını Kaydet', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text('Bildirim Ayarlarini Kaydet', style: TextStyle(fontWeight: FontWeight.bold)),
       )),
     ]),
   );
@@ -347,12 +349,12 @@ class _WebAyarlarState extends State<WebAyarlar> {
           ),
           title: Text(baslik, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           subtitle: Text(alt, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-          trailing: Switch(value: deger, onChanged: onChange, activeColor: renk),
+          trailing: Switch(value: deger, onChanged: onChange, activeThumbColor: renk),
           contentPadding: EdgeInsets.zero,
         ),
       );
 
-  // ── TAB 3: HESAP BİLGİLERİ ───────────────────────────────────
+  // ── TAB 3: HESAP BILGILERI ───────────────────────────────────
   Widget _hesapTab() {
     final user = FirebaseAuth.instance.currentUser;
     return SingleChildScrollView(
@@ -384,13 +386,13 @@ class _WebAyarlarState extends State<WebAyarlar> {
 
               // Bilgiler
               _bilgiSatiri('E-posta', user?.email ?? '-', Icons.email_outlined),
-              _bilgiSatiri('Hesap Oluşturma', user?.metadata.creationTime != null
+              _bilgiSatiri('Hesap Olusturma', user?.metadata.creationTime != null
                   ? '${user!.metadata.creationTime!.day}.${user.metadata.creationTime!.month}.${user.metadata.creationTime!.year}'
                   : '-', Icons.calendar_today_outlined),
-              _bilgiSatiri('Son Giriş', user?.metadata.lastSignInTime != null
+              _bilgiSatiri('Son Giris', user?.metadata.lastSignInTime != null
                   ? '${user!.metadata.lastSignInTime!.day}.${user.metadata.lastSignInTime!.month}.${user.metadata.lastSignInTime!.year}'
                   : '-', Icons.login_rounded),
-              _bilgiSatiri('E-posta Doğrulama', user?.emailVerified == true ? '✅ Doğrulandı' : '⚠️ Doğrulanmadı',
+              _bilgiSatiri('E-posta Dogrulama', user?.emailVerified == true ? '✅ Dogrulandi' : '⚠️ Dogrulanmadi',
                   Icons.verified_user_outlined),
               const SizedBox(height: 16),
               if (user?.emailVerified == false)
@@ -398,35 +400,35 @@ class _WebAyarlarState extends State<WebAyarlar> {
                   style: OutlinedButton.styleFrom(foregroundColor: _turuncu, side: const BorderSide(color: _turuncu)),
                   onPressed: () async {
                     await user!.sendEmailVerification();
-                    _snack('Doğrulama e-postası gönderildi', Colors.green);
+                    _snack('Dogrulama e-postasi gonderildi', Colors.green);
                   },
                   icon: const Icon(Icons.email_outlined, size: 16),
-                  label: const Text('Doğrulama E-postası Gönder'),
+                  label: const Text('Dogrulama E-postasi Gonder'),
                 ),
             ]),
           ),
         ),
         const SizedBox(height: 16),
-        // Çıkış
+        // Cikis
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           child: ListTile(
             leading: const Icon(Icons.logout_rounded, color: Colors.red),
-            title: const Text('Çıkış Yap', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-            subtitle: const Text('Hesaptan çıkış yaparsınız', style: TextStyle(fontSize: 12)),
+            title: const Text('Cikis Yap', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+            subtitle: const Text('Hesaptan cikis yaparsiniz', style: TextStyle(fontSize: 12)),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
             onTap: () async {
               final onay = await showDialog<bool>(
                 context: context,
                 builder: (_) => AlertDialog(
-                  title: const Text('Çıkış Yap'),
-                  content: const Text('Hesaptan çıkmak istediğinize emin misiniz?'),
+                  title: const Text('Cikis Yap'),
+                  content: const Text('Hesaptan cikmak istediginize emin misiniz?'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('İptal')),
+                    TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Iptal')),
                     ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                         onPressed: () => Navigator.pop(_, true),
-                        child: const Text('Çıkış Yap')),
+                        child: const Text('Cikis Yap')),
                   ],
                 ),
               );
@@ -452,25 +454,25 @@ class _WebAyarlarState extends State<WebAyarlar> {
     ]),
   );
 
-  // ── TAB 4: ŞİFRE DEĞİŞTİR ────────────────────────────────────
+  // ── TAB 4: SIFRE DEGISTIR ────────────────────────────────────
   Widget _sifreTab() => SingleChildScrollView(
     padding: const EdgeInsets.all(24),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _baslik('Şifre Değiştir', Icons.lock_outlined),
+      _baslik('Sifre Degistir', Icons.lock_outlined),
       const SizedBox(height: 20),
       Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(children: [
-            _sifreAlan(_eskiSifreCtrl,  'Mevcut Şifre',   _sifreGizli1, () => setState(() => _sifreGizli1 = !_sifreGizli1)),
+            _sifreAlan(_eskiSifreCtrl,  'Mevcut Sifre',   _sifreGizli1, () => setState(() => _sifreGizli1 = !_sifreGizli1)),
             const SizedBox(height: 12),
-            _sifreAlan(_yeniSifreCtrl,  'Yeni Şifre',     _sifreGizli2, () => setState(() => _sifreGizli2 = !_sifreGizli2)),
+            _sifreAlan(_yeniSifreCtrl,  'Yeni Sifre',     _sifreGizli2, () => setState(() => _sifreGizli2 = !_sifreGizli2)),
             const SizedBox(height: 12),
-            _sifreAlan(_yeniSifre2Ctrl, 'Yeni Şifre (Tekrar)', _sifreGizli3, () => setState(() => _sifreGizli3 = !_sifreGizli3)),
+            _sifreAlan(_yeniSifre2Ctrl, 'Yeni Sifre (Tekrar)', _sifreGizli3, () => setState(() => _sifreGizli3 = !_sifreGizli3)),
             const SizedBox(height: 8),
             const Align(alignment: Alignment.centerLeft,
-                child: Text('Şifre en az 6 karakter olmalıdır', style: TextStyle(color: Colors.grey, fontSize: 11))),
+                child: Text('Sifre en az 6 karakter olmalidir', style: TextStyle(color: Colors.grey, fontSize: 11))),
             const SizedBox(height: 20),
             SizedBox(width: double.infinity, child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
@@ -479,7 +481,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: _sifreDegistir,
               icon: const Icon(Icons.lock_reset_rounded, size: 18),
-              label: const Text('Şifreyi Güncelle', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text('Sifreyi Guncelle', style: TextStyle(fontWeight: FontWeight.bold)),
             )),
           ]),
         ),
@@ -525,9 +527,9 @@ class _WebAyarlarState extends State<WebAyarlar> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _navy)),
               const SizedBox(height: 14),
               Row(children: [
-                Expanded(child: _inp(sabahCtrl, 'Sabah Saati (örn: 07:30)', Icons.wb_sunny_outlined)),
+                Expanded(child: _inp(sabahCtrl, 'Sabah Saati (orn: 07:30)', Icons.wb_sunny_outlined)),
                 const SizedBox(width: 12),
-                Expanded(child: _inp(aksamCtrl, 'Aksam Saati (örn: 16:30)', Icons.nights_stay_outlined)),
+                Expanded(child: _inp(aksamCtrl, 'Aksam Saati (orn: 16:30)', Icons.nights_stay_outlined)),
               ]),
               const SizedBox(height: 14),
               _inp(okulAdresCtrl, 'Varsayilan Okul / Is Yeri Adresi', Icons.location_on_outlined),
@@ -557,7 +559,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
     );
   }
 
-  // ── TAB 6: HARİTA AYARLARI ────────────────────────────────────
+  // ── TAB 6: HARITA AYARLARI ────────────────────────────────────
   Widget _haritaAyarlariTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -605,7 +607,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
     );
   }
 
-  // ── TAB 7: KULLANICI YÖNETİMİ ─────────────────────────────────
+  // ── TAB 7: KULLANICI YONETIMI ─────────────────────────────────
   Widget _kullaniciYonetimiTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -743,7 +745,7 @@ class _WebAyarlarState extends State<WebAyarlar> {
     ]));
   }
 
-  // ── Arşiv Ayarları ────────────────────────────────────────
+  // ── Arsiv Ayarlari ────────────────────────────────────────
   Widget _arsivAyarlariTab() {
     return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
         crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -788,13 +790,13 @@ class _WebAyarlarState extends State<WebAyarlar> {
     ]));
   }
 
-  // ── Güvenlik ──────────────────────────────────────────────
+  // ── Guvenlik ──────────────────────────────────────────────
   Widget _guvenlikTab() {
     return SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(
         crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Guvenlik', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _navy)),
       const SizedBox(height: 16),
-      // Son girişler
+      // Son girisler
       Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
@@ -832,6 +834,50 @@ class _WebAyarlarState extends State<WebAyarlar> {
           ])),
     ]));
   }
+
+  Widget _gelistirmeKurallarTab()=>SingleChildScrollView(
+      padding:const EdgeInsets.all(24),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Gelistirme Kurallari',
+            style:TextStyle(fontSize:20,fontWeight:FontWeight.bold,color:_navy)),
+        const SizedBox(height:8),
+        const Text('Servisim360 gelistirme anayasasi.',style:TextStyle(color:Colors.grey)),
+        const SizedBox(height:16),
+        Container(padding:const EdgeInsets.all(16),
+            decoration:BoxDecoration(color:_navy.withValues(alpha:0.05),borderRadius:BorderRadius.circular(14)),
+            child:const Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text('Servisim360 v2.0.0',style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:_navy)),
+              Text('Firebase: servis360-15b4a',style:TextStyle(fontSize:12,color:Colors.grey)),
+              Text('Platform: Flutter Web + Android',style:TextStyle(fontSize:11,color:Colors.grey)),
+            ])),
+        const SizedBox(height:20),
+        for(final k in const[
+          'Calisan Ozellik Silinemez — eski ozellik kaldirilmaz',
+          'Menuler Korunur — izin olmadan degistirilmez',
+          'Veri Kaybi Yasak — hicbir guncelleme veri silemez',
+          'Once Test Sonra Canli — yeni ozellik once test ortaminda',
+          'Bagimlilik Kontrolu — etkilenen moduller kontrol edilir',
+          'Geri Donus Plani — her guncellemede rollback plani var',
+          'Arsiv Kurali — kalici silme yok, arsivle mantigi',
+          'Rol Guvenligi — izolasyon kurallari bozulamaz',
+          'Proje Yapisi Korunur — sistem proje bazli calisir',
+          'Mobil ve Web Uyumlu — her ozellik her platformda calisir',
+          'Kod360 Hazirligi — raporlar standart yapida tutulur',
+        ])Padding(padding:const EdgeInsets.only(bottom:8),
+            child:Row(children:[
+              const Icon(Icons.check_circle_outline,color:Colors.green,size:16),
+              const SizedBox(width:10),
+              Expanded(child:Text(k,style:const TextStyle(fontSize:12))),
+            ])),
+        const SizedBox(height:16),
+        Container(padding:const EdgeInsets.all(14),
+            decoration:BoxDecoration(color:Colors.green.withValues(alpha:0.06),borderRadius:BorderRadius.circular(10)),
+            child:const Row(children:[
+              Icon(Icons.check_circle,color:Colors.green,size:18),SizedBox(width:10),
+              Expanded(child:Text('B1-B19 tamamlandi. 26 menu, 8137 satir kod aktif.',
+                  style:TextStyle(fontSize:12,color:Colors.green))),
+            ])),
+      ]));
 
 
 

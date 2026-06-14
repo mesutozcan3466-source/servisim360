@@ -14,10 +14,10 @@ import 'screens/rol_yonlendirici.dart';
 
 // Web Ekranlari
 import 'screens/web_giris_yonlendirici.dart';
-import 'screens/web_admin_panel.dart';
+import 'screens/web_admin_panel.dart' as web_admin;
 import 'screens/web_ayarlar.dart';
 import 'screens/web_super_admin.dart';
-import 'screens/web_sofor_panel.dart';
+import 'screens/web_sofor_panel.dart' as wsp;
 import 'screens/web_veli_panel.dart';
 import 'screens/web_kolej_panel.dart';
 import 'screens/web_personel_panel.dart';
@@ -27,11 +27,11 @@ import 'screens/web_aracmerkezi.dart';
 import 'screens/web_yedekleme_arsiv.dart';
 
 // Dashboard & Yonlendirme
+import 'screens/sofor_panel_screen.dart' show SoforPanelScreen;
 import 'screens/dashboard_screen.dart';
 import 'screens/proje_sec_screen.dart';
 
 // Sofor Ekranlari
-import 'screens/sofor_panel_screen.dart';
 import 'screens/suruculer_screen.dart';
 import 'screens/surucu_ekrani_screen.dart';
 import 'screens/yoklama_screen.dart';
@@ -155,83 +155,83 @@ class Servisim360App extends StatelessWidget {
   }
 
   Map<String, WidgetBuilder> _routes() => {
-    '/':               (_) => const SplashScreen(),
-    '/rol':            (_) => const RolYonlendirici(),
-    '/login':          (_) => const LoginScreen(),
-    '/kayit':          (_) => const KayitScreen(),
-    '/onboarding':     (_) => const OnboardingScreen(),
-    '/onay_bekleme':   (_) => const OnayBeklemeScreen(),
+    '/':              (_) => const SplashScreen(),
+    '/rol':           (_) => const RolYonlendirici(),
+    '/login':         (_) => const LoginScreen(),
+    '/kayit':         (_) => const KayitScreen(),
+    '/onboarding':    (_) => const OnboardingScreen(),
+    '/onay_bekleme':  (_) => const OnayBeklemeScreen(),
 
-    '/web':            (_) => const WebGirisYonlendirici(),
-    '/web_admin':      (_) => const WebAdminPanel(),
-    '/web_panel':      (_) => const WebSuperAdminSayfasi(),
-    '/web_sofor':      (_) => const WebSoforPanel(),
-    '/web_veli_panel': (_) => const WebVeliPanel(),
-    '/web_ayarlar':    (_) => const WebAyarlar(),
-    '/web_kolej':      (_) => const WebKolejPanel(),
-    '/web_personel':   (_) => const WebPersonelPanel(),
-    '/web_test':       (_) => const WebTestMerkezi(),
-    '/web_arsiv':      (_) => const WebArsivMerkezi(),
-    '/web_arac':       (_) => const WebAracMerkezi(),
-    '/web_yedek':      (_) => const WebYedekleme(),
+    '/web':           (_) => const WebGirisYonlendirici(),
+    '/web_admin':     (_) => const web_admin.WebAdminPanel(),
+    '/web_panel':     (_) => const WebSuperAdminSayfasi(),
+    '/web_sofor':     (_) => const wsp.WebSoforPanel(),
+    '/web_veli_panel':(_) => const WebVeliPanel(),
+    '/web_ayarlar':   (_) => const WebAyarlar(),
+    '/web_kolej':     (_) => const WebKolejPanel(),
+    '/web_personel':  (_) => const WebPersonelPanel(),
+    '/web_test':      (_) => const WebTestMerkezi(),
+    '/web_arsiv':     (_) => const WebArsivMerkezi(),
+    '/web_arac':      (_) => const WebAracMerkezi(),
+    '/web_yedek':     (_) => const WebYedekleme(),
 
-    '/dashboard':      (_) => const DashboardScreen(),
-    '/proje_sec':      (_) => const ProjeSecScreen(),
-    '/projeler':       (_) => const ProjelerScreen(),
-    '/proje_arsiv':    (_) => const ProjeArsivScreen(),
+    '/dashboard':     (_) => const DashboardScreen(),
+    '/proje_sec':     (_) => const ProjeSecScreen(),
+    '/projeler':      (_) => const ProjelerScreen(),
+    '/proje_arsiv':   (_) => const ProjeArsivScreen(),
 
-    '/sofor_panel':    (_) => const SoforPanelScreen(),
-    '/suruculer':      (_) => const SurucularScreen(),
-    '/surucu_ekrani':  (_) => const SurucuEkraniScreen(),
-    '/yoklama':        (_) => const YoklamaScreen(),
+    '/sofor_panel':   (_) => const SoforPanelScreen(),
+    '/suruculer':     (_) => const SurucularScreen(),
+    '/surucu_ekrani': (_) => const SurucuEkraniScreen(),
+    '/yoklama':       (_) => const YoklamaScreen(),
 
-    '/veli_panel':     (_) => const VeliPanelScreen(),
-    '/veli_sozlesme':  (_) => const VeliSozlesmeScreen(),
-    '/veli_basvuru':   (_) => const VeliBasvuruFormScreen(),
-    '/veli_basvurular':(_) => const VeliBasvurularScreen(),
-    '/kayit_link':     (_) => const VeliKayitLinkiScreen(),
-    '/yuz_yuze_kayit': (_) => const VeliKayitYuzYuzeScreen(),
+    '/veli_panel':    (_) => const VeliPanelScreen(),
+    '/veli_sozlesme': (_) => const VeliSozlesmeScreen(),
+    '/veli_basvuru':  (_) => const VeliBasvuruFormScreen(),
+    '/veli_basvurular':(_)=> const VeliBasvurularScreen(),
+    '/kayit_link':    (_) => const VeliKayitLinkiScreen(),
+    '/yuz_yuze_kayit':(_) => const VeliKayitYuzYuzeScreen(),
 
-    '/ogrenci':        (_) => const OgrencilerScreen(),
-    '/ogrenci_panel':  (_) => const OgrenciPaneliScreen(),
-    '/kayit_sistemi':  (_) => const KayitSistemiScreen(),
-    '/kayit_havuzu':   (_) => const KayitHavuzuScreen(),
-    '/toplu_yukle':    (_) => const TopluYukleScreen(),
+    '/ogrenci':       (_) => const OgrencilerScreen(),
+    '/ogrenci_panel': (_) => const OgrenciPaneliScreen(),
+    '/kayit_sistemi': (_) => const KayitSistemiScreen(),
+    '/kayit_havuzu':  (_) => const KayitHavuzuScreen(),
+    '/toplu_yukle':   (_) => const TopluYukleScreen(),
 
-    '/harita':         (_) => const HaritaScreen(),
-    '/gruplama':       (_) => const GruplamaScreen(),
-    '/rotalar':        (_) => const RotalarScreen(),
-    '/servis_bolme':   (_) => const ServisBolmeScreen(),
-    '/canli_rota':     (_) => const CanliRotaScreen(),
-    '/guzergah_gecmis':(_) => const GuzergahGecmisScreen(),
-    '/admin_takip':    (_) => const AdminAracTakipScreen(),
+    '/harita':        (_) => const HaritaScreen(),
+    '/gruplama':      (_) => const GruplamaScreen(),
+    '/rotalar':       (_) => const RotalarScreen(),
+    '/servis_bolme':  (_) => const ServisBolmeScreen(),
+    '/canli_rota':    (_) => const CanliRotaScreen(),
+    '/guzergah_gecmis':(_)=> const GuzergahGecmisScreen(),
+    '/admin_takip':   (_) => const AdminAracTakipScreen(),
 
-    '/servis_saati':   (_) => const ServisSaatiScreen(),
-    '/araclar':        (_) => const AraclarScreen(),
+    '/servis_saati':  (_) => const ServisSaatiScreen(),
+    '/araclar':       (_) => const AraclarScreen(),
 
-    '/fiyat_yonetim':  (_) => const FiyatYonetimScreen(),
-    '/sozlesme_yonetim':(_)=> const SozlesmeYonetimScreen(),
-    '/sozlesme':       (_) => const SozlesmeScreen(),
+    '/fiyat_yonetim': (_) => const FiyatYonetimScreen(),
+    '/sozlesme_yonetim':(_)=>const SozlesmeYonetimScreen(),
+    '/sozlesme':      (_) => const SozlesmeScreen(),
 
-    '/bildirimler':    (_) => const BildirimlerScreen(),
-    '/toplu_mesaj':    (_) => const TopluMesajScreen(),
-    '/toplu_whatsapp': (_) => const TopluWhatsappScreen(),
-    '/hazir_mesajlar': (_) => const HazirMesajlarScreen(),
+    '/bildirimler':   (_) => const BildirimlerScreen(),
+    '/toplu_mesaj':   (_) => const TopluMesajScreen(),
+    '/toplu_whatsapp':(_) => const TopluWhatsappScreen(),
+    '/hazir_mesajlar':(_) => const HazirMesajlarScreen(),
 
-    '/qr_olustur':     (_) => const QrOlusturScreen(),
-    '/qr_okut':        (_) => const QrOkutScreen(),
-    '/qr_afis':        (_) => const QrAfisScreen(),
-    '/plaka_tanima':   (_) => const PlakaTanimaScreen(),
+    '/qr_olustur':    (_) => const QrOlusturScreen(),
+    '/qr_okut':       (_) => const QrOkutScreen(),
+    '/qr_afis':       (_) => const QrAfisScreen(),
+    '/plaka_tanima':  (_) => const PlakaTanimaScreen(),
 
-    '/analiz':         (_) => const AnalizScreen(),
-    '/arsiv':          (_) => const ArsivScreen(),
-    '/gecmis':         (_) => const GecmisScreen(),
+    '/analiz':        (_) => const AnalizScreen(),
+    '/arsiv':         (_) => const ArsivScreen(),
+    '/gecmis':        (_) => const GecmisScreen(),
 
-    '/ayarlar':        (_) => const AyarlarScreen(),
-    '/sifre_degistir': (_) => const SifreDegistirScreen(),
+    '/ayarlar':       (_) => const AyarlarScreen(),
+    '/sifre_degistir':(_) => const SifreDegistirScreen(),
 
-    '/ai_asistan':     (_) => const AiAsistanScreen(),
-    '/personel_panel': (_) => const PersonelPanelScreen(),
+    '/ai_asistan':    (_) => const AiAsistanScreen(),
+    '/personel_panel':(_) => const PersonelPanelScreen(),
   };
 }
 

@@ -62,7 +62,7 @@ class _ProjeSecScreenState extends State<ProjeSecScreen> {
       final snap = await FirebaseFirestore.instance
           .collection('projects')
           .where('firmaId', isEqualTo: firmaId)
-          .where('aktif', isEqualTo: true)
+      // tum projeler - arsiv haric goster
           .orderBy('olusturmaTarihi', descending: true)
           .get();
 
@@ -346,13 +346,13 @@ class _ProjeKarti extends StatelessWidget {
           ])),
           secili
               ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: _navy,
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const Text('Aktif',
-                      style: TextStyle(color: Colors.white,
-                          fontSize: 11, fontWeight: FontWeight.w700)))
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                  color: _navy,
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Text('Aktif',
+                  style: TextStyle(color: Colors.white,
+                      fontSize: 11, fontWeight: FontWeight.w700)))
               : Container(padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                   color: _tipRenk.withValues(alpha: 0.1),

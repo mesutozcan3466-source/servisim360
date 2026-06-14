@@ -1,7 +1,7 @@
 ﻿// â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
 // â•‘  DOSYA: lib/screens/web_soforler.dart
 // â•‘  PROJE: servisim360
-// â•‘  WEB: ÅofÃ¶r listesi + Ekle formu
+// â•‘  WEB: Şoför listesi + Ekle formu
 // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,7 +28,7 @@ class _WebSoforlerState extends State<WebSoforler> {
   bool _formAcik   = false;
   final _aramaCtrl = TextEditingController();
 
-  // Form controller'larÄ±
+  // Form controller'ları
   final _adCtrl       = TextEditingController();
   final _telCtrl      = TextEditingController();
   final _plakaCtrl    = TextEditingController();
@@ -47,6 +47,7 @@ class _WebSoforlerState extends State<WebSoforler> {
   String? _seciliProjeId;
   String  _servisTuru = 'okul';
   bool    _aktif      = true;
+  int     _tabIndex   = 0;
   bool    _soforKayitYuk = false;
 
   @override
@@ -72,7 +73,7 @@ class _WebSoforlerState extends State<WebSoforler> {
     if (fId.isEmpty) { if (mounted) setState(() => _yukleniyor = false); return; }
 
     try {
-      // ÅofÃ¶rler
+      // Şoförler
       final sSnap = await FirebaseFirestore.instance
           .collection('drivers')
           .where('firmaId', isEqualTo: fId)
@@ -96,7 +97,7 @@ class _WebSoforlerState extends State<WebSoforler> {
           .where('aktif', isEqualTo: true).get();
       _projeler = pSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
       if (_seciliProjeId == null && _projeler.isNotEmpty) {
-        _seciliProjeId = null; // boÅŸta olarak baÅŸla
+        _seciliProjeId = null; // boŞŸta olarak baŞŸla
       }
     } catch (e) { debugPrint('WebSoforler hata: $e'); }
 
@@ -129,8 +130,8 @@ class _WebSoforlerState extends State<WebSoforler> {
     if (_adCtrl.text.trim().isEmpty)     { _snack('Ad zorunlu!');            return; }
     if (_telCtrl.text.trim().isEmpty)    { _snack('Telefon zorunlu!');       return; }
     if (_plakaCtrl.text.trim().isEmpty)  { _snack('Plaka zorunlu!');         return; }
-    if (_kulAdiCtrl.text.trim().isEmpty) { _snack('KullanÄ±cÄ± adÄ± zorunlu!'); return; }
-    if (_sifreCtrl.text.trim().isEmpty)  { _snack('Åifre zorunlu!');         return; }
+    if (_kulAdiCtrl.text.trim().isEmpty) { _snack('Kullanıcı adı zorunlu!'); return; }
+    if (_sifreCtrl.text.trim().isEmpty)  { _snack('Şifre zorunlu!');         return; }
 
     setState(() => _soforKayitYuk = true);
     try {
@@ -138,13 +139,13 @@ class _WebSoforlerState extends State<WebSoforler> {
           ? _firmaId
           : await SessionService.instance.firmaIdAl() ?? '';
 
-      // KullanÄ±cÄ± adÄ± kontrolÃ¼
+      // Kullanıcı adı kontrolü
       final kKont = await FirebaseFirestore.instance
           .collection('drivers')
           .where('kullaniciAdi', isEqualTo: _kulAdiCtrl.text.trim())
           .get();
       if (kKont.docs.isNotEmpty) {
-        _snack('KullanÄ±cÄ± adÄ± zaten kullanÄ±lÄ±yor!');
+        _snack('Kullanıcı adı zaten kullanılıyor!');
         setState(() => _soforKayitYuk = false);
         return;
       }
@@ -199,7 +200,7 @@ class _WebSoforlerState extends State<WebSoforler> {
       setState(() { _formAcik = false; _soforKayitYuk = false; });
       _yukle();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('ÅofÃ¶r kaydedildi!'),
+          content: Text('Şoför kaydedildi!'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating));
     } catch (e) {
@@ -236,14 +237,14 @@ class _WebSoforlerState extends State<WebSoforler> {
           color: Colors.white,
           border: Border(right: BorderSide(color: Color(0xFFEEEEEE)))),
       child: Column(children: [
-        // BaÅŸlÄ±k
+        // BaŞŸlık
         Container(
           padding: const EdgeInsets.all(16),
           color: _navy,
           child: Row(children: [
             const Icon(Icons.person_add_rounded, color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            const Expanded(child: Text('ÅofÃ¶r Ekle',
+            const Expanded(child: Text('Şoför Ekle',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
             IconButton(
                 icon: const Icon(Icons.close, color: Colors.white, size: 18),
@@ -251,7 +252,7 @@ class _WebSoforlerState extends State<WebSoforler> {
           ]),
         ),
 
-        // Form alanlarÄ±
+        // Form alanları
         Expanded(child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -269,7 +270,7 @@ class _WebSoforlerState extends State<WebSoforler> {
                   isDense: true,
                 ),
                 items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('BoÅŸta ekle')),
+                  const DropdownMenuItem<String?>(value: null, child: Text('BoŞŸta ekle')),
                   ..._projeler.map((p) => DropdownMenuItem<String?>(
                       value: p['id'] as String,
                       child: Text(p['projeAd'] ?? ''))),
@@ -279,39 +280,39 @@ class _WebSoforlerState extends State<WebSoforler> {
               const SizedBox(height: 14),
             ],
 
-            // ÅofÃ¶r bilgileri
-            const Text('ÅofÃ¶r Bilgileri',
+            // Şoför bilgileri
+            const Text('Şoför Bilgileri',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _navy)),
             const SizedBox(height: 8),
             _inp(_adCtrl, 'Ad Soyad *', Icons.person_outlined),
             const SizedBox(height: 8),
             _inp(_telCtrl, 'Telefon *', Icons.phone_outlined, tip: TextInputType.phone),
             const SizedBox(height: 8),
-            _inp(_plakaCtrl, 'AraÃ§ PlakasÄ± *', Icons.directions_bus_outlined),
+            _inp(_plakaCtrl, 'Araç Plakası *', Icons.directions_bus_outlined),
             const SizedBox(height: 8),
             Row(children: [
               Expanded(child: _inp(_kapasiteCtrl, 'Kapasite',
                   Icons.people_outlined, tip: TextInputType.number)),
               const SizedBox(width: 8),
-              Expanded(child: _inp(_modelCtrl, 'AraÃ§ Modeli',
+              Expanded(child: _inp(_modelCtrl, 'Araç Modeli',
                   Icons.directions_car_outlined)),
             ]),
             const SizedBox(height: 14),
 
-            // GiriÅŸ bilgileri
-            const Text('GiriÅŸ Bilgileri',
+            // GiriŞŸ bilgileri
+            const Text('GiriŞŸ Bilgileri',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _navy)),
             const SizedBox(height: 4),
-            const Text('ÅofÃ¶r bu bilgilerle uygulamaya giriÅŸ yapar',
+            const Text('Şoför bu bilgilerle uygulamaya giriŞŸ yapar',
                 style: TextStyle(color: Colors.grey, fontSize: 11)),
             const SizedBox(height: 8),
-            _inp(_kulAdiCtrl, 'KullanÄ±cÄ± AdÄ± *', Icons.account_circle_outlined),
+            _inp(_kulAdiCtrl, 'Kullanıcı Adı *', Icons.account_circle_outlined),
             const SizedBox(height: 8),
-            _inp(_sifreCtrl, 'GeÃ§ici Åifre *', Icons.key_outlined),
+            _inp(_sifreCtrl, 'Geçici Şifre *', Icons.key_outlined),
             const SizedBox(height: 14),
 
-            // Servis tÃ¼rÃ¼
-            const Text('Servis TÃ¼rÃ¼',
+            // Servis türü
+            const Text('Servis Türü',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _navy)),
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 6,
@@ -364,7 +365,7 @@ class _WebSoforlerState extends State<WebSoforler> {
                   ? const SizedBox(width: 16, height: 16,
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.save_rounded),
-              label: Text(_soforKayitYuk ? 'Kaydediliyor...' : 'ÅofÃ¶rÃ¼ Kaydet',
+              label: Text(_soforKayitYuk ? 'Kaydediliyor...' : 'Şoförü Kaydet',
                   style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
@@ -384,7 +385,7 @@ class _WebSoforlerState extends State<WebSoforler> {
           Expanded(child: TextField(
             controller: _aramaCtrl,
             decoration: InputDecoration(
-              hintText: 'ÅofÃ¶r ara...',
+              hintText: 'Şoför ara...',
               prefixIcon: const Icon(Icons.search, color: _navy, size: 18),
               filled: true, fillColor: const Color(0xFFF5F7FA),
               border: OutlineInputBorder(
@@ -402,7 +403,7 @@ class _WebSoforlerState extends State<WebSoforler> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             onPressed: () => setState(() => _formAcik = !_formAcik),
             icon: Icon(_formAcik ? Icons.close : Icons.person_add_rounded, size: 18),
-            label: Text(_formAcik ? 'Kapat' : 'ÅofÃ¶r Ekle',
+            label: Text(_formAcik ? 'Kapat' : 'Şoför Ekle',
                 style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 8),
@@ -413,18 +414,18 @@ class _WebSoforlerState extends State<WebSoforler> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             onPressed: () => Navigator.pushNamed(context, '/gruplama'),
             icon: const Icon(Icons.add_road_outlined, size: 18),
-            label: const Text('Rota OluÅŸtur',
+            label: const Text('Rota OluŞŸtur',
                 style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ]),
       ),
 
-      // SayaÃ§
+      // Sayaç
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         color: const Color(0xFFF5F7FA),
         child: Row(children: [
-          Text('${_filtreliSof.length} ÅŸofÃ¶r',
+          Text('${_filtreliSof.length} ŞŸoför',
               style: const TextStyle(color: _navy, fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(width: 16),
           Container(width: 8, height: 8,
@@ -477,7 +478,7 @@ class _WebSoforlerState extends State<WebSoforler> {
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.directions_bus_outlined, size: 64, color: Colors.grey[300]),
         const SizedBox(height: 12),
-        Text('ÅofÃ¶r bulunamadÄ±',
+        Text('Şoför bulunamadı',
             style: TextStyle(color: Colors.grey[400], fontSize: 16)),
         const SizedBox(height: 16),
         ElevatedButton.icon(
@@ -485,7 +486,7 @@ class _WebSoforlerState extends State<WebSoforler> {
                 foregroundColor: Colors.white),
             onPressed: () => setState(() => _formAcik = true),
             icon: const Icon(Icons.add),
-            label: const Text('Ä°lk ÅofÃ¶rÃ¼ Ekle')),
+            label: const Text('İlk Şoförü Ekle')),
       ]))
           : GridView.builder(
         padding: const EdgeInsets.all(16),
@@ -498,6 +499,7 @@ class _WebSoforlerState extends State<WebSoforler> {
           sofor: _filtreliSof[i],
           onDuzenle: () => _soforDuzenleDialog(_filtreliSof[i]),
           onRota: () => Navigator.pushNamed(context, '/gruplama'),
+          onArsivle: () => _soforArsivle(_filtreliSof[i]),
         ),
       )),
     ]);
@@ -505,11 +507,161 @@ class _WebSoforlerState extends State<WebSoforler> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (_formAcik) _formPaneli(),
-      Expanded(child: _listePaneli()),
+    return Column(children: [
+      // Tab bar
+      Container(color: Colors.white, child: Row(children: [
+        for (final t in [
+          (0, 'Soforler', Icons.person_outlined),
+          (1, 'Performans', Icons.bar_chart_outlined),
+        ])
+          GestureDetector(
+            onTap: () => setState(() => _tabIndex = t.$1),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(
+                      color: _tabIndex == t.$1 ? const Color(0xFFFF8C00) : Colors.transparent,
+                      width: 2))),
+              child: Row(children: [
+                Icon(t.$3, size: 16,
+                    color: _tabIndex == t.$1 ? const Color(0xFF1a3a6b) : Colors.grey),
+                const SizedBox(width: 6),
+                Text(t.$2, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13,
+                    color: _tabIndex == t.$1 ? const Color(0xFF1a3a6b) : Colors.grey)),
+              ]),
+            ),
+          ),
+      ])),
+      Expanded(child: _tabIndex == 0
+          ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (_formAcik) _formPaneli(),
+        Expanded(child: _listePaneli()),
+      ])
+          : _performansPaneli()),
     ]);
   }
+
+  Widget _performansPaneli() {
+    return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('servis_raporlari')
+            .where('firmaId', isEqualTo: widget.firmaId)
+            .orderBy('tarih', descending: true).limit(100).snapshots(),
+        builder: (_, snap) {
+          final docs = snap.data?.docs ?? [];
+          if (docs.isEmpty) return Center(child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 12),
+            const Text('Performans raporu yok',
+                style: TextStyle(color: Colors.grey, fontSize: 16)),
+          ]));
+          // Sofor bazli gruplama
+          final Map<String, Map<String, dynamic>> soforPerf = {};
+          for (final doc in docs) {
+            final d = doc.data() as Map<String, dynamic>;
+            final soforId = d['soforId'] as String? ?? '';
+            if (soforId.isEmpty) continue;
+            soforPerf.putIfAbsent(soforId, () => {
+              'soforId': soforId, 'toplamServis': 0,
+              'toplamOgrenci': 0, 'toplamBindi': 0,
+            });
+            soforPerf[soforId]!['toplamServis'] =
+                (soforPerf[soforId]!['toplamServis'] as int) + 1;
+            soforPerf[soforId]!['toplamOgrenci'] =
+                (soforPerf[soforId]!['toplamOgrenci'] as int) +
+                    ((d['toplamOgrenci'] as int?) ?? 0);
+            soforPerf[soforId]!['toplamBindi'] =
+                (soforPerf[soforId]!['toplamBindi'] as int) +
+                    ((d['bindiler'] as int?) ?? 0);
+          }
+          return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: soforPerf.length,
+              itemBuilder: (_, i) {
+                final perf = soforPerf.values.toList()[i];
+                final soforData = _soforler.firstWhere(
+                        (s) => s['id'] == perf['soforId'], orElse: () => {});
+                final toplamS = perf['toplamServis'] as int;
+                final toplamO = perf['toplamOgrenci'] as int;
+                final toplamB = perf['toplamBindi'] as int;
+                final devam = toplamO > 0
+                    ? (toplamB / toplamO * 100).round() : 0;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 6)]),
+                  child: Row(children: [
+                    CircleAvatar(radius: 22,
+                        backgroundColor:
+                        const Color(0xFF1a3a6b).withValues(alpha: 0.1),
+                        child: Text(
+                            (soforData['ad'] ?? '?').toString().isNotEmpty
+                                ? (soforData['ad'] ?? '?').toString()[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                                color: Color(0xFF1a3a6b),
+                                fontWeight: FontWeight.bold, fontSize: 16))),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(soforData['ad']?.toString() ?? 'Sofor',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14)),
+                          const SizedBox(height: 6),
+                          Row(children: [
+                            _perfChip(toplamS.toString() + ' servis',
+                                Colors.blue),
+                            const SizedBox(width: 6),
+                            _perfChip(devam.toString() + '% devam',
+                                devam > 90 ? Colors.green
+                                    : devam > 70 ? Colors.orange : Colors.red),
+                            const SizedBox(width: 6),
+                            _perfChip(toplamB.toString() + '/' +
+                                toplamO.toString() + ' ogr', Colors.teal),
+                          ]),
+                        ])),
+                  ]),
+                );
+              });
+        });
+  }
+
+  Widget _perfChip(String t, Color c) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6)),
+      child: Text(t,
+          style: TextStyle(fontSize: 11, color: c,
+              fontWeight: FontWeight.bold)));
+  // ── ARŞIVLE ────────────────────────────────────────────────────
+  Future<void> _soforArsivle(Map<String, dynamic> sofor) async {
+    final arsivMi = sofor['arsiv'] == true;
+    final onay = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+        title: Text(arsivMi ? 'Arsivden Cikar' : 'Soforii Arsivle'),
+        content: Text((sofor['ad'] ?? '') + (arsivMi ? ' arsivden cikarilacak.' : ' arsive tasinacak. Silinmeyecek.')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(_, false), child: const Text('Iptal')),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: arsivMi ? Colors.green : Colors.grey),
+              onPressed: () => Navigator.pop(_, true),
+              child: Text(arsivMi ? 'Cikar' : 'Arsivle', style: const TextStyle(color: Colors.white))),
+        ]));
+    if (onay == true) {
+      await FirebaseFirestore.instance.collection('drivers').doc(sofor['id']).update({
+        'arsiv': !arsivMi,
+        'aktif': arsivMi,
+        'arsivTarihi': FieldValue.serverTimestamp(),
+      });
+      _yukle();
+    }
+  }
+
   void _soforDuzenleDialog(Map<String, dynamic> sofor) {
     final soforId     = sofor['id'] as String;
     final adCtrl      = TextEditingController(text: sofor['ad'] ?? sofor['adSoyad'] ?? '');
@@ -777,13 +929,14 @@ class _WebSoforlerState extends State<WebSoforler> {
 
 class _SoforKarti extends StatelessWidget {
   final Map<String, dynamic> sofor;
-  final VoidCallback onDuzenle, onRota;
+  final VoidCallback onDuzenle, onRota, onArsivle;
   static const _navy = Color(0xFF1a3a6b);
 
   const _SoforKarti({
     required this.sofor,
     required this.onDuzenle,
     required this.onRota,
+    required this.onArsivle,
   });
 
   @override
@@ -791,7 +944,7 @@ class _SoforKarti extends StatelessWidget {
     final aktif   = sofor['servisAktif'] == true;
     final ogrSayi = sofor['ogrenciSayi'] as int? ?? 0;
     final hiz     = (sofor['hiz'] as num? ?? 0).toStringAsFixed(0);
-    final ad      = sofor['ad'] as String? ?? 'ÅofÃ¶r';
+    final ad      = sofor['ad'] as String? ?? 'Şoför';
     final plaka   = sofor['aracPlaka'] ?? sofor['plaka'] ?? '-';
     final tel     = sofor['telefon'] as String? ?? '-';
     final durum   = sofor['durum'] as String? ?? 'bosta';
@@ -799,10 +952,10 @@ class _SoforKarti extends StatelessWidget {
     Color durumRenk;
     String durumAd;
     switch (durum) {
-      case 'aktif_gorevde': durumRenk = Colors.green;  durumAd = 'GÃ¶revde'; break;
+      case 'aktif_gorevde': durumRenk = Colors.green;  durumAd = 'Görevde'; break;
       case 'projeye_dahil': durumRenk = Colors.blue;   durumAd = 'Projede'; break;
       case 'pasif':         durumRenk = Colors.red;    durumAd = 'Pasif';   break;
-      default:              durumRenk = Colors.orange; durumAd = 'BoÅŸta';
+      default:              durumRenk = Colors.orange; durumAd = 'BoŞŸta';
     }
 
     return Container(
@@ -810,17 +963,17 @@ class _SoforKarti extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: aktif ? Border.all(color: Colors.green.withOpacity(0.4), width: 1.5) : null,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8)],
+        border: aktif ? Border.all(color: Colors.green.withValues(alpha:0.4), width: 1.5) : null,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.06), blurRadius: 8)],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           CircleAvatar(
             radius: 22,
             backgroundColor: aktif
-                ? Colors.green.withOpacity(0.15)
-                : _navy.withOpacity(0.1),
-            child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'Å',
+                ? Colors.green.withValues(alpha:0.15)
+                : _navy.withValues(alpha:0.1),
+            child: Text(ad.isNotEmpty ? ad[0].toUpperCase() : 'Ş',
                 style: TextStyle(
                     color: aktif ? Colors.green : _navy,
                     fontWeight: FontWeight.bold, fontSize: 16)),
@@ -836,7 +989,7 @@ class _SoforKarti extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-                color: durumRenk.withOpacity(0.1),
+                color: durumRenk.withValues(alpha:0.1),
                 borderRadius: BorderRadius.circular(8)),
             child: Text(durumAd, style: TextStyle(
                 fontSize: 10, fontWeight: FontWeight.bold, color: durumRenk)),
@@ -844,12 +997,23 @@ class _SoforKarti extends StatelessWidget {
         ]),
         const SizedBox(height: 12),
         Row(children: [
-          _mini(Icons.people_outline, '$ogrSayi Ã¶ÄŸr', Colors.blue),
+          _mini(Icons.people_outline, '$ogrSayi öğr', Colors.blue),
           const SizedBox(width: 12),
           _mini(Icons.phone_outlined, tel, Colors.grey),
+          if ((sofor['projeAd'] ?? '').toString().isNotEmpty) ...[
+            const SizedBox(width: 12),
+            _mini(Icons.folder_outlined, sofor['projeAd'].toString(), Colors.teal),
+          ],
           if (aktif) ...[
             const SizedBox(width: 12),
             _mini(Icons.speed_outlined, '$hiz km/s', Colors.green),
+          ],
+          if (sofor['sonGiris'] is Timestamp) ...[
+            const SizedBox(width: 12),
+            _mini(Icons.access_time_outlined, () {
+              final dt = (sofor['sonGiris'] as Timestamp).toDate();
+              return '${dt.day.toString().padLeft(2,'0')}.${dt.month.toString().padLeft(2,'0')}.${dt.year}';
+            }(), Colors.grey),
           ],
         ]),
         const Spacer(),
@@ -861,7 +1025,7 @@ class _SoforKarti extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             icon: const Icon(Icons.edit_outlined, size: 14),
-            label: const Text('DÃ¼zenle', style: TextStyle(fontSize: 11)),
+            label: const Text('Düzenle', style: TextStyle(fontSize: 11)),
             onPressed: onDuzenle,
           )),
           const SizedBox(width: 8),
@@ -900,6 +1064,14 @@ class _SoforKarti extends StatelessWidget {
             label: const Text('Rota', style: TextStyle(fontSize: 11)),
             onPressed: onRota,
           )),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Arsivle',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            onPressed: onArsivle,
+            icon: const Icon(Icons.archive_outlined, size: 18, color: Colors.grey),
+          ),
         ]),
       ]),
     );

@@ -13,9 +13,9 @@ import 'web_ayarlar.dart';
 import 'web_super_admin.dart';
 
 // ════════════════════════════════════════════════════════════════
-//  WEB LAYOUT — Rol bazlı sol sidebar
-//  superAdmin  → Super Admin menüsü
-//  firmaAdmin  → Firma Admin menüsü
+//  WEB LAYOUT — Rol bazli sol sidebar
+//  superAdmin  → Super Admin menusu
+//  firmaAdmin  → Firma Admin menusu
 // ════════════════════════════════════════════════════════════════
 class WebLayout extends StatefulWidget {
   const WebLayout({super.key});
@@ -34,7 +34,7 @@ class _WebLayoutState extends State<WebLayout> {
   String _email       = '';
   bool   _yukleniyor  = true;
 
-  // Firma Admin menüleri
+  // Firma Admin menuleri
   final List<_MenuItem> _firmaMenuler = [
     _MenuItem(Icons.dashboard_outlined,      'Dashboard'),
     _MenuItem(Icons.people_outline,          'Ogrenciler'),
@@ -45,7 +45,7 @@ class _WebLayoutState extends State<WebLayout> {
     _MenuItem(Icons.settings_outlined,       'Ayarlar'),
   ];
 
-  // Super Admin menüleri
+  // Super Admin menuleri
   final List<_MenuItem> _superMenuler = [
     _MenuItem(Icons.business_outlined,       'Firmalar'),
     _MenuItem(Icons.verified_user_outlined,  'Lisanslar'),
@@ -70,13 +70,13 @@ class _WebLayoutState extends State<WebLayout> {
       final doc = await FirebaseFirestore.instance
           .collection('kullanicilar').doc(uid).get();
       final rawRol = doc.data()?['rol'] as String? ?? '';
-      // Tüm rol varyantlarını normalize et
+      // Tum rol varyantlarini normalize et
       if (rawRol == 'superAdmin' || rawRol == 'super_admin' ||
-          rawRol == 'superadmin' || rawRol == 'süper yönetici' ||
-          rawRol == 'Süper Admin') {
+          rawRol == 'superadmin' || rawRol == 'super yonetici' ||
+          rawRol == 'Super Admin') {
         _rol = 'superAdmin';
       } else if (rawRol == 'firmaAdmin' || rawRol == 'firma_admin' ||
-          rawRol == 'firmaadmin' || rawRol == 'firma yöneticisi' ||
+          rawRol == 'firmaadmin' || rawRol == 'firma yoneticisi' ||
           rawRol == 'Firma Admin' || rawRol == 'admin') {
         _rol = 'firmaAdmin';
       } else {
@@ -88,7 +88,7 @@ class _WebLayoutState extends State<WebLayout> {
         final fd = await FirebaseFirestore.instance
             .collection('firms').doc(firmaId).get();
         _firmaAd = fd.data()?['firmaAdi'] ?? fd.data()?['ad'] ?? '';
-        // firmaId zaten session'da, sadece firma adını local tut
+        // firmaId zaten session'da, sadece firma adini local tut
       }
     } catch (_) {}
 
@@ -105,14 +105,14 @@ class _WebLayoutState extends State<WebLayout> {
       backgroundColor: const Color(0xFFF0F2F5),
       body: Row(children: [
 
-        // ── SOL SİDEBAR ──────────────────────────────────────────
+        // ── SOL SIDEBAR ──────────────────────────────────────────
         AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           width: _sidebarAcik ? 240 : 68,
           child: Container(
             color: _navy,
             child: Column(children: [
-              // Logo + firma adı
+              // Logo + firma adi
               Container(
                 height: 68,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -172,7 +172,7 @@ class _WebLayoutState extends State<WebLayout> {
 
               const Divider(color: Colors.white12, height: 1),
 
-              // Menü items
+              // Menu items
               Expanded(child: ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 itemCount: _menuler.length,
@@ -216,7 +216,7 @@ class _WebLayoutState extends State<WebLayout> {
 
               const Divider(color: Colors.white12, height: 1),
 
-              // Kullanıcı bilgisi + çıkış
+              // Kullanici bilgisi + cikis
               Container(
                 padding: const EdgeInsets.all(12),
                 child: Row(children: [
@@ -252,9 +252,9 @@ class _WebLayoutState extends State<WebLayout> {
           ),
         ),
 
-        // ── SAĞ İÇERİK ───────────────────────────────────────────
+        // ── SAG ICERIK ───────────────────────────────────────────
         Expanded(child: Column(children: [
-          // Üst bar
+          // Ust bar
           Container(
             height: 68,
             decoration: BoxDecoration(
@@ -276,7 +276,7 @@ class _WebLayoutState extends State<WebLayout> {
                       fontSize: 18, color: _navy)),
               const Spacer(),
 
-              // Proje seçici (firma admin için)
+              // Proje secici (firma admin icin)
               if (_rol != 'superAdmin') ...[
                 GestureDetector(
                   onTap: () => Navigator.pushNamed(context, '/proje_sec'),
@@ -342,7 +342,7 @@ class _WebLayoutState extends State<WebLayout> {
         case 1: return const WebOgrenciler();
         case 2: return const WebSoforler();
         case 3: return const WebHarita();
-        case 4: return const WebRaporlar();
+        case 4: return const WebRaporlar(projeId:'');
         case 5: return const WebFiyat();
         case 6: return const WebAyarlar();
         default: return const WebDashboard();

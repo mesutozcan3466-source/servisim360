@@ -30,6 +30,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
   Map<String, dynamic> _veliData  = {};
   Map<String, dynamic>? _ogrenci;
   String? _ogrenciId;
+  List<Map<String, dynamic>> _tumOgrenciler = [];
   Map<String, dynamic>? _soforData;
   String? _soforDocId;
   bool   _yukleniyor = true;
@@ -155,16 +156,16 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
           Text('Geri Bildirim', style: TextStyle(fontWeight: FontWeight.bold)),
         ]),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Servis hakkında görüş veya şikayetinizi iletin:',
+          const Text('Servis hakkinda gorus veya sikayetinizi iletin:',
               style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 12),
           TextField(controller: ctrl, maxLines: 4,
               decoration: InputDecoration(
-                  hintText: 'Mesajınızı yazın...',
+                  hintText: 'Mesajinizi yazin...',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)))),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(_), child: const Text('İptal')),
+          TextButton(onPressed: () => Navigator.pop(_), child: const Text('Iptal')),
           ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white),
@@ -179,10 +180,10 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
                 });
                 if (mounted) Navigator.pop(_);
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Görüşünüz iletildi, teşekkürler!'),
+                    content: Text('Gorusunuz iletildi, tesekkurler!'),
                     backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
               },
-              child: const Text('Gönder')),
+              child: const Text('Gonder')),
         ]));
   }
 
@@ -195,7 +196,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
   }
 
   void _okulaUlastiDinle() {
-    // Plaka tanıma sistemi okula giriş yapınca veli bilgilendirilir
+    // Plaka tanima sistemi okula giris yapinca veli bilgilendirilir
     FirebaseFirestore.instance
         .collection('okul_girisler')
         .where('ogrenciId', isEqualTo: _ogrenciId)
@@ -205,9 +206,9 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         final data = doc.data();
         if (!mounted || data['bildirimGonderildi'] == true) continue;
         _ozelBildirimGoster(
-          '🏫 Okula Ulaştı',
-          '${data['ogrenciAd'] ?? 'Öğrenci'} '
-              '${data['girisSaatiStr'] ?? ''} saatinde okula ulaştı.',
+          '🏫 Okula Ulasti',
+          '${data['ogrenciAd'] ?? 'Ogrenci'} '
+              '${data['girisSaatiStr'] ?? ''} saatinde okula ulasti.',
           Colors.green,
         );
         doc.reference.update({'bildirimGonderildi': true});
@@ -233,7 +234,10 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
     if (ogrSnap.docs.isEmpty && user.email != null) {         ogrSnap = await FirebaseFirestore.instance.collection('students')             .where('veliEmail', isEqualTo: user.email).limit(1).get();
     }
     if (ogrSnap.docs.isNotEmpty) {
-      _ogrenciId = ogrSnap.docs.first.id;         _ogrenci   = {'id': _ogrenciId, ...ogrSnap.docs.first.data()};         final surucuId = _ogrenci!['surucuId'] as String?;
+      // Tum ogrencileri yukle
+      _tumOgrenciler = ogrSnap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+      _ogrenciId = ogrSnap.docs.first.id;
+      _ogrenci   = {'id': _ogrenciId, ...ogrSnap.docs.first.data()};         final surucuId = _ogrenci!['surucuId'] as String?;
       if (surucuId != null && surucuId.isNotEmpty) {           var dSnap = await FirebaseFirestore.instance.collection('drivers')               .where('uid', isEqualTo: surucuId).limit(1).get();
       if (dSnap.docs.isEmpty) {             final d = await FirebaseFirestore.instance.collection('drivers').doc(surucuId).get();
       if (d.exists) { _soforDocId = d.id; _soforData = d.data(); }
@@ -286,7 +290,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
           }
         }
       }
-      // Durak sırası güncelle
+      // Durak sirasi guncelle
       _durakSirasiGuncelle();
     });
   }
@@ -319,21 +323,56 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         SizedBox(width: 8),         Text('Servis Yaklasiyor!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
       ]),       content: Text('Servis yaklasik $mesafe metre uzakta. Cocugunuzu hazirlayin!'),
       actions: [
+        // Coklu ogrenci secici
+        if (_tumOgrenciler.length > 1) ...[
+          PopupMenuButton<String>(
+            tooltip: 'Ogrenci Sec',
+            onSelected: (id) {
+              final secilen = _tumOgrenciler.firstWhere((o) => o['id'] == id);
+              setState(() { _ogrenciId = id; _ogrenci = secilen; });
+            },
+            itemBuilder: (_) => _tumOgrenciler.map((ogr) => PopupMenuItem<String>(
+                value: ogr['id'] as String,
+                child: Row(children: [
+                  CircleAvatar(radius: 14,
+                      backgroundColor: const Color(0xFF1a3a6b).withValues(alpha: 0.1),
+                      child: Text((ogr['ad'] ?? '?')[0].toUpperCase(),
+                          style: const TextStyle(color: Color(0xFF1a3a6b), fontSize: 12))),
+                  const SizedBox(width: 8),
+                  Text(ogr['ad'] ?? '', style: const TextStyle(fontSize: 13)),
+                ]))).toList(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.people_outline, color: Colors.white, size: 16),
+                const SizedBox(width: 4),
+                Text(_ogrenci?['ad'] ?? 'Ogrenci Sec',
+                    style: const TextStyle(color: Colors.white, fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+                const Icon(Icons.arrow_drop_down, color: Colors.white, size: 18),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
         AiAsistanButonu(ekranAdi: 'Veli Paneli'),ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             onPressed: () => Navigator.pop(context),           child: const Text('Tamam', style: TextStyle(color: Colors.white)))],
     ));
   }
 
-  // ── Durak Sırası + Akıllı Bildirim (Aynı durakta N öğrenci desteği) ────────
+  // ── Durak Sirasi + Akilli Bildirim (Ayni durakta N ogrenci destegi) ────────
   //
-  //  MANTIK:   //  1. Şoförün tüm öğrencileri sira'ya göre sıralanır
-  //  2. Öğrenciler KONUMA göre gruplanır (50m içindekiler = aynı durak)
+  //  MANTIK:   //  1. Soforun tum ogrencileri sira'ya gore siralanir
+  //  2. Ogrenciler KONUMA gore gruplanir (50m icindekiler = ayni durak)
   //  3. Benim durak grubum bulunur (hangi grup indeksi?)
-  //  4. Şoförün şu an kaçıncı durak grubuna gittiği hesaplanır
-  //  5. Fark = kalan durak sayısı → bildirim tetiklenir
-  //  6. Aynı duraktaki TÜM velilere aynı anda bildirim gider
-  //     (çünkü hepsi aynı durak grubunda, kalan durak = aynı)
+  //  4. Soforun su an kacinci durak grubuna gittigi hesaplanir
+  //  5. Fark = kalan durak sayisi → bildirim tetiklenir
+  //  6. Ayni duraktaki TUM velilere ayni anda bildirim gider
+  //     (cunku hepsi ayni durak grubunda, kalan durak = ayni)
   //
   Future<void> _durakSirasiGuncelle() async {
     if (_soforDocId == null || _ogrenciId == null) return;
@@ -346,7 +385,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
       final docs = snap.docs;
 
       // ── DURAK GRUPLAMA ────────────────────────────────────────────
-      // Konuma göre grupla: 50m içindekiler = aynı durak
+      // Konuma gore grupla: 50m icindekiler = ayni durak
 
       final List<_DurakGrubu> duraklar = [];
       for (final doc in docs) {
@@ -354,7 +393,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         double? lat, lng;
         if (konum is GeoPoint) {
           lat = konum.latitude; lng = konum.longitude;
-        }         // Konum yoksa sira'ya göre tekil durak
+        }         // Konum yoksa sira'ya gore tekil durak
 
         if (lat == null || lng == null) {
           duraklar.add(_DurakGrubu(
@@ -365,14 +404,14 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
           continue;
         }
 
-        // Bu öğrenci mevcut bir gruba yakın mı? (50m eşiği)
+        // Bu ogrenci mevcut bir gruba yakin mi? (50m esigi)
 
         bool grupBulundu = false;
         for (final grup in duraklar) {
           if (grup.lat == 0 && grup.lng == 0) continue;
           final mesafe = _mesafeHesapla(lat, lng, grup.lat, grup.lng);
           if (mesafe <= 50) {
-            // Aynı gruba ekle
+            // Ayni gruba ekle
 
             grup.ogrenciIds.add(doc.id);             if (data['bindi'] != true) grup.hepsiBindi = false;
             grupBulundu = true;
@@ -387,18 +426,18 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         }
       }
 
-      // Sıraya göre durakları sırala
+      // Siraya gore duraklari sirala
 
       duraklar.sort((a, b) => a.sira.compareTo(b.sira));
 
-      // ── BENİM DURAK GRUBUM ────────────────────────────────────────
+      // ── BENIM DURAK GRUBUM ────────────────────────────────────────
 
       final benimGrupIdx = duraklar.indexWhere(
               (g) => g.ogrenciIds.contains(_ogrenciId));
       if (benimGrupIdx < 0) return;
 
-      // ── ŞOFÖRÜN ŞU ANKİ HEDEFİ ───────────────────────────────────
-      // Henüz hepsi binmemiş en küçük sıralı grup
+      // ── SOFORUN SU ANKI HEDEFI ───────────────────────────────────
+      // Henuz hepsi binmemis en kucuk sirali grup
 
       final hedefGrupIdx = duraklar.indexWhere((g) => !g.hepsiBindi);
       if (hedefGrupIdx < 0) {
@@ -417,7 +456,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         final oncekiBindi = oncekiGrup.hepsiBindi;
         if (oncekiBindi) {           oncekiAd = 'Onceki durak bindi';
         } else {
-          // Önceki duraktaki öğrenci adlarını bul
+          // Onceki duraktaki ogrenci adlarini bul
 
           final adlar = docs
               .where((d) => oncekiGrup.ogrenciIds.contains(d.id))               .map((d) => d.data()['ad'] as String? ?? '')
@@ -454,7 +493,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
     if (!mounted) return;
 
     if (kalan > 2) {
-      // Sıfırla — yeni tur başladı
+      // Sifirla — yeni tur basladi
 
       durakBildirimi2  = false;
       durakBildirimi1  = false;
@@ -553,7 +592,95 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
 
 
   // ──────────────────────────────────────────────────────────────
-  // ÜCRET BİLGİSİ DİYALOGU
+  // SOZLESME DETAY DIYALOGU
+  // ──────────────────────────────────────────────────────────────
+  Future<void> _sozlesmeDetayGoster() async {
+    final ogr = _ogrenci;
+    if (ogr == null) return;
+    final ogrAd = (ogr['ad'] ?? '') + ' ' + (ogr['soyad'] ?? '');
+
+    // Sozlesmeler koleksiyonundan bul
+    QuerySnapshot? snap;
+    try {
+      snap = await FirebaseFirestore.instance
+          .collection('sozlesmeler')
+          .where('firmaId', isEqualTo: _firmaId)
+          .where('ogrenciId', isEqualTo: _ogrenciId)
+          .limit(1).get();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    // Sozlesme yoksa form'a yonlendir
+    if (snap == null || snap.docs.isEmpty) {
+      Navigator.pushNamed(context, '/veli_sozlesme');
+      return;
+    }
+
+    final soz = snap.docs.first.data() as Map<String, dynamic>;
+    final durum  = soz['durum'] ?? 'bekliyor';
+    final ucret  = soz['ucret'] ?? soz['fiyat'] ?? 0;
+    final donem  = soz['donem'] ?? '';
+    final pdfUrl = soz['pdfUrl'] ?? '';
+    final tarih  = soz['olusturmaTarihi'];
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Icon(Icons.description_outlined, color: Color(0xFF1a3a6b)),
+          const SizedBox(width: 10),
+          const Expanded(child: Text('Sozlesmem',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1a3a6b)))),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _sozSatir('Ogrenci', ogrAd.trim(), Icons.school_outlined, Colors.blue),
+          _sozSatir('Durum', durum, Icons.info_outline,
+              durum == 'imzalandi' ? Colors.green : durum == 'bekliyor' ? Colors.orange : Colors.grey),
+          if (ucret != 0) _sozSatir('Ucret', ucret.toString() + ' TL/ay', Icons.payments_outlined, Colors.teal),
+          if (donem.isNotEmpty) _sozSatir('Donem', donem, Icons.calendar_month_outlined, Colors.indigo),
+          if (tarih is Timestamp) _sozSatir('Tarih',
+              '${tarih.toDate().day.toString().padLeft(2,'0')}.${tarih.toDate().month.toString().padLeft(2,'0')}.${tarih.toDate().year}',
+              Icons.access_time_outlined, Colors.grey),
+        ]),
+        actions: [
+          if (pdfUrl.isNotEmpty)
+            TextButton.icon(
+              onPressed: () async {
+                Navigator.pop(_);
+                try {
+                  await launchUrl(Uri.parse(pdfUrl), mode: LaunchMode.externalApplication);
+                } catch (_) {}
+              },
+              icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.red),
+              label: const Text('PDF Goruntule', style: TextStyle(color: Colors.red)),
+            ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1a3a6b), foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(_),
+            child: const Text('Kapat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sozSatir(String baslik, String deger, IconData ikon, Color renk) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(children: [
+          Icon(ikon, size: 16, color: renk),
+          const SizedBox(width: 8),
+          Text(baslik + ': ', style: TextStyle(fontSize: 12, color: renk, fontWeight: FontWeight.bold)),
+          Expanded(child: Text(deger, style: const TextStyle(fontSize: 12))),
+        ]),
+      );
+
+  // ──────────────────────────────────────────────────────────────
+  // UCRET BILGISI DIYALOGU
   // ──────────────────────────────────────────────────────────────
   void _ucretBilgisiGoster() {
     final ogr = _ogrenci;
@@ -587,6 +714,73 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
           ] else
             const Text('Ucret bilgisi henuz tanimlanmamis.',
                 style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 12),
+          // Tahsilat gecmisi
+          FutureBuilder<QuerySnapshot>(
+            future: FirebaseFirestore.instance.collection('tahsilat')
+                .where('firmaId', isEqualTo: _firmaId ?? '')
+                .where('ogrenciId', isEqualTo: _ogrenciId).get(),
+            builder: (_, snap) {
+              final docs = snap.data?.docs ?? [];
+              if (docs.isEmpty) return const SizedBox.shrink();
+              final odendi   = docs.where((d) =>
+              (d.data() as Map)['durum']=='odendi').length;
+              final bekleyen = docs.length - odendi;
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Odeme Gecmisi',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Expanded(child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Column(children: [
+                        Text(odendi.toString(),
+                            style: const TextStyle(fontWeight: FontWeight.bold,
+                                fontSize: 20, color: Colors.green)),
+                        const Text('Odendi', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ]))),
+                  const SizedBox(width: 8),
+                  Expanded(child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Column(children: [
+                        Text(bekleyen.toString(),
+                            style: const TextStyle(fontWeight: FontWeight.bold,
+                                fontSize: 20, color: Colors.orange)),
+                        const Text('Bekliyor', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ]))),
+                ]),
+                const SizedBox(height: 8),
+                ...docs.take(3).map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+                  final durum = data['durum'] ?? 'bekliyor';
+                  return Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(6)),
+                      child: Row(children: [
+                        Text(data['ay'] ?? '', style: const TextStyle(fontSize: 12)),
+                        const Spacer(),
+                        Text((data['tutar'] ?? 0).toString() + ' TL',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const SizedBox(width: 8),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: (durum == 'odendi' ? Colors.green : Colors.orange)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4)),
+                            child: Text(durum, style: TextStyle(fontSize: 10,
+                                color: durum == 'odendi' ? Colors.green : Colors.orange))),
+                      ]));
+                }),
+              ]);
+            },
+          ),
           const SizedBox(height: 12),
           if ((ogr['sozlesmeOnay'] ?? false) == true)
             Container(
@@ -765,7 +959,7 @@ class _VeliPanelScreenState extends State<VeliPanelScreen> {
         const SizedBox(height: 10),
         Row(children: [
           Expanded(child: _AnaButon(ikon: Icons.description_outlined, etiket: 'Sozlesmem', renk: Colors.purple,
-              onTap: () => Navigator.pushNamed(context, '/veli_sozlesme'))),
+              onTap: () => _sozlesmeDetayGoster())),
           const SizedBox(width: 10),
           Expanded(child: _AnaButon(ikon: Icons.payments_outlined, etiket: 'Ucret Bilgisi', renk: Colors.teal,
               onTap: () => _ucretBilgisiGoster())),
@@ -856,7 +1050,7 @@ class _ServisDurumuHaritaKarti extends StatelessWidget {
   // Harita marker
 
   final markers = <Marker>{};
-  // 🚌 Şoför marker — yeşil (canlı konum)
+  // 🚌 Sofor marker — yesil (canli konum)
 
   if (soforKonum != null) {
     markers.add(Marker(           markerId: const MarkerId('sofor'),
@@ -925,7 +1119,7 @@ class _ServisDurumuHaritaKarti extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.9), fontSize: 13)),
           if (servisAktif && !bindi) ...[
             const SizedBox(height: 8),
-            // Kalan durak göstergesi
+            // Kalan durak gostergesi
 
             if (kacDurakKaldi >= 0 && kacDurakKaldi <= 5)
               Container(

@@ -4,15 +4,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // ════════════════════════════════════════════════════════════════
-//  WEB ŞOFÖR PANELİ v3
-//  - Proje seçimi + otomatik saat bazlı geçiş
-//  - Servisi başlat / bitir
-//  - Navigasyon aç
+//  WEB SOFOR PANELI v3
+//  - Proje secimi + otomatik saat bazli gecis
+//  - Servisi baslat / bitir
+//  - Navigasyon ac
 //  - Yoklama alma
-//  - Öğrenci geldi / Yaklaşıyor bildirimi
-//  - Konum paylaşma
+//  - Ogrenci geldi / Yaklasiyor bildirimi
+//  - Konum paylasma
 //  - Acil durum
-//  - Güvenlik: sadece kendi projesi
+//  - Guvenlik: sadece kendi projesi
 // ════════════════════════════════════════════════════════════════
 class WebSoforPanel extends StatefulWidget {
   const WebSoforPanel({super.key});
@@ -34,7 +34,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
   bool   _servisAktif = false;
   String _sabahSaati  = '';
   String _aksamSaati  = '';
-  int    _aktifTab    = 0; // 0=Ana, 1=Öğrenciler, 2=Yoklama
+  int    _aktifTab    = 0; // 0=Ana, 1=Ogrenciler, 2=Yoklama
 
   List<Map<String, dynamic>> _projeler   = [];
   Map<String, dynamic>?      _aktifProje;
@@ -78,7 +78,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
         }
       }
 
-      // Çoklu proje: firmaId + soforId ile ara
+      // Coklu proje: firmaId + soforId ile ara
       if (_projeler.isEmpty) {
         final snap = await FirebaseFirestore.instance
             .collection('projects')
@@ -93,11 +93,11 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
       }
 
       if (_aktifProje != null) await _ogrencileriYukle();
-    } catch (e) { debugPrint('Şoför yükleme: $e'); }
+    } catch (e) { debugPrint('Sofor yukleme: $e'); }
     if (mounted) setState(() => _yukleniyor = false);
   }
 
-  // Saate göre en yakın projeyi seç
+  // Saate gore en yakin projeyi sec
   Map<String, dynamic> _saateBakOtomatikSec(List<Map<String, dynamic>> projeler) {
     final now = TimeOfDay.now();
     final nowMin = now.hour * 60 + now.minute;
@@ -122,7 +122,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
   Future<void> _ogrencileriYukle() async {
     setState(() => _ogrencilerYuk = true);
     try {
-      // Önce surucuId ile sorgula (en doğru yöntem)
+      // Once surucuId ile sorgula (en dogru yontem)
       var snap = await FirebaseFirestore.instance
           .collection('students')
           .where('firmaId', isEqualTo: _firmaId)
@@ -142,28 +142,28 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     if (mounted) setState(() => _ogrencilerYuk = false);
   }
 
-  // ── Servis Başlat/Bitir ───────────────────────────────────────
+  // ── Servis Baslat/Bitir ───────────────────────────────────────
   Future<void> _servisBaslat() async {
     try {
       await FirebaseFirestore.instance.collection('drivers').doc(_soforId)
           .update({'servisAktif': true, 'servisBaslamaZamani': FieldValue.serverTimestamp()});
-      // Tüm velilere "Servis başladı" bildirimi kaydı
-      await _bildirimKaydet('Servis başladı', 'servis_basladi');
+      // Tum velilere "Servis basladi" bildirimi kaydi
+      await _bildirimKaydet('Servis basladi', 'servis_basladi');
       setState(() => _servisAktif = true);
-      _snack('Servis başlatıldı!', _green);
+      _snack('Servis baslatildi!', _green);
     } catch (e) { _snack('Hata: $e', _red); }
   }
 
   Future<void> _servisBitir() async {
     final onay = await _onayDialog('Servisi Bitir',
-        'Servisi bitirmek istediğinize emin misiniz?');
+        'Servisi bitirmek istediginize emin misiniz?');
     if (!onay) return;
     try {
       await FirebaseFirestore.instance.collection('drivers').doc(_soforId)
           .update({'servisAktif': false, 'servisBitisZamani': FieldValue.serverTimestamp()});
-      await _bildirimKaydet('Servis tamamlandı', 'servis_bitti');
+      await _bildirimKaydet('Servis tamamlandi', 'servis_bitti');
       setState(() => _servisAktif = false);
-      _snack('Servis tamamlandı!', _green);
+      _snack('Servis tamamlandi!', _green);
     } catch (e) { _snack('Hata: $e', _red); }
   }
 
@@ -172,7 +172,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     final gelecekler = _ogrenciler
         .where((o) => !(o['bugunGelmeyecek'] as bool? ?? false))
         .toList();
-    if (gelecekler.isEmpty) { _snack('Bugün gelecek öğrenci yok', _orange); return; }
+    if (gelecekler.isEmpty) { _snack('Bugun gelecek ogrenci yok', _orange); return; }
     final ilk = gelecekler.first;
     final lat = ilk['konum']?['lat'] ?? ilk['lat'];
     final lng = ilk['konum']?['lng'] ?? ilk['lng'];
@@ -181,26 +181,26 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
           'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
       if (await canLaunchUrl(url)) await launchUrl(url);
     } else {
-      _snack('Öğrenci konumu bulunamadı', _orange);
+      _snack('Ogrenci konumu bulunamadi', _orange);
     }
   }
 
   // ── Bildirimler ───────────────────────────────────────────────
   Future<void> _yaklasiyorBildirimi() async {
-    await _bildirimKaydet('Servis yaklaşıyor', 'yaklasisyor');
-    _snack('Yaklaşıyor bildirimi gönderildi!', _green);
+    await _bildirimKaydet('Servis yaklasiyor', 'yaklasisyor');
+    _snack('Yaklasiyor bildirimi gonderildi!', _green);
   }
 
   Future<void> _ogrenGeldiBildirimi(Map<String, dynamic> ogr) async {
     await _bildirimKaydet(
-        '${ogr['ad']} alındı', 'ogrenci_alindi',
+        '${ogr['ad']} alindi', 'ogrenci_alindi',
         ogrenciId: ogr['id']);
-    // Öğrenciyi alındı olarak işaretle
+    // Ogrenciyi alindi olarak isaretleme
     await FirebaseFirestore.instance
         .collection('students').doc(ogr['id'])
         .update({'alindi': true, 'alinmaZamani': FieldValue.serverTimestamp()});
     setState(() => ogr['alindi'] = true);
-    _snack('${ogr['ad']} alındı olarak işaretlendi', _green);
+    _snack('${ogr['ad']} alindi olarak isaretlendi', _green);
   }
 
   Future<void> _bildirimKaydet(String mesaj, String tip,
@@ -218,15 +218,15 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     } catch (e) { debugPrint('Bildirim: $e'); }
   }
 
-  // ── Konum Paylaş ──────────────────────────────────────────────
+  // ── Konum Paylas ──────────────────────────────────────────────
   Future<void> _konumPaylas() async {
-    _snack('Konum paylaşımı mobil uygulamada aktif olur', _orange);
+    _snack('Konum paylasimi mobil uygulamada aktif olur', _orange);
   }
 
   // ── Acil Durum ────────────────────────────────────────────────
   Future<void> _acilDurum() async {
     final onay = await _onayDialog('🚨 Acil Durum',
-        'Acil durum bildirimi gönderilecek.\nFirma yöneticiniz anında haberdar edilecek.',
+        'Acil durum bildirimi gonderilecek.\nFirma yoneticiniz aninda haberdar edilecek.',
         tehlikeli: true);
     if (!onay) return;
     try {
@@ -235,7 +235,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
         'firmaId': _firmaId, 'projeId': _aktifProje?['id'] ?? '',
         'zaman'  : FieldValue.serverTimestamp(), 'durum': 'beklemede',
       });
-      _snack('Acil durum bildirimi gönderildi!', _red);
+      _snack('Acil durum bildirimi gonderildi!', _red);
     } catch (e) { _snack('Hata: $e', _red); }
   }
 
@@ -249,13 +249,13 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
           title: Row(children: [
             const Icon(Icons.fact_check_outlined, color: _navy),
             const SizedBox(width: 8),
-            Text('Yoklama (${_ogrenciler.length} öğrenci)',
+            Text('Yoklama (${_ogrenciler.length} ogrenci)',
                 style: const TextStyle(fontSize: 16)),
           ]),
           content: SizedBox(
             width: 360,
             child: _ogrenciler.isEmpty
-                ? const Text('Öğrenci yok')
+                ? const Text('Ogrenci yok')
                 : ListView.builder(
               shrinkWrap: true,
               itemCount: _ogrenciler.length,
@@ -287,8 +287,8 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
                               : null,
                           color: gelmeyecek ? Colors.grey : null)),
                   subtitle: Text(
-                    gelmeyecek ? 'Bugün gelmeyecek'
-                        : alindi ? 'Alındı ✓' : 'Bekleniyor',
+                    gelmeyecek ? 'Bugun gelmeyecek'
+                        : alindi ? 'Alindi ✓' : 'Bekleniyor',
                     style: TextStyle(
                         fontSize: 11,
                         color: gelmeyecek ? Colors.grey
@@ -309,7 +309,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
                       await _ogrenGeldiBildirimi(o);
                       setD(() {});
                     },
-                    child: const Text('Aldım', style: TextStyle(fontSize: 11)),
+                    child: const Text('Aldim', style: TextStyle(fontSize: 11)),
                   )
                       : null,
                 );
@@ -325,7 +325,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     );
   }
 
-  // ── Yardımcılar ───────────────────────────────────────────────
+  // ── Yardimcilar ───────────────────────────────────────────────
   Future<bool> _onayDialog(String baslik, String icerik,
       {bool tehlikeli = false}) async {
     return await showDialog<bool>(
@@ -338,13 +338,13 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Vazgeç')),
+              child: const Text('Vazgec')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: tehlikeli ? _red : _navy,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(tehlikeli ? 'Gönder' : 'Evet'),
+            child: Text(tehlikeli ? 'Gonder' : 'Evet'),
           ),
         ],
       ),
@@ -399,17 +399,17 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
       ]),
     ]),
     actions: [
-      // Yaklaşıyor bildirimi
+      // Yaklasiyor bildirimi
       if (_servisAktif)
         IconButton(
           icon: const Icon(Icons.notifications_active_outlined),
-          tooltip: 'Yaklaşıyor Bildirimi',
+          tooltip: 'Yaklasiyor Bildirimi',
           onPressed: _yaklasiyorBildirimi,
         ),
-      // Çıkış
+      // Cikis
       IconButton(
         icon: const Icon(Icons.logout_outlined),
-        tooltip: 'Çıkış',
+        tooltip: 'Cikis',
         onPressed: () async {
           await FirebaseAuth.instance.signOut();
           if (mounted) Navigator.pushReplacementNamed(context, '/login');
@@ -426,28 +426,28 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     type: BottomNavigationBarType.fixed,
     items: const [
       BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Ana'),
-      BottomNavigationBarItem(icon: Icon(Icons.school_outlined), label: 'Öğrenciler'),
+      BottomNavigationBarItem(icon: Icon(Icons.school_outlined), label: 'Ogrenciler'),
       BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), label: 'Yoklama'),
       BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Harita'),
       BottomNavigationBarItem(icon: Icon(Icons.route_outlined), label: 'Rota'),
     ],
   );
 
-  // ── Atanmamış ─────────────────────────────────────────────────
+  // ── Atanmamis ─────────────────────────────────────────────────
   Widget _atanmamisEkran() => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.directions_bus_outlined, size: 80, color: Colors.grey[300]),
       const SizedBox(height: 16),
-      const Text('Atanmış Servis Yok',
+      const Text('Atanmis Servis Yok',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _navy)),
       const SizedBox(height: 8),
-      const Text('Henüz size atanmış aktif servis bulunmuyor.\nFirma yöneticinizle iletişime geçin.',
+      const Text('Henuz size atanmis aktif servis bulunmuyor.\nFirma yoneticinizle iletisime gecin.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.grey, fontSize: 14)),
     ]),
   );
 
-  // ── Ana İçerik ────────────────────────────────────────────────
+  // ── Ana Icerik ────────────────────────────────────────────────
   Widget _anaIcerik() {
     switch (_aktifTab) {
       case 1: return _ogrencilerSekme();
@@ -473,14 +473,14 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     ]),
   );
 
-  // ── Proje Seçici ──────────────────────────────────────────────
+  // ── Proje Secici ──────────────────────────────────────────────
   Widget _projeSecici() => Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8)]),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Proje Seç', style: TextStyle(
+      const Text('Proje Sec', style: TextStyle(
           fontWeight: FontWeight.bold, color: _navy, fontSize: 13)),
       const SizedBox(height: 8),
       Wrap(spacing: 8, runSpacing: 8,
@@ -512,10 +512,10 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     childAspectRatio: 2.2,
     children: [
       _buyukButon(_servisAktif ? Icons.stop_circle_outlined : Icons.play_circle_outlined,
-          _servisAktif ? 'Servisi Bitir' : 'Servisi Başlat',
+          _servisAktif ? 'Servisi Bitir' : 'Servisi Baslat',
           _servisAktif ? _red : _green,
           _servisAktif ? _servisBitir : _servisBaslat),
-      _buyukButon(Icons.map_outlined, 'Navigasyon Aç', Colors.blue, _navigasyonAc),
+      _buyukButon(Icons.map_outlined, 'Navigasyon Ac', Colors.blue, _navigasyonAc),
       _buyukButon(Icons.fact_check_outlined, 'Yoklama Al', _navy, _yoklamaDialog),
       _buyukButon(Icons.emergency_outlined, 'Acil Durum', _red, _acilDurum),
     ],
@@ -540,7 +540,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
         ),
       );
 
-  // ── Proje Kartı ───────────────────────────────────────────────
+  // ── Proje Karti ───────────────────────────────────────────────
   Widget _projeKarti() {
     final p   = _aktifProje!;
     final bas = p['baslangicSaati'] as String? ?? '';
@@ -590,7 +590,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     );
   }
 
-  // ── Öğrenci Özet ─────────────────────────────────────────────
+  // ── Ogrenci Ozet ─────────────────────────────────────────────
   Widget _ogrenciOzet() {
     if (_ogrencilerYuk) return const Center(
         child: CircularProgressIndicator(color: _navy));
@@ -608,14 +608,14 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
         Row(children: [
           const Icon(Icons.school_outlined, color: _navy, size: 18),
           const SizedBox(width: 8),
-          const Text('Öğrenci Durumu',
+          const Text('Ogrenci Durumu',
               style: TextStyle(fontWeight: FontWeight.bold, color: _navy)),
         ]),
         const SizedBox(height: 12),
         Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
           _miniStat('Toplam', '${_ogrenciler.length}', Colors.blue),
           _miniStat('Gelecek', '$gelecek', _green),
-          _miniStat('Alındı', '$alindi', _orange),
+          _miniStat('Alindi', '$alindi', _orange),
           _miniStat('Gelmeyecek',
               '${_ogrenciler.length - gelecek}', _red),
         ]),
@@ -629,12 +629,12 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
     Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
   ]);
 
-  // ── Öğrenciler Sekmesi ────────────────────────────────────────
+  // ── Ogrenciler Sekmesi ────────────────────────────────────────
   Widget _ogrencilerSekme() {
     if (_ogrencilerYuk) return const Center(
         child: CircularProgressIndicator(color: _navy));
     if (_ogrenciler.isEmpty) return const Center(
-        child: Text('Bu projeye kayıtlı öğrenci yok',
+        child: Text('Bu projeye kayitli ogrenci yok',
             style: TextStyle(color: Colors.grey)));
     return ListView.separated(
       padding: const EdgeInsets.all(16),
@@ -677,8 +677,8 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
           if (adres.isNotEmpty)
             Text(adres, style: const TextStyle(fontSize: 11, color: Colors.grey),
                 overflow: TextOverflow.ellipsis),
-          Text(!gelecek ? 'Bugün gelmeyecek'
-              : alindi ? '✓ Alındı' : 'Bekleniyor',
+          Text(!gelecek ? 'Bugun gelmeyecek'
+              : alindi ? '✓ Alindi' : 'Bekleniyor',
               style: TextStyle(fontSize: 11,
                   color: !gelecek ? Colors.grey
                       : alindi ? _green : Colors.orange,
@@ -703,7 +703,7 @@ class _WebSoforPanelState extends State<WebSoforPanel> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-              child: const Text('Aldım', style: TextStyle(fontSize: 11)),
+              child: const Text('Aldim', style: TextStyle(fontSize: 11)),
             ),
         ]),
       ]),
